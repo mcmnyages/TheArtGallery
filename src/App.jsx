@@ -58,10 +58,10 @@ function AppContent() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <TopNavBar toggleSidebar={toggleSidebar} />
       
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex mt-16">
         {isAuthenticated && (
           <LeftSidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} isMobile={isMobile} />
         )}
@@ -120,11 +120,6 @@ function AppContent() {
                 <CreateGalleryPage />
               </ArtistRoute>
             } />
-            <Route path="/artist/gallery/create" element={
-              <ArtistRoute>
-                <CreateGalleryPage />
-              </ArtistRoute>
-            } />
             <Route path="/artist/gallery/edit/:id" element={
               <ArtistRoute>
                 <CreateGalleryPage />
@@ -134,7 +129,7 @@ function AppContent() {
         </PageContainer>
       </div>
       
-      {isAuthenticated && <BottomNavBar isMobile={isMobile} />}
+      {isAuthenticated && isMobile && <BottomNavBar />}
     </div>
   );
 }

@@ -19,9 +19,11 @@ const TopNavBar = ({ toggleSidebar }) => {
   };
 
   return (
-    <nav className="bg-white dark:bg-gray-800 shadow-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+    <nav className={`fixed top-0 left-0 right-0 h-16 z-50 ${
+      isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+    } border-b`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
+        <div className="flex justify-between h-full">
           <div className="flex">
             {/* Mobile menu button */}
             {isAuthenticated && (
@@ -50,21 +52,21 @@ const TopNavBar = ({ toggleSidebar }) => {
             )}
 
             {/* Logo */}
-            <div className="flex-shrink-0 flex items-center">                <Link to="/" className="flex items-center">
+            <div className="flex-shrink-0 flex items-center h-full">                <Link to="/" className="flex items-center h-full">
                 <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">Kabbala</span>
                 <span className="ml-1 text-gray-500 dark:text-gray-400 text-sm hidden sm:inline">Gallery</span>
               </Link>
             </div>
 
             {/* Desktop nav links */}
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+            <div className="hidden sm:ml-6 sm:flex sm:space-x-8 h-full items-center">
               <Link
                 to="/"
                 className={`${
                   location.pathname === '/' 
                     ? 'border-blue-500 text-gray-900' 
                     : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium h-full`}
               >
                 Home
               </Link>
@@ -75,7 +77,7 @@ const TopNavBar = ({ toggleSidebar }) => {
                     location.pathname === '/galleries' 
                       ? 'border-blue-500 text-gray-900' 
                       : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                  } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                  } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium h-full`}
                 >
                   Galleries
                 </Link>
@@ -86,7 +88,7 @@ const TopNavBar = ({ toggleSidebar }) => {
                   location.pathname === '/subscriptions' 
                     ? 'border-blue-500 text-gray-900' 
                     : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium h-full`}
               >
                 Subscriptions
               </Link>
@@ -94,7 +96,7 @@ const TopNavBar = ({ toggleSidebar }) => {
           </div>
 
           {/* Right side menu */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 h-full">
             {/* Theme toggle button */}
             <button
               onClick={toggleTheme}
