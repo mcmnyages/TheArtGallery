@@ -43,9 +43,15 @@ const LoginForm = () => {
       const result = await login(email, password);
       
       if (result.success) {
-        navigate('/galleries');
+        // Redirect based on user role
+        const userRole = result.user?.role || 'user';
+        if (userRole === 'artist') {
+          navigate('/artist/dashboard');
+        } else {
+          navigate('/galleries');
+        }
       } else {
-        setLoginError(result.error);
+        setLoginError(result.error || 'Invalid credentials');
       }
     } catch (error) {
       setLoginError('An unexpected error occurred. Please try again.');

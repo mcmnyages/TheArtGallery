@@ -1,34 +1,39 @@
-import React, { createContext, useState, useEffect } from 'react';
-import * as tokenService from '../services/tokenService';
-import { mockApi } from '../data/mockData';
-
-// Create context with default values
-export const AuthContext = createContext({
-  isAuthenticated: false,
-  user: null,
-  isLoading: true,
-  login: () => {},
-  logout: () => {},
-  register: () => {},
-  updateUser: () => {}
-});
+import React, { useState, useEffect } from 'react';
+import * as tokenService from '../../services/tokenService';
+import { mockApi } from '../../data/mockData';
+import { AuthContext } from './context';
 
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-
   const handleAuthSuccess = (userData, tokens) => {
-    setUser(userData);
+    // Ensure user data has all required fields
+    const enrichedUserData = {
+      ...userData,
+      role: userData.role || 'user',
+      permissions: userData.permissions || [],
+      membershipTier: userData.membershipTier || 'free'
+    };
+    
+    setUser(enrichedUserData);
     setIsAuthenticated(true);
     tokenService.setTokens(tokens);
+    
+    // Cache user data with role information
+    localStorage.setItem('user', JSON.stringify(enrichedUserData));
   };
-
   const handleLogin = async (email, password) => {
     try {
       const response = await mockApi.login(email, password);
-      handleAuthSuccess(response.user, response.tokens);
-      return { success: true, user: response.user };
+      const { data } = response;
+      
+      if (data && data.user && data.tokens) {
+        handleAuthSuccess(data.user, data.tokens);
+        return { success: true, user: data.user };
+      } else {
+        return { success: false, error: 'Invalid response from server' };
+      }
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -36,6 +41,7 @@ export const AuthProvider = ({ children }) => {
 
   const handleLogout = () => {
     tokenService.clearTokens();
+    localStorage.removeItem('user');
     setUser(null);
     setIsAuthenticated(false);
   };
@@ -52,10 +58,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const handleUpdateUser = (userData) => {
-    setUser(prevUser => ({
-      ...prevUser,
-      ...userData
-    }));
+    setUser(prevUser => {
+      const updatedUser = { ...prevUser, ...userData };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      return updatedUser;
+    });
   };
 
   // Check for existing authentication on mount

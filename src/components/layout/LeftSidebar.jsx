@@ -1,47 +1,76 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../contexts/ThemeContext';
+import { 
+  HiHome, 
+  HiPhotograph, 
+  HiCreditCard, 
+  HiUser, 
+  HiChartBar, 
+  HiUpload,
+  HiViewGrid,
+  HiPlusCircle,
+  HiChevronLeft,
+  HiChevronRight,
+  HiX
+} from 'react-icons/hi';
 
 const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
   const location = useLocation();
+  const { user, logout } = useAuth();
+  const { isDarkMode } = useTheme();
 
-  const navLinks = [
+  // Get base navigation links
+  const getBaseNavLinks = () => [
     {
       name: 'Home',
       path: '/',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-        </svg>
-      ),
+      icon: <HiHome className="h-6 w-6" />
     },
     {
       name: 'All Galleries',
       path: '/galleries',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-      ),
+      icon: <HiPhotograph className="h-6 w-6" />
     },
     {
       name: 'Subscriptions',
       path: '/subscriptions',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-        </svg>
-      ),
+      icon: <HiCreditCard className="h-6 w-6" />
     },
     {
       name: 'Account',
       path: '/account',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-        </svg>
-      ),
+      icon: <HiUser className="h-6 w-6" />
     }
   ];
+
+  // Get artist-specific navigation links
+  const getArtistNavLinks = () => [
+    {
+      name: 'Artist Dashboard',
+      path: '/artist/dashboard',
+      icon: <HiChartBar className="h-6 w-6" />
+    },
+    {
+      name: 'Upload Artwork',
+      path: '/artist/upload',
+      icon: <HiUpload className="h-6 w-6" />
+    },
+    {
+      name: 'Manage Gallery',
+      path: '/artist/gallery',
+      icon: <HiViewGrid className="h-6 w-6" />
+    },
+    {
+      name: 'Create Gallery',
+      path: '/artist/gallery/create',
+      icon: <HiPlusCircle className="h-6 w-6" />
+    }
+  ];
+
+  // Combine base and role-specific navigation links
+  const navLinks = [...getBaseNavLinks(), ...(user?.role === 'artist' ? getArtistNavLinks() : [])];
 
   // If mobile, render a sliding sidebar with overlay
   if (isMobile) {
@@ -55,74 +84,164 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
           ></div>
         )}
         
-        {/* Sidebar */}
+        {/* Mobile Sidebar */}
         <aside 
-          className={`fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
+          className={`fixed inset-y-0 left-0 z-30 w-64 shadow-lg transform transition-all duration-300 ease-in-out ${
             isOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+          } ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}
         >
-          <div className="flex items-center justify-between h-16 px-4 border-b">
-            <span className="text-xl font-semibold text-blue-600">Navigation</span>
-            <button 
-              onClick={() => setIsOpen(false)}
-              className="rounded-md p-1 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          
-          <nav className="mt-4 px-2 space-y-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.name}
-                to={link.path}
-                className={`flex items-center px-4 py-3 rounded-md text-sm font-medium transition-colors ${
-                  location.pathname === link.path
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+          <div className="flex flex-col h-full">
+            <div className={`flex items-center justify-between h-16 px-4 ${
+              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+            } border-b`}>
+              <span className={`text-xl font-semibold ${
+                isDarkMode ? 'text-purple-400' : 'text-blue-600'
+              }`}>Navigation</span>
+              <button 
+                onClick={() => setIsOpen(false)}
+                className={`rounded-md p-1 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                  isDarkMode
+                    ? 'text-gray-400 hover:text-gray-300'
+                    : 'text-gray-500 hover:text-gray-700'
                 }`}
-                onClick={() => isMobile && setIsOpen(false)}
               >
-                <span className={`mr-3 ${location.pathname === link.path ? 'text-blue-600' : 'text-gray-500'}`}>
-                  {link.icon}
-                </span>
-                <span>{link.name}</span>
-              </Link>
-            ))}
-          </nav>
+                <HiX className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="flex-1 flex flex-col">
+              <nav className="flex-1 mt-4 px-2 space-y-1">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.name}
+                    to={link.path}
+                    className={`flex items-center px-4 py-3 rounded-md text-sm font-medium transition-colors ${
+                      location.pathname === link.path
+                        ? isDarkMode
+                          ? 'bg-purple-900 text-purple-100'
+                          : 'bg-blue-100 text-blue-700'
+                        : isDarkMode
+                          ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                    onClick={() => isMobile && setIsOpen(false)}
+                  >
+                    <span className={`mr-3 transition-colors ${
+                      location.pathname === link.path 
+                        ? isDarkMode
+                          ? 'text-purple-400'
+                          : 'text-blue-600'
+                        : isDarkMode
+                          ? 'text-gray-400'
+                          : 'text-gray-500'
+                    }`}>
+                      {link.icon}
+                    </span>
+                    <span>{link.name}</span>
+                  </Link>
+                ))}
+              </nav>
+
+              <div className={`p-4 ${isDarkMode ? 'border-t border-gray-700' : 'border-t border-gray-200'}`}>
+                <button
+                  onClick={logout}
+                  className={`w-full flex items-center px-4 py-3 rounded-md text-sm font-medium transition-colors ${
+                    isDarkMode
+                      ? 'text-red-400 hover:bg-gray-700 hover:text-red-300'
+                      : 'text-red-600 hover:bg-gray-100 hover:text-red-700'
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  <span className="ml-3">Logout</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </aside>
       </>
     );
   }
 
-  // Desktop sidebar - always visible
+  // Desktop sidebar
   return (
-    <aside className="w-64 bg-white shadow-md z-10">
+    <aside className={`fixed top-16 left-0 h-[calc(100vh-4rem)] transform transition-all duration-300 ease-in-out ${
+      isOpen ? 'w-64 translate-x-0' : 'w-20 translate-x-0'
+    } ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md z-10`}>
       <div className="flex flex-col h-full">
-        <div className="flex items-center h-16 px-6 border-b">
-          <span className="text-xl font-semibold text-blue-600">Navigation</span>
+        <div className={`flex items-center justify-between h-16 px-4 ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        } border-b`}>
+          {isOpen && (
+            <span className={`text-xl font-semibold ${
+              isDarkMode ? 'text-purple-400' : 'text-blue-600'
+            }`}>Navigation</span>
+          )}
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className={`rounded-md p-1 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+              isDarkMode
+                ? 'text-gray-400 hover:text-gray-300'
+                : 'text-gray-500 hover:text-gray-700'
+            } ${isOpen ? 'ml-auto' : 'mx-auto'}`}
+          >
+            {isOpen ? (
+              <HiChevronLeft className="h-6 w-6" />
+            ) : (
+              <HiChevronRight className="h-6 w-6" />
+            )}
+          </button>
         </div>
         
-        <nav className="flex-1 px-4 mt-6 space-y-2">
-          {navLinks.map((link) => (
-            <Link
+        <div className="flex flex-col flex-1">
+          <nav className={`flex-1 px-2 py-4 space-y-1 overflow-y-auto`}>
+            {navLinks.map((link) => (
+              <Link
               key={link.name}
               to={link.path}
-              className={`flex items-center px-4 py-3 rounded-md text-sm font-medium transition-colors ${
+              className={`flex items-center px-2 py-3 rounded-md text-sm font-medium transition-colors ${
                 location.pathname === link.path
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                  ? isDarkMode
+                    ? 'bg-purple-900 text-purple-100'
+                    : 'bg-blue-100 text-blue-700'
+                  : isDarkMode
+                    ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
               }`}
             >
-              <span className={`mr-3 ${location.pathname === link.path ? 'text-blue-600' : 'text-gray-500'}`}>
+              <span className={`transition-colors ${
+                location.pathname === link.path 
+                  ? isDarkMode
+                    ? 'text-purple-400'
+                    : 'text-blue-600'
+                  : isDarkMode
+                    ? 'text-gray-400'
+                    : 'text-gray-500'
+              }`}>
                 {link.icon}
               </span>
-              <span>{link.name}</span>
+              {isOpen && <span className="ml-3">{link.name}</span>}
             </Link>
           ))}
-        </nav>
+          </nav>
+
+          <div className={`p-4 ${isDarkMode ? 'border-t border-gray-700' : 'border-t border-gray-200'}`}>
+            <button
+              onClick={logout}
+              className={`w-full flex items-center px-2 py-3 rounded-md text-sm font-medium transition-colors ${
+                isDarkMode
+                  ? 'text-red-400 hover:bg-gray-700 hover:text-red-300'
+                  : 'text-red-600 hover:bg-gray-100 hover:text-red-700'
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              {isOpen && <span className="ml-3">Logout</span>}
+            </button>
+          </div>
+        </div>
       </div>
     </aside>
   );

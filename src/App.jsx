@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthContext/index';
+import { ArtistProvider } from './contexts/ArtistContext';
+import { SubscriptionProvider } from './contexts/SubscriptionContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import TopNavBar from './components/layout/TopNavBar';
 import LeftSidebar from './components/layout/LeftSidebar';
 import BottomNavBar from './components/layout/BottomNavBar';
@@ -12,6 +15,11 @@ import GalleriesPage from './pages/GalleriesPage';
 import GalleryDetailPage from './pages/GalleryDetailPage';
 import SubscriptionsPage from './pages/SubscriptionsPage';
 import AccountPage from './pages/AccountPage';
+import DashboardPage from './pages/artist/DashboardPage';
+import UploadArtworkPage from './pages/artist/UploadArtworkPage';
+import ManageGalleryPage from './pages/artist/ManageGalleryPage';
+import CreateGalleryPage from './pages/artist/CreateGalleryPage';
+import ArtistRoute from './components/auth/ArtistRoute';
 import { useAuth } from './hooks/useAuth';
 
 // Protected Route Component
@@ -50,7 +58,7 @@ function AppContent() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
       <TopNavBar toggleSidebar={toggleSidebar} />
       
       <div className="flex flex-1 overflow-hidden">
@@ -63,38 +71,65 @@ function AppContent() {
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            <Route 
-              path="/galleries" 
-              element={
-                <ProtectedRoute>
-                  <GalleriesPage />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/gallery/:id" 
-              element={
-                <ProtectedRoute>
-                  <GalleryDetailPage />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/subscriptions" 
-              element={
-                <ProtectedRoute>
-                  <SubscriptionsPage />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/account" 
-              element={
-                <ProtectedRoute>
-                  <AccountPage />
-                </ProtectedRoute>
-              } 
-            />
+            
+            {/* Public Routes */}
+            <Route path="/galleries" element={
+              <ProtectedRoute>
+                <GalleriesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/gallery/:id" element={
+              <ProtectedRoute>
+                <GalleryDetailPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/subscriptions" element={
+              <ProtectedRoute>
+                <SubscriptionsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/account" element={
+              <ProtectedRoute>
+                <AccountPage />
+              </ProtectedRoute>
+            } />
+            
+            {/* Artist Routes */}
+            <Route path="/artist" element={
+              <ArtistRoute>
+                <DashboardPage />
+              </ArtistRoute>
+            } />
+            <Route path="/artist/dashboard" element={
+              <ArtistRoute>
+                <DashboardPage />
+              </ArtistRoute>
+            } />
+            <Route path="/artist/upload" element={
+              <ArtistRoute>
+                <UploadArtworkPage />
+              </ArtistRoute>
+            } />
+            <Route path="/artist/gallery" element={
+              <ArtistRoute>
+                <ManageGalleryPage />
+              </ArtistRoute>
+            } />
+            <Route path="/artist/gallery/create" element={
+              <ArtistRoute>
+                <CreateGalleryPage />
+              </ArtistRoute>
+            } />
+            <Route path="/artist/gallery/create" element={
+              <ArtistRoute>
+                <CreateGalleryPage />
+              </ArtistRoute>
+            } />
+            <Route path="/artist/gallery/edit/:id" element={
+              <ArtistRoute>
+                <CreateGalleryPage />
+              </ArtistRoute>
+            } />
           </Routes>
         </PageContainer>
       </div>
@@ -108,7 +143,13 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        <SubscriptionProvider>
+          <ArtistProvider>
+            <ThemeProvider>
+              <AppContent />
+            </ThemeProvider>
+          </ArtistProvider>
+        </SubscriptionProvider>
       </AuthProvider>
     </Router>
   );

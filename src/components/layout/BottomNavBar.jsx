@@ -1,8 +1,10 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const BottomNavBar = ({ isMobile }) => {
   const location = useLocation();
+  const { isDarkMode } = useTheme();
   
   // If not mobile, don't render this component
   if (!isMobile) {
@@ -49,26 +51,37 @@ const BottomNavBar = ({ isMobile }) => {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t z-20">
-      <div className="flex justify-around">
-        {navItems.map((item) => (
-          <Link
-            key={item.name}
-            to={item.path}
-            className={`flex flex-col items-center py-2 flex-1 ${
-              location.pathname === item.path
-                ? 'text-blue-600'
-                : 'text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            <span className="inline-flex items-center justify-center">
-              {item.icon}
-            </span>
-            <span className="text-xs mt-1">{item.name}</span>
-          </Link>
-        ))}
+    <nav className={`fixed bottom-0 left-0 right-0 z-50 ${
+      isDarkMode ? 'bg-gray-800 border-t border-gray-700' : 'bg-white border-t border-gray-200'
+    } shadow-lg`}>
+      <div className="max-w-md mx-auto px-4">
+        <div className="flex justify-around">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.name}
+                to={item.path}
+                className={`flex flex-col items-center py-3 px-2 ${
+                  isActive
+                    ? isDarkMode
+                      ? 'text-purple-400'
+                      : 'text-purple-600'
+                    : isDarkMode
+                    ? 'text-gray-400 hover:text-white'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <span className={`${isActive ? 'transform scale-110' : ''}`}>
+                  {item.icon}
+                </span>
+                <span className="mt-1 text-xs">{item.name}</span>
+              </Link>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </nav>
   );
 };
 

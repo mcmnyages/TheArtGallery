@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ImageViewer from '../components/gallery/ImageViewer';
+import SubscriptionManager from '../components/subscription/SubscriptionManager';
+import { useSubscription } from '../hooks/useSubscription';
+import { useTheme } from '../contexts/ThemeContext';
 
 const GalleryDetailPage = () => {
   const { galleryId } = useParams();
   const navigate = useNavigate();
+  const { hasGalleryAccess } = useSubscription();
+  const { isDarkMode } = useTheme();
   
   const [gallery, setGallery] = useState(null);
   const [images, setImages] = useState([]);
@@ -12,6 +17,8 @@ const GalleryDetailPage = () => {
   const [error, setError] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [viewerOpen, setViewerOpen] = useState(false);
+
+  const hasAccess = gallery ? hasGalleryAccess(gallery.id) : false;
   
   useEffect(() => {
     const fetchGalleryDetails = async () => {
@@ -147,73 +154,89 @@ const GalleryDetailPage = () => {
   }
   
   return (
-    <div>
-      {/* Back button */}
-      <div className="mb-6">
-        <button 
-          onClick={handleGoBack}
-          className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
-        >
-          <svg className="mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-          </svg>
-          Back to Galleries
-        </button>
-      </div>
-
-      {/* Gallery header */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">{gallery.title}</h1>
-        <p className="text-gray-600 mb-4">{gallery.description}</p>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center mb-2 sm:mb-0">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              {gallery.category.charAt(0).toUpperCase() + gallery.category.slice(1)}
-            </span>
-            <span className="ml-4 text-sm text-gray-500">
-              Curated by {gallery.curator}
-            </span>
-          </div>
-          <span className="text-sm text-gray-500">
-            Created on {new Date(gallery.createdAt).toLocaleDateString()}
-          </span>
+    <div className="container mx-auto px-4 py-8">
+      {loading ? (
+        <div className="flex justify-center items-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
         </div>
-      </div>
-
-      {/* Gallery images */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {images.map(image => (
-          <div 
-            key={image.id}
-            onClick={() => handleImageClick(image)}
-            className="bg-white rounded-lg overflow-hidden shadow hover:shadow-lg transition-shadow cursor-pointer group"
+      ) : error ? (
+        <div className="text-center text-red-600">
+          <p>{error}</p>
+          <button 
+            onClick={() => navigate('/galleries')}
+            className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
           >
-            <div className="h-64 bg-gray-200 overflow-hidden">
-              <img 
-                src={image.imageUrl} 
-                alt={image.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              />
+            Back to Galleries
+          </button>
+        </div>
+      ) : (
+        <div>
+          <h1 className={`text-3xl font-bold mb-4 ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>{gallery.title}</h1>
+          <p className={`mb-6 ${
+            isDarkMode ? 'text-gray-300' : 'text-gray-600'
+          }`}>{gallery.description}</p>
+          
+          <SubscriptionManager gallery={gallery} />
+          
+          {!hasAccess ? (
+            <div className={`mt-8 p-6 rounded-lg text-center ${
+              isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+            }`}>
+              <h3 className={`text-xl font-semibold mb-2 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Subscribe to View Gallery</h3>
+              <p className={`${
+                isDarkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
+                This content is exclusive to subscribers. Please subscribe to access the full gallery.
+              </p>
             </div>
-            <div className="p-4">
-              <h3 className="font-medium text-gray-900">{image.title}</h3>
-              <p className="text-gray-500 text-sm mt-1">{image.artist}, {image.year}</p>
-              <p className="text-gray-400 text-xs mt-1">{image.medium}</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-8">
+              {images.map(image => (
+                <div 
+                  key={image.id}
+                  onClick={() => handleImageClick(image)}
+                  className={`rounded-lg overflow-hidden shadow hover:shadow-lg transition-shadow cursor-pointer group ${
+                    isDarkMode ? 'bg-gray-800' : 'bg-white'
+                  }`}
+                >
+                  <div className="h-64 bg-gray-200 overflow-hidden">
+                    <img 
+                      src={image.imageUrl} 
+                      alt={image.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                  <div className="p-4">
+                    <h3 className={`font-medium ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{image.title}</h3>
+                    <p className={`text-sm mt-1 ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                    }`}>{image.artist}, {image.year}</p>
+                    <p className={`text-xs mt-1 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-400'
+                    }`}>{image.medium}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Image viewer modal */}
-      {viewerOpen && selectedImage && (
-        <ImageViewer
-          image={selectedImage}
-          onClose={handleCloseViewer}
-          onPrevious={handlePrevImage}
-          onNext={handleNextImage}
-          totalImages={images.length}
-          currentIndex={images.findIndex(img => img.id === selectedImage.id) + 1}
-        />
+          )}
+          
+          {viewerOpen && selectedImage && (
+            <ImageViewer
+              image={selectedImage}
+              onClose={() => setViewerOpen(false)}
+              onPrevious={handlePrevImage}
+              onNext={handleNextImage}
+              totalImages={images.length}
+              currentIndex={images.findIndex(img => img.id === selectedImage.id)}
+            />
+          )}
+        </div>
       )}
     </div>
   );

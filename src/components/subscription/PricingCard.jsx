@@ -1,7 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const PricingCard = ({ plan, isActive = false, onSelect }) => {
+  const { isDarkMode } = useTheme();
   const {
     id,
     name,
@@ -14,61 +16,78 @@ const PricingCard = ({ plan, isActive = false, onSelect }) => {
   } = plan;
 
   return (
-    <div className={`bg-white rounded-lg shadow-lg overflow-hidden transition-transform duration-300 hover:-translate-y-1 
-      ${isActive ? 'ring-2 ring-blue-500' : ''} 
-      ${popularChoice ? 'border-2 border-blue-500' : 'border border-gray-200'}`}
+    <div className={`rounded-lg shadow-lg overflow-hidden transition-transform duration-300 hover:-translate-y-1 
+      ${isDarkMode ? 'bg-gray-800' : 'bg-white'}
+      ${isActive 
+        ? isDarkMode 
+          ? 'ring-2 ring-purple-500' 
+          : 'ring-2 ring-blue-500'
+        : ''} 
+      ${popularChoice 
+        ? isDarkMode
+          ? 'border-2 border-purple-500'
+          : 'border-2 border-blue-500'
+        : isDarkMode
+          ? 'border border-gray-700'
+          : 'border border-gray-200'}`}
     >
       {/* Popular choice badge */}
       {popularChoice && (
-        <div className="bg-blue-500 text-white text-center py-1 px-4 font-medium text-sm">
+        <div className={`text-white text-center py-1 px-4 font-medium text-sm ${
+          isDarkMode ? 'bg-purple-600' : 'bg-blue-500'
+        }`}>
           Most Popular
         </div>
       )}
       
       <div className="p-6">
-        <h3 className="text-xl font-bold text-gray-900">{name}</h3>
+        <h3 className={`text-xl font-bold ${
+          isDarkMode ? 'text-white' : 'text-gray-900'
+        }`}>{name}</h3>
         <div className="mt-4 flex items-baseline">
-          <span className="text-4xl font-extrabold text-gray-900">{currency}{price}</span>
-          <span className="ml-1 text-xl font-medium text-gray-500">/{billingPeriod}</span>
+          <span className={`text-4xl font-extrabold ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>{currency}{price}</span>
+          <span className={`ml-2 text-base ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-500'
+          }`}>/{billingPeriod}</span>
         </div>
         
-        <p className="mt-5 text-gray-500">{description}</p>
+        <p className={`mt-4 text-sm ${
+          isDarkMode ? 'text-gray-400' : 'text-gray-500'
+        }`}>{description}</p>
         
         <ul className="mt-6 space-y-4">
           {features.map((feature, index) => (
             <li key={index} className="flex items-start">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <span className={`flex-shrink-0 h-5 w-5 ${
+                isDarkMode ? 'text-purple-400' : 'text-blue-500'
+              }`}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-              </div>
-              <p className="ml-3 text-base text-gray-700">{feature}</p>
+              </span>
+              <span className={`ml-2 text-sm ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>{feature}</span>
             </li>
           ))}
         </ul>
         
-        <div className="mt-8">
-          {isActive ? (
-            <div className="flex flex-col space-y-3">
-              <span className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100">
-                Current Plan
-              </span>
-              <Link 
-                to="/account" 
-                className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Manage Subscription
-              </Link>
-            </div>
-          ) : (
-            <button
-              onClick={() => onSelect(id)}
-              className="w-full inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-            >
-              Get Started
-            </button>
-          )}
-        </div>
+        <button
+          onClick={() => onSelect(id)}
+          className={`mt-8 w-full rounded-md px-4 py-2 text-sm font-medium shadow-sm transition-colors ${
+            isDarkMode
+              ? isActive
+                ? 'bg-purple-600 text-white hover:bg-purple-700'
+                : 'bg-gray-700 text-white hover:bg-gray-600'
+              : isActive
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
+          }`}
+        >
+          {isActive ? 'Current Plan' : 'Select Plan'}
+        </button>
       </div>
     </div>
   );

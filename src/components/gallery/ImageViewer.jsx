@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const ImageViewer = ({ image, onClose, onPrevious, onNext, totalImages, currentIndex }) => {
+  const { isDarkMode } = useTheme();
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -88,104 +90,121 @@ const ImageViewer = ({ image, onClose, onPrevious, onNext, totalImages, currentI
   };
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex flex-col justify-center items-center">
-      {/* Close button */}
-      <button
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div 
+        className={`absolute inset-0 ${
+          isDarkMode ? 'bg-black bg-opacity-90' : 'bg-gray-900 bg-opacity-75'
+        }`} 
         onClick={onClose}
-        className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
-        aria-label="Close viewer"
-      >
-        <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
+      />
       
-      {/* Image container */}
-      <div
-        className={`flex-1 w-full flex justify-center items-center overflow-hidden ${isDragging ? 'cursor-grabbing' : zoomLevel > 1 ? 'cursor-grab' : 'cursor-default'}`}
-        onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      >
-        <img
-          src={image.imageUrl}
-          alt={image.title}
-          className="max-h-full max-w-full object-contain transition-transform duration-100"
-          style={{
-            transform: `scale(${zoomLevel}) translate(${position.x}px, ${position.y}px)`,
-            transformOrigin: 'center',
-          }}
-        />
-      </div>
-      
-      {/* Bottom toolbar */}
-      <div className="w-full bg-black bg-opacity-50 px-4 py-3 flex justify-between items-center">
-        {/* Left - Image info */}
-        <div className="text-white">
-          <h3 className="font-medium">{image.title}</h3>
-          <div className="text-sm opacity-75">
-            <p>{image.artist}, {image.year}</p>
-            <p>{image.medium}</p>
+      {/* Controls */}
+      <div className={`relative z-10 w-full h-full ${
+        isDarkMode ? 'text-gray-200' : 'text-gray-100'
+      }`}>
+        {/* Actions bar */}
+        <div className={`flex items-center justify-between p-4 ${
+          isDarkMode ? 'bg-gray-900' : 'bg-black bg-opacity-50'
+        }`}>
+          <button
+            onClick={onClose}
+            className={`p-2 rounded-full transition-colors ${
+              isDarkMode 
+                ? 'hover:bg-gray-800 text-gray-300' 
+                : 'hover:bg-gray-700 text-white'
+            }`}
+          >
+            <span>Close</span>
+          </button>
+          <div className="text-sm">
+            {currentIndex + 1} / {totalImages}
           </div>
         </div>
-        
-        {/* Center - Navigation */}
-        <div className="flex items-center space-x-4">
+
+        {/* Main content with navigation */}
+        <div className="relative flex-1">
+          {/* Previous/Next buttons */}
           <button
             onClick={onPrevious}
-            className="text-white hover:text-gray-300"
-            aria-label="Previous image"
+            className={`absolute left-4 top-1/2 p-2 rounded-full -translate-y-1/2 ${
+              isDarkMode 
+                ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' 
+                : 'bg-black bg-opacity-50 hover:bg-opacity-75 text-white'
+            }`}
           >
-            <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+            Previous
           </button>
-          <div className="text-white text-sm">
-            {currentIndex} / {totalImages}
-          </div>
           <button
             onClick={onNext}
-            className="text-white hover:text-gray-300"
-            aria-label="Next image"
+            className={`absolute right-4 top-1/2 p-2 rounded-full -translate-y-1/2 ${
+              isDarkMode 
+                ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' 
+                : 'bg-black bg-opacity-50 hover:bg-opacity-75 text-white'
+            }`}
           >
-            <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+            Next
           </button>
+
+          {/* Image container */}
+          <div 
+            className="h-full flex items-center justify-center"
+            onWheel={handleWheel}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+          >
+            <img
+              src={image.url}
+              alt={image.title}
+              className="max-h-full max-w-full object-contain"
+              style={{
+                transform: `translate(${position.x}px, ${position.y}px) scale(${zoomLevel})`,
+                transition: isDragging ? 'none' : 'transform 0.2s ease-out'
+              }}
+              draggable={false}
+            />
+          </div>
         </div>
-        
-        {/* Right - Zoom controls */}
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={handleZoomOut}
-            className="text-white hover:text-gray-300 p-1"
-            aria-label="Zoom out"
-            disabled={zoomLevel <= 0.5}
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-            </svg>
-          </button>
-          <span className="text-white text-sm w-12 text-center">{Math.round(zoomLevel * 100)}%</span>
-          <button
-            onClick={handleZoomIn}
-            className="text-white hover:text-gray-300 p-1"
-            aria-label="Zoom in"
-            disabled={zoomLevel >= 3}
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-          <button
-            onClick={handleReset}
-            className="text-white hover:text-gray-300 ml-2 text-xs"
-            aria-label="Reset zoom"
-          >
-            Reset
-          </button>
+
+        {/* Zoom controls */}
+        <div className={`p-4 ${
+          isDarkMode ? 'bg-gray-900' : 'bg-black bg-opacity-50'
+        }`}>
+          <div className="flex items-center justify-center space-x-4">
+            <button
+              onClick={handleZoomOut}
+              className={`p-2 rounded-full ${
+                isDarkMode 
+                  ? 'hover:bg-gray-800 text-gray-300' 
+                  : 'hover:bg-gray-700 text-white'
+              }`}
+            >
+              Zoom Out
+            </button>
+            <span>{Math.round(zoomLevel * 100)}%</span>
+            <button
+              onClick={handleZoomIn}
+              className={`p-2 rounded-full ${
+                isDarkMode 
+                  ? 'hover:bg-gray-800 text-gray-300' 
+                  : 'hover:bg-gray-700 text-white'
+              }`}
+            >
+              Zoom In
+            </button>
+            <button
+              onClick={handleReset}
+              className={`p-2 rounded-full ${
+                isDarkMode 
+                  ? 'hover:bg-gray-800 text-gray-300' 
+                  : 'hover:bg-gray-700 text-white'
+              }`}
+            >
+              Reset
+            </button>
+          </div>
         </div>
       </div>
     </div>
