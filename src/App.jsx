@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext/index';
-import { ArtistProvider } from './contexts/ArtistContext';
+import { ArtistProvider } from './contexts/ArtistContext/provider';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import TopNavBar from './components/layout/TopNavBar';

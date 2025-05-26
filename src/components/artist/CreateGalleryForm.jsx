@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useArtist } from '../../contexts/ArtistContext';
+import { useArtist } from '../../hooks/useArtistContext';
 
 const CreateGalleryForm = () => {
   const navigate = useNavigate();

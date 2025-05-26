@@ -1,6 +1,6 @@
 import * as tokenService from './tokenService';
 
-const API_BASE_URL = 'https://api.kabbala-gallery.com/v1'; // Would be a real API URL in production
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 /**
  * Configure axios with authentication headers

@@ -1,7 +1,6 @@
-import React, { createContext, useState, useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
-
-export const ArtistContext = createContext();
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../hooks/useAuth';
+import { ArtistContext } from './context';
 
 export const ArtistProvider = ({ children }) => {
   const { user } = useAuth();
