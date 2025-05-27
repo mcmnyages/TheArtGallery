@@ -9,8 +9,9 @@ const REFRESH_TOKEN_KEY = import.meta.env.VITE_REFRESH_TOKEN_KEY;
  * Store authentication tokens in local storage
  * @param {Object} tokens - Object containing access token, refresh token, etc.
  */
-export const setTokens = ({ token, refreshToken }) => {
-  localStorage.setItem(TOKEN_KEY, token);
+export const setTokens = ({ accessToken, refreshToken }) => {
+  console.log('Setting tokens:', { accessToken, refreshToken });
+  localStorage.setItem(TOKEN_KEY, accessToken);
   localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
 };
 
@@ -20,14 +21,15 @@ export const setTokens = ({ token, refreshToken }) => {
  */
 export const getTokens = () => {
   try {
-    const token = localStorage.getItem(TOKEN_KEY);
+    const accessToken = localStorage.getItem(TOKEN_KEY);
     const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+      console.log('Retrieved tokens:', { accessToken, refreshToken });
     
-    if (!token || !refreshToken) {
+    if (!accessToken || !refreshToken) {
       return null;
     }
     
-    return { accessToken: token, refreshToken };
+    return { accessToken, refreshToken };
   } catch (error) {
     console.error('Error retrieving tokens:', error);
     return null;
@@ -92,24 +94,22 @@ export const refreshAccessToken = async () => {
     const refreshToken = getRefreshToken();
     if (!refreshToken) {
       throw new Error('No refresh token available');
-    }
-
-    const response = await fetch('/api/v0.1/users/refresh', {
+    }    const response = await fetch('/api/v0.1/users/token/refresh', {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true'
       },
-      body: JSON.stringify({ refreshToken }),
-      credentials: 'include'
+      body: JSON.stringify({ refreshToken })
     });
 
     if (!response.ok) {
       throw new Error('Token refresh failed');
-    }
-
-    const data = await response.json();
+    }    const data = await response.json();
     const newTokens = {
-      token: data.accessToken,
+      accessToken: data.accessToken,
       refreshToken: data.refreshToken
     };
 

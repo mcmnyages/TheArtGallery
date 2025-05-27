@@ -1,8 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { X, ZoomIn, ZoomOut, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 
-const ImageViewer = ({ image, onClose, onPrevious, onNext, totalImages, currentIndex }) => {
-  const { isDarkMode } = useTheme();
+const ImageViewer = ({ 
+  image, 
+  imageData,
+  onClose, 
+  onPrevious, 
+  onNext, 
+  totalImages, 
+  currentIndex,
+  isDarkMode,
+  children 
+}) => {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -22,31 +32,21 @@ const ImageViewer = ({ image, onClose, onPrevious, onNext, totalImages, currentI
       onPrevious();
     } else if (e.key === 'ArrowRight') {
       onNext();
-    } else if (e.key === '+' || e.key === '=') {
-      setZoomLevel(prevZoom => Math.min(prevZoom + 0.25, 3));
-    } else if (e.key === '-') {
-      setZoomLevel(prevZoom => Math.max(prevZoom - 0.25, 0.5));
-    } else if (e.key === '0') {
-      setZoomLevel(1);
-      setPosition({ x: 0, y: 0 });
     }
-  }, [onClose, onNext, onPrevious]);
-  
+  }, [onClose, onPrevious, onNext]);
+
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
   
-  // Handle zoom
+  // Handle wheel zoom
   const handleWheel = (e) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    setZoomLevel(prevZoom => {
-      const newZoom = Math.max(0.5, Math.min(3, prevZoom + delta));
-      return newZoom;
-    });
+    if (e.ctrlKey) {
+      e.preventDefault();
+      const delta = -Math.sign(e.deltaY) * 0.1;
+      setZoomLevel(prevZoom => Math.max(0.5, Math.min(3, prevZoom + delta)));
+    }
   };
   
   // Handle pan/drag
@@ -59,12 +59,12 @@ const ImageViewer = ({ image, onClose, onPrevious, onNext, totalImages, currentI
   
   const handleMouseMove = (e) => {
     if (isDragging) {
-      const dx = (e.clientX - dragStart.x) / zoomLevel;
-      const dy = (e.clientY - dragStart.y) / zoomLevel;
+      const dx = e.clientX - dragStart.x;
+      const dy = e.clientY - dragStart.y;
       
       setPosition(prevPosition => ({
-        x: prevPosition.x + dx,
-        y: prevPosition.y + dy
+        x: prevPosition.x + dx / zoomLevel,
+        y: prevPosition.y + dy / zoomLevel
       }));
       
       setDragStart({ x: e.clientX, y: e.clientY });
@@ -75,7 +75,7 @@ const ImageViewer = ({ image, onClose, onPrevious, onNext, totalImages, currentI
     setIsDragging(false);
   };
   
-  // Zoom in/out buttons
+  // Zoom controls
   const handleZoomIn = () => {
     setZoomLevel(prevZoom => Math.min(prevZoom + 0.25, 3));
   };
@@ -88,7 +88,7 @@ const ImageViewer = ({ image, onClose, onPrevious, onNext, totalImages, currentI
     setZoomLevel(1);
     setPosition({ x: 0, y: 0 });
   };
-  
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
@@ -99,11 +99,11 @@ const ImageViewer = ({ image, onClose, onPrevious, onNext, totalImages, currentI
         onClick={onClose}
       />
       
-      {/* Controls */}
+      {/* Content */}
       <div className={`relative z-10 w-full h-full ${
         isDarkMode ? 'text-gray-200' : 'text-gray-100'
       }`}>
-        {/* Actions bar */}
+        {/* Top bar */}
         <div className={`flex items-center justify-between p-4 ${
           isDarkMode ? 'bg-gray-900' : 'bg-black bg-opacity-50'
         }`}>
@@ -115,40 +115,57 @@ const ImageViewer = ({ image, onClose, onPrevious, onNext, totalImages, currentI
                 : 'hover:bg-gray-700 text-white'
             }`}
           >
-            <span>Close</span>
+            <X className="w-6 h-6" />
           </button>
-          <div className="text-sm">
-            {currentIndex + 1} / {totalImages}
+          <div className="flex items-center space-x-4">
+            <div className="text-sm">
+              {currentIndex + 1} / {totalImages}
+            </div>
+            {imageData?.metadata && (
+              <div className="text-sm">
+                {imageData.metadata.dimensions && (
+                  <span className="mr-3">{imageData.metadata.dimensions}</span>
+                )}
+                {imageData.metadata.size && (
+                  <span>{imageData.metadata.size}</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Main content with navigation */}
-        <div className="relative flex-1">
-          {/* Previous/Next buttons */}
-          <button
-            onClick={onPrevious}
-            className={`absolute left-4 top-1/2 p-2 rounded-full -translate-y-1/2 ${
-              isDarkMode 
-                ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' 
-                : 'bg-black bg-opacity-50 hover:bg-opacity-75 text-white'
-            }`}
-          >
-            Previous
-          </button>
-          <button
-            onClick={onNext}
-            className={`absolute right-4 top-1/2 p-2 rounded-full -translate-y-1/2 ${
-              isDarkMode 
-                ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' 
-                : 'bg-black bg-opacity-50 hover:bg-opacity-75 text-white'
-            }`}
-          >
-            Next
-          </button>
+        <div className="relative flex-1 h-[calc(100%-8rem)]">
+          {/* Navigation buttons */}
+          {currentIndex > 0 && (
+            <button
+              onClick={onPrevious}
+              className={`absolute left-4 top-1/2 p-2 rounded-full -translate-y-1/2 transition-colors ${
+                isDarkMode 
+                  ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' 
+                  : 'bg-black bg-opacity-50 hover:bg-opacity-75 text-white'
+              }`}
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+          )}
+          
+          {currentIndex < totalImages - 1 && (
+            <button
+              onClick={onNext}
+              className={`absolute right-4 top-1/2 p-2 rounded-full -translate-y-1/2 transition-colors ${
+                isDarkMode 
+                  ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' 
+                  : 'bg-black bg-opacity-50 hover:bg-opacity-75 text-white'
+              }`}
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          )}
 
           {/* Image container */}
           <div 
-            className="h-full flex items-center justify-center"
+            className="h-full flex items-center justify-center overflow-hidden"
             onWheel={handleWheel}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
@@ -156,53 +173,59 @@ const ImageViewer = ({ image, onClose, onPrevious, onNext, totalImages, currentI
             onMouseLeave={handleMouseUp}
           >
             <img
-              src={image.url}
-              alt={image.title}
-              className="max-h-full max-w-full object-contain"
+              src={imageData?.url || image.url}
+              alt={imageData?.title || image.title}
+              className="max-h-full max-w-full object-contain select-none"
               style={{
                 transform: `translate(${position.x}px, ${position.y}px) scale(${zoomLevel})`,
-                transition: isDragging ? 'none' : 'transform 0.2s ease-out'
+                transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+                cursor: zoomLevel > 1 ? 'grab' : 'default'
               }}
               draggable={false}
             />
+            {children}
           </div>
         </div>
 
-        {/* Zoom controls */}
-        <div className={`p-4 ${
+        {/* Controls bar */}
+        <div className={`absolute bottom-0 left-0 right-0 p-4 ${
           isDarkMode ? 'bg-gray-900' : 'bg-black bg-opacity-50'
         }`}>
-          <div className="flex items-center justify-center space-x-4">
+          <div className="flex items-center justify-center space-x-6">
             <button
               onClick={handleZoomOut}
-              className={`p-2 rounded-full ${
+              className={`p-2 rounded-full transition-colors ${
                 isDarkMode 
                   ? 'hover:bg-gray-800 text-gray-300' 
                   : 'hover:bg-gray-700 text-white'
               }`}
+              disabled={zoomLevel <= 0.5}
             >
-              Zoom Out
+              <ZoomOut className="w-5 h-5" />
             </button>
-            <span>{Math.round(zoomLevel * 100)}%</span>
+            <span className="min-w-[4rem] text-center">
+              {Math.round(zoomLevel * 100)}%
+            </span>
             <button
               onClick={handleZoomIn}
-              className={`p-2 rounded-full ${
+              className={`p-2 rounded-full transition-colors ${
                 isDarkMode 
                   ? 'hover:bg-gray-800 text-gray-300' 
                   : 'hover:bg-gray-700 text-white'
               }`}
+              disabled={zoomLevel >= 3}
             >
-              Zoom In
+              <ZoomIn className="w-5 h-5" />
             </button>
             <button
               onClick={handleReset}
-              className={`p-2 rounded-full ${
+              className={`p-2 rounded-full transition-colors ${
                 isDarkMode 
                   ? 'hover:bg-gray-800 text-gray-300' 
                   : 'hover:bg-gray-700 text-white'
               }`}
             >
-              Reset
+              <RotateCcw className="w-5 h-5" />
             </button>
           </div>
         </div>

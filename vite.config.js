@@ -33,7 +33,7 @@ export default defineConfig(({ mode }) => {
         res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8080');
         res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
         res.setHeader('Access-Control-Allow-Credentials', 'true');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, ngrok-skip-browser-warning');
         
         // Handle OPTIONS preflight requests
         if (req.method === 'OPTIONS') {
@@ -76,6 +76,38 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_GALLERY_API_URL.replace('/v01', ''),
           rewrite: (path) => path.replace('/api/v0.1/gallery', '/v01'),
           ...sharedProxyOptions
+        },
+        '/api/groups': {
+          target: env.VITE_NGROK_API_URL,
+          changeOrigin: true,
+          rewrite: (path) => {
+            // Remove /api prefix and add /groups
+            return path.replace('/api/groups', '/groups');
+          },
+          configure: (proxy, _options) => {
+            proxy.on('proxyReq', (proxyReq, req, _res) => {
+              console.log(`Proxying ${req.method} request to: ${proxyReq.path}`);
+              // Add ngrok-skip-browser-warning header to the proxied request
+              proxyReq.setHeader('ngrok-skip-browser-warning', 'true');
+            });
+
+            proxy.on('proxyRes', (proxyRes, req, res) => {
+              // Set CORS headers
+              res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8080');
+              res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+              res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, ngrok-skip-browser-warning');
+              
+              if (req.method === 'OPTIONS') {
+                res.statusCode = 204;
+                res.end();
+                return;
+              }
+            });
+
+            proxy.on('error', (err, _req, _res) => {
+              console.error('Proxy error:', err);
+            });
+          }
         }
       }
     },

@@ -1,59 +1,76 @@
-import React from 'react';
-import GalleryItem from './GalleryItem';
+import React, { useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useGallery } from '../../hooks/useGallery';
+import { useTheme } from '../../contexts/ThemeContext';
 
-const GalleryGrid = ({ galleries, onGalleryClick, isLoading, hasError, searchTerm }) => {
-  if (isLoading) {
+const GalleryGrid = () => {
+  const { galleries, loading, error, fetchGalleries } = useGallery();
+  const { isDarkMode } = useTheme();
+
+  useEffect(() => {
+    fetchGalleries();
+  }, [fetchGalleries]);
+
+  if (loading) {
     return (
-      <div className="flex justify-center items-center py-16">
-        <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full text-blue-600" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
+      <div className="flex justify-center items-center min-h-[200px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
       </div>
     );
   }
-  
-  if (hasError) {
+
+  if (error) {
     return (
-      <div className="text-center py-16">
-        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-        <h3 className="mt-2 text-sm font-medium text-gray-900">Error loading galleries</h3>
-        <p className="mt-1 text-sm text-gray-500">
-          There was a problem fetching the galleries. Please try again later.
-        </p>
+      <div className="text-center p-4">
+        <p className="text-red-500">{error}</p>
       </div>
     );
   }
-  
-  if (galleries.length === 0) {
-    return (
-      <div className="text-center py-16">
-        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-        </svg>
-        <h3 className="mt-2 text-sm font-medium text-gray-900">No galleries found</h3>
-        {searchTerm ? (
-          <p className="mt-1 text-sm text-gray-500">
-            No results match "{searchTerm}". Try a different search term.
-          </p>
-        ) : (
-          <p className="mt-1 text-sm text-gray-500">
-            There are no galleries available at the moment.
-          </p>
-        )}
-      </div>
-    );
-  }
-  
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {galleries.map(gallery => (
-        <GalleryItem
-          key={gallery.id}
-          gallery={gallery}
-          onClick={() => onGalleryClick(gallery.id)}
-        />
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+      {galleries.map((gallery) => (
+        <Link
+          key={gallery._id}
+          to={`/gallery/${gallery._id}`}
+          className={`block rounded-lg shadow-lg overflow-hidden transition-transform hover:scale-105 ${
+            isDarkMode ? 'bg-gray-800' : 'bg-white'
+          }`}
+        >
+          {gallery.images && gallery.images[0] && (
+            <div className="aspect-w-16 aspect-h-9">
+              <img
+                src={gallery.images[0].url}
+                alt={gallery.name}
+                className="object-cover w-full h-full"
+              />
+            </div>
+          )}
+          <div className="p-4">
+            <h3 className={`text-xl font-bold mb-2 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              {gallery.name}
+            </h3>
+            <p className={`text-sm ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-600'
+            }`}>
+              {gallery.description}
+            </p>
+            <div className="mt-4 flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-500'
+              }`}>
+                {gallery.images?.length || 0} images
+              </span>
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-500'
+              }`}>
+                {new Date(gallery.createdAt).toLocaleDateString()}
+              </span>
+            </div>
+          </div>
+        </Link>
       ))}
     </div>
   );

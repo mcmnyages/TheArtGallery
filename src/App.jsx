@@ -58,10 +58,10 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
       <TopNavBar toggleSidebar={toggleSidebar} />
       
-      <div className="flex mt-16">
+      <div className="flex flex-1 mt-16">
         {isAuthenticated && (
           <LeftSidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} isMobile={isMobile} />
         )}
