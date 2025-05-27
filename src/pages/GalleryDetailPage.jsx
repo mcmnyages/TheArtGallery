@@ -233,7 +233,7 @@ const GalleryDetailPage = () => {
                        style={{ display: 'none' }} 
                        onLoad={(e) => e.target.parentElement.querySelector('img').complete && (e.target.style.display = 'none')} />
                 </div>
-                <div className="p-4">
+                {/* <div className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <p className={`text-xs font-medium ${
                       isDarkMode ? 'text-gray-300' : 'text-gray-700'
@@ -251,7 +251,7 @@ const GalleryDetailPage = () => {
                   }`}>
                     Click to view full size
                   </div>
-                </div>
+                </div> */}
               </div>
             ))}
           </div>
@@ -286,14 +286,14 @@ const GalleryDetailPage = () => {
           currentIndex={gallery.images.findIndex(img => img.imageId === selectedImage.imageId)}
           isDarkMode={isDarkMode}
         >
-          <div className="absolute bottom-16 left-0 right-0 p-4 text-center bg-black bg-opacity-50 backdrop-blur-sm">
+          {/* <div className="absolute bottom-16 left-0 right-0 p-4 text-center bg-black bg-opacity-50 backdrop-blur-sm">
             <p className="text-white text-sm font-medium">
               Image {gallery.images.findIndex(img => img.imageId === selectedImage.imageId) + 1} of {gallery.images.length}
             </p>
             <p className="text-gray-400 text-xs mt-1">
               Added {new Date(selectedImage.createdAt).toLocaleDateString()}
             </p>
-          </div>
+          </div> */}
         </ImageViewer>
       )}
     </div>
