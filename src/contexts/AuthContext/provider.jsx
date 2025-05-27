@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import * as tokenService from '../../services/tokenService';
-import { mockApi } from '../../data/mockData';
+import { authService } from '../../services/authService';
 import { AuthContext } from './context';
 
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const handleAuthSuccess = (userData, tokens) => {
+  const handleAuthSuccess = (userData, token, refreshToken) => {
     // Ensure user data has all required fields
     const enrichedUserData = {
       ...userData,
@@ -18,24 +18,43 @@ export const AuthProvider = ({ children }) => {
     
     setUser(enrichedUserData);
     setIsAuthenticated(true);
-    tokenService.setTokens(tokens);
+    tokenService.setTokens({ token, refreshToken });
     
     // Cache user data with role information
     localStorage.setItem('user', JSON.stringify(enrichedUserData));
-  };
-  const handleLogin = async (email, password) => {
+  };  const handleLogin = async (email, password) => {
     try {
-      const response = await mockApi.login(email, password);
-      const { data } = response;
+      console.log('AuthContext: Attempting login with:', { email });
+      const response = await authService.login(email, password);
+      console.log('AuthContext: Raw response:', response);
       
-      if (data && data.user && data.tokens) {
-        handleAuthSuccess(data.user, data.tokens);
-        return { success: true, user: data.user };
+      if (response && response.user) {
+        console.log('AuthContext: Valid response data:', {
+          user: {
+            id: response.user.id,
+            email: response.user.email,
+            firstName: response.user.firstName,
+            role: response.user.role
+          },
+          hasToken: !!response.token,
+          hasRefreshToken: !!response.refreshToken
+        });
+        handleAuthSuccess(response.user, response.token, response.refreshToken);
+        return { success: true, user: response.user };
       } else {
+        console.error('AuthContext: Invalid response format:', response);
         return { success: false, error: 'Invalid response from server' };
       }
     } catch (error) {
-      return { success: false, error: error.message };
+      console.error('AuthContext: Login error:', { 
+        message: error.message,
+        stack: error.stack,
+        cause: error.cause
+      });
+      return { 
+        success: false, 
+        error: error.message || 'An error occurred during login'
+      };
     }
   };
 
@@ -48,12 +67,15 @@ export const AuthProvider = ({ children }) => {
 
   const handleRegister = async (email, password, firstName, lastName) => {
     try {
-      // For now, just use login since we're mocking
-      const response = await mockApi.login(email, password);
-      handleAuthSuccess(response.user, response.tokens);
-      return { success: true };
+      const response = await authService.register({ email, password, firstName, lastName });
+      if (response.success) {
+        handleAuthSuccess(response.user, response.token, response.refreshToken);
+        return { success: true };
+      }
+      return { success: false, error: response.error };
     } catch (error) {
-      return { success: false, error: error.message };
+      console.error('Registration error:', error);
+      return { success: false, error: error.message || 'Registration failed' };
     }
   };
 
@@ -83,13 +105,11 @@ export const AuthProvider = ({ children }) => {
           const cachedUser = localStorage.getItem('user');
           if (cachedUser) {
             const userData = JSON.parse(cachedUser);
-            handleAuthSuccess(userData, tokens);
-          } else {
-            // Fallback to mock login
-            const response = await mockApi.login("", "");
-            if (response.user) {
-              handleAuthSuccess(response.user, tokens);
-            }
+            handleAuthSuccess(userData, tokens);          } else {
+            // Token exists but no cached user data
+            // We should redirect to login
+            handleLogout();
+            return;
           }
         } catch (error) {
           console.error("Failed to fetch user profile:", error);

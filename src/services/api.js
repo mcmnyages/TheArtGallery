@@ -1,16 +1,26 @@
 import * as tokenService from './tokenService';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = {
+  auth: import.meta.env.VITE_AUTH_API_URL,
+  gallery: import.meta.env.VITE_GALLERY_API_URL,
+  user: import.meta.env.VITE_USER_API_URL
+};
 
 /**
- * Configure axios with authentication headers
+ * Configure request headers with authentication
  */
-const configureHeaders = () => {
+const configureHeaders = async () => {
   const token = tokenService.getAccessToken();
-  return {
+  const headers = {
     'Content-Type': 'application/json',
-    'Authorization': token ? `Bearer ${token}` : '',
+    'Accept': 'application/json'
   };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return headers;
 };
 
 /**
@@ -19,22 +29,35 @@ const configureHeaders = () => {
  * @returns {Promise<any>} - Resolved data or rejected error
  */
 const handleResponse = async (response) => {
-  const data = await response.json();
+  if (response.status === 204) { // No content
+    return null;
+  }
+
+  const contentType = response.headers.get('content-type');
+  const data = contentType?.includes('application/json') ? 
+    await response.json() : 
+    await response.text();
   
   if (!response.ok) {
     if (response.status === 401) {
-      // Token expired, attempt to refresh
       try {
-        await tokenService.refreshAccessToken();
-        // You might want to retry the original request here
+        const refreshed = await tokenService.refreshAccessToken();
+        if (refreshed) {
+          // Retry the original request with new token
+          const retryResponse = await fetch(response.url, {
+            ...response,
+            headers: await configureHeaders()
+          });
+          return handleResponse(retryResponse);
+        }
       } catch (refreshError) {
-        // Refresh failed, user needs to login again
-        throw new Error('Authentication expired. Please login again.');
+        console.error('Token refresh failed:', refreshError);
+        throw new Error('Session expired. Please log in again.');
       }
     }
     
-    const error = data.message || response.statusText;
-    throw new Error(error);
+    const error = typeof data === 'object' ? data.message : data;
+    throw new Error(error || response.statusText);
   }
   
   return data;
@@ -47,8 +70,13 @@ const handleResponse = async (response) => {
  * @returns {Promise<any>} - Resolved response data
  */
 const apiRequest = async (endpoint, options = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
-  const headers = configureHeaders();
+  // Determine which base URL to use based on endpoint type
+  const baseUrl = endpoint.startsWith('/auth') ? API_BASE_URL.auth :
+                 endpoint.startsWith('/gallery') ? API_BASE_URL.gallery :
+                 API_BASE_URL.user;
+                 
+  const url = `${baseUrl}${endpoint}`;
+  const headers = await configureHeaders();
   
   try {
     const response = await fetch(url, {
@@ -56,7 +84,8 @@ const apiRequest = async (endpoint, options = {}) => {
       headers: {
         ...headers,
         ...options.headers
-      }
+      },
+      credentials: 'include'
     });
     
     return await handleResponse(response);
@@ -74,26 +103,9 @@ const apiRequest = async (endpoint, options = {}) => {
  * @returns {Promise<Object>} - User data and tokens
  */
 export const loginUser = async (credentials) => {
-  // In a real app, this would call the actual API
-  // For demo, we'll simulate a successful login
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const userData = {
-        id: '123',
-        email: credentials.email,
-        firstName: 'Demo',
-        lastName: 'User',
-        role: 'user'
-      };
-      
-      const tokens = {
-        accessToken: 'mock-access-token',
-        refreshToken: 'mock-refresh-token',
-        deviceToken: 'mock-device-token'
-      };
-      
-      resolve({ user: userData, tokens });
-    }, 800);
+  return apiRequest('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(credentials)
   });
 };
 

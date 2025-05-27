@@ -144,12 +144,17 @@ let mockUsers = [...users];
 let mockSubscriptions = [...subscriptions];
 
 // Mock API Implementation
-export const mockApi = {  // Auth
-  login: (email, password) => {
+export const mockApi = {  // Auth  login: (email, password) => {
     return new Promise((resolve, reject) => {
+      console.log('MockAPI: Login attempt', { 
+        email,
+        timestamp: new Date().toISOString()
+      });
+      
       setTimeout(() => {
         // Input validation
         if (!email) {
+          console.error('MockAPI: Email required');
           reject({
             status: 'error',
             code: 'EMAIL_REQUIRED',
@@ -159,29 +164,37 @@ export const mockApi = {  // Auth
         }
 
         if (!password) {
+          console.error('MockAPI: Password required');
           reject({
             status: 'error',
             code: 'PASSWORD_REQUIRED',
             message: 'Password is required'
           });
           return;
-        }        const user = mockUsers.find(u => u.email === email && u.password === password);
+        }        // For testing, determine role based on email pattern
+        const role = email.includes('artist') ? 'artist' : 
+                    email.includes('client') ? 'customer' : 'customer';
+                    
+        const mockUser = {
+          id: 'mock-user-id',
+          email: email,
+          firstName: role === 'artist' ? 'Test Artist' : 'Test Customer',
+          lastName: 'User',
+          role: role
+        };
+          console.log('MockAPI: Creating success response for:', mockUser);
         
-        if (user) {
-          const { password: _, ...userWithoutPassword } = user;
-          // Check if user is premium
-          const isPremium = user.membershipTier === 'premium';
-          const effectiveRole = isPremium ? 'premium' : user.role;
-          
-          resolve({
-            status: 'success',
-            code: 'LOGIN_SUCCESS',
-            message: `Welcome back, ${user.firstName}!`,
-            data: {
-              user: {
-                ...userWithoutPassword,
-                effectiveRole
-              },
+        resolve({
+          status: 'success',
+          code: 'LOGIN_SUCCESS',
+          data: {
+            user: mockUser,
+            tokens: {
+              accessToken: `mock-token-${Date.now()}`,
+              refreshToken: `mock-refresh-${Date.now()}`
+            }
+          },
+          message: `Welcome back, ${mockUser.firstName}!`,
               tokens: generateTokens(effectiveRole)
             }
           });

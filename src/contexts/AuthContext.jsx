@@ -1,5 +1,6 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext } from 'react';
 import * as tokenService from '../services/tokenService';
+import { authService } from '../services/authService';
 import { mockApi } from '../data/mockData';
 
 // Create context with default values
@@ -18,10 +19,21 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const handleAuthSuccess = (userData, tokens) => {
-    setUser(userData);
+  const handleAuthSuccess = (userData, token, refreshToken) => {
+    // Ensure user data has all required fields
+    const enrichedUserData = {
+      ...userData,
+      role: userData.role || 'customer',
+      permissions: userData.permissions || [],
+      membershipTier: userData.membershipTier || 'free'
+    };
+    
+    setUser(enrichedUserData);
     setIsAuthenticated(true);
-    tokenService.setTokens(tokens);
+    tokenService.setTokens({ token, refreshToken });
+    
+    // Cache user data with role information
+    localStorage.setItem('user', JSON.stringify(enrichedUserData));
   };
 
   const handleLogin = async (email, password) => {

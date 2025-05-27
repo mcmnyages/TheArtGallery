@@ -2,14 +2,16 @@
  * TokenService handles authentication token storage and management
  */
 
-const TOKEN_KEY = 'kabbala_auth_tokens';
+const TOKEN_KEY = import.meta.env.VITE_AUTH_TOKEN_KEY;
+const REFRESH_TOKEN_KEY = import.meta.env.VITE_REFRESH_TOKEN_KEY;
 
 /**
  * Store authentication tokens in local storage
  * @param {Object} tokens - Object containing access token, refresh token, etc.
  */
-export const setTokens = (tokens) => {
-  localStorage.setItem(TOKEN_KEY, JSON.stringify(tokens));
+export const setTokens = ({ token, refreshToken }) => {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
 };
 
 /**
@@ -18,8 +20,14 @@ export const setTokens = (tokens) => {
  */
 export const getTokens = () => {
   try {
-    const tokenData = localStorage.getItem(TOKEN_KEY);
-    return tokenData ? JSON.parse(tokenData) : null;
+    const token = localStorage.getItem(TOKEN_KEY);
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    
+    if (!token || !refreshToken) {
+      return null;
+    }
+    
+    return { accessToken: token, refreshToken };
   } catch (error) {
     console.error('Error retrieving tokens:', error);
     return null;
@@ -49,6 +57,7 @@ export const getRefreshToken = () => {
  */
 export const clearTokens = () => {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
 };
 
 /**
@@ -84,20 +93,26 @@ export const refreshAccessToken = async () => {
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
-    
-    // Mock token refresh for demo purposes
-    // In a real app, this would be an API call to your auth endpoint
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Create new mock tokens
+
+    const response = await fetch('/api/v0.1/users/refresh', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      throw new Error('Token refresh failed');
+    }
+
+    const data = await response.json();
     const newTokens = {
-      accessToken: 'new-mock-access-token',
-      refreshToken: refreshToken,
-      deviceToken: getTokens()?.deviceToken || 'mock-device-token'
+      token: data.accessToken,
+      refreshToken: data.refreshToken
     };
-    
+
     // Store the new tokens
     setTokens(newTokens);
     
