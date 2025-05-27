@@ -5,7 +5,10 @@ import CreateGalleryForm from '../../components/artist/CreateGalleryForm';
 const CreateGalleryPage = () => {
   return (
     <PageContainer>
-      <CreateGalleryForm />
+      <div className="p-6">
+        <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Create Gallery</h1>
+        <CreateGalleryForm />
+      </div>
     </PageContainer>
   );
 };
