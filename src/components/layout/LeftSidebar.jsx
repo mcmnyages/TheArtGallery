@@ -21,7 +21,33 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
   const { user, logout } = useAuth();
   const { isDarkMode } = useTheme();
 
-  // Get base navigation links
+ 
+  // Get artist-specific navigation links
+  const getArtistNavLinks = () => [
+    {
+      name: 'Artist Dashboard',
+      path: '/artist/dashboard',
+      icon: <HiChartBar className="h-6 w-6" />
+    },
+    {
+      name: 'Manage Gallery',
+      path: '/artist/gallery',
+      icon: <HiViewGrid className="h-6 w-6" />
+    },
+    {
+      name: 'Create Gallery',
+      path: '/artist/gallery/create',
+      icon: <HiPlusCircle className="h-6 w-6" />
+    },
+    {
+      name: 'Upload Artwork',
+      path: '/artist/upload',
+      icon: <HiUpload className="h-6 w-6" />
+    }
+  ];
+
+
+   // Get base navigation links
   const getBaseNavLinks = () => [
     {
       name: 'All Galleries',
@@ -40,32 +66,11 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
     }
   ];
 
-  // Get artist-specific navigation links
-  const getArtistNavLinks = () => [
-    {
-      name: 'Artist Dashboard',
-      path: '/artist/dashboard',
-      icon: <HiChartBar className="h-6 w-6" />
-    },
-    {
-      name: 'Upload Artwork',
-      path: '/artist/upload',
-      icon: <HiUpload className="h-6 w-6" />
-    },
-    {
-      name: 'Manage Gallery',
-      path: '/artist/gallery',
-      icon: <HiViewGrid className="h-6 w-6" />
-    },
-    {
-      name: 'Create Gallery',
-      path: '/artist/gallery/create',
-      icon: <HiPlusCircle className="h-6 w-6" />
-    }
-  ];
 
-  // Combine base and role-specific navigation links
-  const navLinks = [...getBaseNavLinks(), ...(user?.role === 'artist' ? getArtistNavLinks() : [])];
+  // Combine base and role-specific navigation links with artist links first if user is an artist
+  const navLinks = user?.role === 'artist' 
+    ? [...getArtistNavLinks(), ...getBaseNavLinks()]
+    : getBaseNavLinks();
 
   // If mobile, render a sliding sidebar with overlay
   if (isMobile) {
