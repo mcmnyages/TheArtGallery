@@ -6,15 +6,24 @@ A modern React template for web applications and games, featuring React 18, Vite
 
 ```
 ├── src/
-│   ├── App.jsx          # Main application component
-│   ├── main.jsx         # Application entry point
-│   └── index.css        # Global styles (Tailwind)
-├── public/              # Static assets
-├── index.html           # HTML template
-├── vite.config.js       # Vite configuration
-├── tailwind.config.js   # Tailwind configuration
-├── postcss.config.js    # PostCSS configuration
-└── eslint.config.js     # ESLint configuration
+│   ├── components/      # Reusable UI components
+│   │   ├── layout/     # Layout components
+│   │   └── symbols/    # Kabbalistic symbol components
+│   ├── pages/          # Page components
+│   ├── hooks/          # Custom React hooks
+│   ├── utils/          # Utility functions
+│   ├── assets/         # Images and SVGs
+│   ├── styles/         # Component styles
+│   ├── App.jsx         # Main application component
+│   ├── main.jsx        # Application entry point
+│   └── index.css       # Global styles (Tailwind)
+├── public/             # Static assets
+│   └── symbols/        # Kabbalistic symbol assets
+├── index.html          # HTML template
+├── vite.config.js      # Vite configuration
+├── tailwind.config.js  # Tailwind configuration
+├── postcss.config.js   # PostCSS configuration
+└── eslint.config.js    # ESLint configuration
 ```
 
 ## Development Guidelines
