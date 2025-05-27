@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useArtist } from '../../hooks/useArtistContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const CreateGalleryForm = () => {
   const navigate = useNavigate();
   const { createGallery } = useArtist();
+  const { isDarkMode } = useTheme();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -57,47 +59,47 @@ const CreateGalleryForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl mx-auto p-6 space-y-6">
-      <h2 className="text-2xl font-bold mb-6">Create New Gallery</h2>
+    <form onSubmit={handleSubmit} className="max-w-2xl mx-auto p-6 space-y-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+      <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Create New Gallery</h2>
 
       {error && (
-        <div className="bg-red-50 text-red-600 p-4 rounded-md">
+        <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-4 rounded-md">
           {error}
         </div>
       )}
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Gallery Name</label>
+          <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Gallery Name</label>
           <input
             type="text"
             name="name"
             value={formData.name}
             onChange={handleChange}
-            className="w-full p-2 border rounded-md"
+            className="w-full p-2 border dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Description</label>
+          <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Description</label>
           <textarea
             name="description"
             value={formData.description}
             onChange={handleChange}
-            className="w-full p-2 border rounded-md"
+            className="w-full p-2 border dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
             rows="4"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Category</label>
+          <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Category</label>
           <select
             name="category"
             value={formData.category}
             onChange={handleChange}
-            className="w-full p-2 border rounded-md"
+            className="w-full p-2 border dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
             required
           >
             <option value="">Select category</option>
@@ -110,7 +112,7 @@ const CreateGalleryForm = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Monthly Subscription Price ($)</label>
+          <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Monthly Subscription Price ($)</label>
           <input
             type="number"
             name="subscriptionPrice"
@@ -118,18 +120,18 @@ const CreateGalleryForm = () => {
             onChange={handleChange}
             step="0.01"
             min="0"
-            className="w-full p-2 border rounded-md"
+            className="w-full p-2 border dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Cover Image</label>
+          <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Cover Image</label>
           <input
             type="file"
             accept="image/*"
             onChange={handleImageChange}
-            className="w-full p-2 border rounded-md"
+            className="w-full p-2 border dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-blue-500 file:text-white hover:file:bg-blue-600 dark:file:bg-blue-600 dark:hover:file:bg-blue-700"
             required
           />
         </div>
@@ -139,7 +141,7 @@ const CreateGalleryForm = () => {
         <button
           type="submit"
           disabled={loading}
-          className={`px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 ${
+          className={`px-6 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 ${
             loading ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >
@@ -148,7 +150,7 @@ const CreateGalleryForm = () => {
         <button
           type="button"
           onClick={() => navigate('/artist/gallery')}
-          className="px-6 py-2 bg-gray-200 rounded-md hover:bg-gray-300"
+          className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
         >
           Cancel
         </button>
