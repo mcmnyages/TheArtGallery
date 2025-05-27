@@ -31,10 +31,11 @@ const GalleriesPage = () => {
 
   console.log('Filtered galleries:', filteredGalleries);
 
-  // Handle gallery click to navigate to detail page
+  // Handle gallery click to navigate to detail page with gallery data
   const handleGalleryClick = (galleryId) => {
-    console.log('Navigating to gallery:', galleryId);
-    navigate(`/gallery/${galleryId}`);
+    const gallery = galleries.find(g => g._id === galleryId);
+    console.log('Navigating to gallery:', gallery);
+    navigate(`/gallery/${galleryId}`, { state: { gallery } });
   };
 
   return (

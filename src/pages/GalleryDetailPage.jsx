@@ -1,24 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ImageViewer from '../components/gallery/ImageViewer';
 import { useTheme } from '../contexts/ThemeContext';
-import { useGallery } from '../hooks/useGallery';
 
 const GalleryDetailPage = () => {
   const { galleryId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isDarkMode } = useTheme();
-  const { currentGallery: gallery, loading, error, fetchGalleryById } = useGallery();
   
   const [selectedImage, setSelectedImage] = useState(null);
   const [viewerOpen, setViewerOpen] = useState(false);
-
+  const [gallery] = useState(location.state?.gallery);
+  const [loading] = useState(false);
+  const [error, setError] = useState(null);
+  
   useEffect(() => {
-    if (galleryId) {
-      console.log('Fetching gallery details for ID:', galleryId);
-      fetchGalleryById(galleryId);
+    if (!gallery) {
+      console.log('No gallery data found in navigation state');
+      navigate('/galleries');
     }
-  }, [galleryId, fetchGalleryById]);
+  }, [gallery, navigate]);
 
   // Log gallery data when it changes
   useEffect(() => {
@@ -26,7 +28,8 @@ const GalleryDetailPage = () => {
       gallery,
       loading,
       error,
-      imageCount: gallery?.images?.length
+      imageCount: gallery?.images?.length,
+      imageUrls: gallery?.images?.map(img => img.imageUrl)
     });
   }, [gallery, loading, error]);
 
@@ -207,12 +210,19 @@ const GalleryDetailPage = () => {
               >
                 <div className="relative aspect-[4/3] bg-gray-200 overflow-hidden">
                   <img 
-                    src={image.imageUrl} 
+                    src={image.imageUrl}
                     alt={`Image ${index + 1} in ${gallery.name}`}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 opacity-0"
                     loading="lazy"
-                    onLoad={(e) => e.target.classList.add('opacity-100')}
-                    style={{ opacity: 0, transition: 'opacity 0.3s ease-in-out' }}
+                    onError={(e) => {
+                      console.error('Image failed to load:', image.imageUrl);
+                      e.target.src = '/assets/images/placeholder.jpg';
+                    }}
+                    onLoad={(e) => {
+                      console.log('Image loaded successfully:', image.imageUrl);
+                      e.target.classList.remove('opacity-0');
+                      e.target.classList.add('opacity-100');
+                    }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="absolute bottom-0 left-0 right-0 p-4 text-white transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
@@ -236,7 +246,7 @@ const GalleryDetailPage = () => {
                       {new Date(image.createdAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className={`text-xs ${
+                    <div className={`text-xs ${
                     isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`}>
                     Click to view full size
