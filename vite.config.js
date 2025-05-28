@@ -9,8 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  
-  const sharedProxyOptions = {
+    const sharedProxyOptions = {
     changeOrigin: true,
     secure: mode === 'production',
     configure: (proxy, options) => {
@@ -26,6 +25,17 @@ export default defineConfig(({ mode }) => {
         Object.entries(requestHeaders).forEach(([key, value]) => {
           proxyReq.setHeader(key, value);
         });
+
+        // Handle CORS preflight
+        if (req.method === 'OPTIONS') {
+          res.writeHead(200, {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          });
+          res.end();
+          return;
+        }
       });
 
       proxy.on('proxyRes', (proxyRes, req, res) => {
@@ -71,43 +81,58 @@ export default defineConfig(({ mode }) => {
           target: 'https://authentication.secretstartups.org',
           rewrite: (path) => path.replace('/api/v0.1/users', '/v0.1/users'),
           ...sharedProxyOptions
-        },
-        '/api/v0.1/gallery': {
-          target: env.VITE_GALLERY_API_URL.replace('/v01', ''),
-          rewrite: (path) => path.replace('/api/v0.1/gallery', '/v01'),
+        },        '/api/v0.1/gallery': {
+          target: 'https://gallery.secretstartups.org',
+          rewrite: (path) => {
+            if (path.includes('/upload')) {
+              return '/upload';
+            }
+            return path.replace('/api/v0.1/gallery', '/images');
+          },
           ...sharedProxyOptions
         },
         '/api/groups': {
           target: env.VITE_NGROK_API_URL,
           changeOrigin: true,
-          rewrite: (path) => {
-            // Remove /api prefix and add /groups
-            return path.replace('/api/groups', '/groups');
-          },
+          ws: true,
+          secure: false,
+          rewrite: (path) => path.replace('/api/groups', '/groups'),
           configure: (proxy, _options) => {
             proxy.on('proxyReq', (proxyReq, req, _res) => {
-              console.log(`Proxying ${req.method} request to: ${proxyReq.path}`);
-              // Add ngrok-skip-browser-warning header to the proxied request
+              // Remove origin header to prevent CORS issues
+              proxyReq.removeHeader('origin');
+              proxyReq.removeHeader('referer');
+              
+              // Add required headers
               proxyReq.setHeader('ngrok-skip-browser-warning', 'true');
+              proxyReq.setHeader('Access-Control-Allow-Credentials', 'true');
+              
+              // Copy authorization header if present
+              const authHeader = req.headers['authorization'];
+              if (authHeader) {
+                proxyReq.setHeader('Authorization', authHeader);
+              }
             });
 
             proxy.on('proxyRes', (proxyRes, req, res) => {
               // Set CORS headers
               res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8080');
+              res.setHeader('Access-Control-Allow-Credentials', 'true');
               res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
               res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, ngrok-skip-browser-warning');
               
+              // Handle preflight
               if (req.method === 'OPTIONS') {
                 res.statusCode = 204;
                 res.end();
                 return;
               }
             });
-
-            proxy.on('error', (err, _req, _res) => {
-              console.error('Proxy error:', err);
-            });
           }
+        },        '/uploads': {
+          target: 'https://gallery.secretstartups.org',
+          rewrite: (path) => path.replace('/uploads', '/upload'),
+          ...sharedProxyOptions
         }
       }
     },

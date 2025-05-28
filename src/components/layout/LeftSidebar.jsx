@@ -13,7 +13,9 @@ import {
   HiPlusCircle,
   HiChevronLeft,
   HiChevronRight,
-  HiX
+  HiX,
+  HiSparkles,
+  HiPhotograph as HiPicture
 } from 'react-icons/hi';
 
 const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
@@ -21,13 +23,17 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
   const { user, logout } = useAuth();
   const { isDarkMode } = useTheme();
 
- 
   // Get artist-specific navigation links
   const getArtistNavLinks = () => [
     {
       name: 'Artist Dashboard',
       path: '/artist/dashboard',
       icon: <HiChartBar className="h-6 w-6" />
+    },
+    {
+      name: 'Picture Management',
+      path: '/artist/pictures',
+      icon: <HiPicture className="h-6 w-6" />
     },
     {
       name: 'Manage Gallery',
@@ -46,8 +52,7 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
     }
   ];
 
-
-   // Get base navigation links
+  // Get base navigation links
   const getBaseNavLinks = () => [
     {
       name: 'All Galleries',
@@ -66,8 +71,7 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
     }
   ];
 
-
-  // Combine base and role-specific navigation links with artist links first if user is an artist
+  // Combine base and role-specific navigation links
   const navLinks = user?.role === 'artist' 
     ? [...getArtistNavLinks(), ...getBaseNavLinks()]
     : getBaseNavLinks();
@@ -79,61 +83,70 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
         {/* Overlay */}
         {isOpen && (
           <div 
-            className="fixed inset-0 z-40 bg-black bg-opacity-50 transition-opacity"
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity"
             onClick={() => setIsOpen(false)}
           ></div>
         )}
         
         {/* Mobile Sidebar */}
         <aside 
-          className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-all duration-300 ease-in-out ${
-            isOpen ? 'translate-x-0' : '-translate-x-full'
-          } ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}
+          className={`fixed inset-y-0 left-0 z-50 w-72 transform transition-all duration-300 ease-in-out
+            ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+            ${isDarkMode 
+              ? 'bg-gray-800/90 backdrop-blur-lg border-r border-gray-700/50' 
+              : 'bg-white/90 backdrop-blur-lg border-r border-gray-200/50'}`}
         >
           <div className="flex flex-col h-full">
-            <div className={`flex items-center justify-between h-16 px-4 ${
-              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+            {/* Header */}
+            <div className={`flex items-center justify-between h-16 px-6 ${
+              isDarkMode ? 'border-gray-700/50' : 'border-gray-200/50'
             } border-b`}>
-              <span className={`text-xl font-semibold ${
-                isDarkMode ? 'text-purple-400' : 'text-blue-600'
-              }`}>Navigation</span>
+              <div className="flex items-center space-x-3">
+                <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
+                  <HiSparkles className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Kabbala Arts
+                </span>
+              </div>
               <button 
                 onClick={() => setIsOpen(false)}
-                className={`rounded-md p-1 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  isDarkMode
-                    ? 'text-gray-400 hover:text-gray-300'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`rounded-lg p-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500/50
+                  ${isDarkMode
+                    ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700/50'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
+                  }`}
               >
                 <HiX className="h-6 w-6" />
               </button>
             </div>
             
             <div className="flex-1 flex flex-col overflow-hidden">
-              <nav className="flex-1 mt-4 px-2 space-y-1 overflow-y-auto">
+              {/* Navigation */}
+              <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
                 {navLinks.map((link) => (
                   <Link
                     key={link.name}
                     to={link.path}
-                    className={`flex items-center px-4 py-3 rounded-md text-sm font-medium transition-colors ${
-                      location.pathname === link.path
+                    className={`group flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-[1.02]
+                      ${location.pathname === link.path
                         ? isDarkMode
-                          ? 'bg-purple-900 text-purple-100'
-                          : 'bg-blue-100 text-blue-700'
+                          ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white shadow-lg shadow-purple-500/10'
+                          : 'bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 shadow-lg shadow-purple-500/10'
                         : isDarkMode
-                          ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                    }`}
+                          ? 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
+                          : 'text-gray-700 hover:bg-gray-100/50 hover:text-gray-900'
+                      }`}
                     onClick={() => setIsOpen(false)}
                   >
-                    <span className={`transition-colors ${
+                    <span className={`transition-colors duration-200 ${
                       location.pathname === link.path 
                         ? isDarkMode
-                          ? 'text-purple-400'
-                          : 'text-blue-600'
+                          ? 'text-blue-400 group-hover:text-blue-300'
+                          : 'text-blue-600 group-hover:text-blue-700'
                         : isDarkMode
-                          ? 'text-gray-400'
-                          : 'text-gray-500'
+                          ? 'text-gray-400 group-hover:text-gray-300'
+                          : 'text-gray-500 group-hover:text-gray-700'
                     }`}>
                       {link.icon}
                     </span>
@@ -142,13 +155,15 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
                 ))}
               </nav>
 
-              <div className={`p-4 ${isDarkMode ? 'border-t border-gray-700' : 'border-t border-gray-200'}`}>
+              {/* Logout Button */}
+              <div className="p-4">
                 <button
                   onClick={logout}
-                  className={`w-full flex items-center px-4 py-3 rounded-md text-sm font-medium transition-colors ${
+                  className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium
+                    transition-all duration-200 transform hover:scale-[1.02] ${
                     isDarkMode
-                      ? 'text-red-400 hover:bg-gray-700 hover:text-red-300'
-                      : 'text-red-600 hover:bg-gray-100 hover:text-red-700'
+                      ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300'
+                      : 'bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700'
                   }`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -166,54 +181,63 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
 
   // Desktop sidebar
   return (
-    <aside className={`sticky top-16 flex flex-col h-[calc(100vh-64px)] transition-all duration-300 ${
-      isOpen ? 'w-64' : 'w-20'
-    } ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border-r ${
-      isDarkMode ? 'border-gray-700' : 'border-gray-200'
-    }`}>
-      <div className={`flex items-center justify-between h-16 px-4 ${
-        isDarkMode ? 'border-gray-700' : 'border-gray-200'
+    <aside className={`sticky top-16 flex flex-col h-[calc(100vh-64px)] transition-all duration-300
+      ${isOpen ? 'w-72' : 'w-20'}
+      ${isDarkMode 
+        ? 'bg-gray-800/90 backdrop-blur-lg border-r border-gray-700/50' 
+        : 'bg-white/90 backdrop-blur-lg border-r border-gray-200/50'
+      }`}
+    >
+      {/* Header */}
+      <div className={`flex items-center h-16 px-4 ${
+        isDarkMode ? 'border-gray-700/50' : 'border-gray-200/50'
       } border-b`}>
         {isOpen && (
-          <span className={`text-xl font-semibold ${
-            isDarkMode ? 'text-purple-400' : 'text-blue-600'
-          }`}>Navigation</span>
+          <div className="flex items-center space-x-3">
+            <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
+              <HiSparkles className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Kabbala Arts
+            </span>
+          </div>
         )}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className={`rounded-md p-1 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-gray-300'
-              : 'text-gray-500 hover:text-gray-700'
-          } ${isOpen ? 'ml-auto' : 'mx-auto'}`}
+          className={`rounded-lg p-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500/50
+            ${isDarkMode
+              ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700/50'
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
+            } ${isOpen ? 'ml-auto' : 'mx-auto'}`}
         >
           {isOpen ? <HiChevronLeft className="h-6 w-6" /> : <HiChevronRight className="h-6 w-6" />}
         </button>
       </div>
 
-      <nav className="flex-1 px-2 py-4 overflow-y-auto">
+      {/* Navigation */}
+      <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
         {navLinks.map((link) => (
           <Link
             key={link.name}
             to={link.path}
-            className={`flex items-center px-2 py-3 rounded-md text-sm font-medium transition-colors ${
-              location.pathname === link.path
+            className={`group flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-[1.02]
+              ${location.pathname === link.path
                 ? isDarkMode
-                  ? 'bg-purple-900 text-purple-100'
-                  : 'bg-blue-100 text-blue-700'
+                  ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white shadow-lg shadow-purple-500/10'
+                  : 'bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 shadow-lg shadow-purple-500/10'
                 : isDarkMode
-                  ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-            }`}
+                  ? 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
+                  : 'text-gray-700 hover:bg-gray-100/50 hover:text-gray-900'
+              }`}
           >
-            <span className={`transition-colors ${
+            <span className={`transition-colors duration-200 ${
               location.pathname === link.path 
                 ? isDarkMode
-                  ? 'text-purple-400'
-                  : 'text-blue-600'
+                  ? 'text-blue-400 group-hover:text-blue-300'
+                  : 'text-blue-600 group-hover:text-blue-700'
                 : isDarkMode
-                  ? 'text-gray-400'
-                  : 'text-gray-500'
+                  ? 'text-gray-400 group-hover:text-gray-300'
+                  : 'text-gray-500 group-hover:text-gray-700'
             }`}>
               {link.icon}
             </span>
@@ -222,19 +246,23 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
         ))}
       </nav>
 
-      <button
-        onClick={logout}
-        className={`mx-4 mb-4 flex items-center px-2 py-2 rounded-md text-sm font-medium transition-colors ${
-          isDarkMode
-            ? 'text-red-400 hover:bg-gray-700 hover:text-red-300'
-            : 'text-red-600 hover:bg-gray-100 hover:text-red-700'
-        }`}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-        </svg>
-        {isOpen && <span className="ml-3">Logout</span>}
-      </button>
+      {/* Logout Button */}
+      <div className="p-4">
+        <button
+          onClick={logout}
+          className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium
+            transition-all duration-200 transform hover:scale-[1.02] ${
+            isDarkMode
+              ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300'
+              : 'bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700'
+          }`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          {isOpen && <span className="ml-3">Logout</span>}
+        </button>
+      </div>
     </aside>
   );
 };

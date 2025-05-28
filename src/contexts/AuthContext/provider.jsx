@@ -7,6 +7,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
   const handleAuthSuccess = (userData, token, refreshToken) => {
     // Ensure user data has all required fields
     const enrichedUserData = {
@@ -27,33 +28,42 @@ export const AuthProvider = ({ children }) => {
       console.log('AuthContext: Attempting login with:', { email });
       const response = await authService.login(email, password);
       console.log('AuthContext: Raw response:', response);
-      
-      if (response && response.user) {
-        console.log('AuthContext: Valid response data:', {
+
+      if (response.success && response.user) {
+        console.log('AuthContext: Valid login response:', {
           user: {
             id: response.user.id,
             email: response.user.email,
             firstName: response.user.firstName,
             role: response.user.role
-          },
-          hasToken: !!response.token,
-          hasRefreshToken: !!response.refreshToken
+          }
         });
         handleAuthSuccess(response.user, response.token, response.refreshToken);
         return { success: true, user: response.user };
-      } else {
-        console.error('AuthContext: Invalid response format:', response);
-        return { success: false, error: 'Invalid response from server' };
       }
+      
+      // If we got here, either success is false or we don't have a user
+      const errorMessage = response.error || 'Invalid credentials. Please check your email and password.';
+      console.log('AuthContext: Login failed:', errorMessage);
+      return { success: false, error: errorMessage };
     } catch (error) {
-      console.error('AuthContext: Login error:', { 
+      console.error('AuthContext: Login error:', {
         message: error.message,
-        stack: error.stack,
-        cause: error.cause
+        stack: error.stack
       });
-      return { 
-        success: false, 
-        error: error.message || 'An error occurred during login'
+
+      let errorMessage = error.message || 'An error occurred during login';
+      
+      // Make error messages more user-friendly
+      if (error.message === 'Invalid password') {
+        errorMessage = 'Invalid password. Please check your password and try again.';
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      }
+
+      return {
+        success: false,
+        error: errorMessage
       };
     }
   };

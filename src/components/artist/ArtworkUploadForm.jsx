@@ -41,9 +41,9 @@ const ArtworkUploadForm = () => {
       }
 
       // Create FormData to handle file uploads
-      const artworkData = new FormData();
-      selectedFiles.forEach((file, index) => {
-        artworkData.append('images', file);
+      const artworkData = new FormData();      selectedFiles.forEach((file, index) => {
+        artworkData.append('file', file);
+        artworkData.append('type', 'artwork');
       });
 
       // Append other form data

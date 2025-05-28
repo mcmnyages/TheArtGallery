@@ -11,8 +11,11 @@ class AuthService {
       return await response.json();
     }
     const text = await response.text();
-    console.error('Received non-JSON response:', text);
-    throw new Error('Invalid response format from server');
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { message: text };
+    }
   }
 
   async login(email: string, password: string): Promise<AuthResponse> {
@@ -32,7 +35,15 @@ class AuthService {
       if (!response.ok) {
         return {
           success: false,
-          error: data.message || 'Login failed'
+          error: data.error || data.message || 'Invalid credentials. Please check your email and password.'
+        };
+      }
+
+      // Handle 2xx responses that might still indicate an error
+      if (data.error) {
+        return {
+          success: false,
+          error: data.error
         };
       }
       
@@ -41,7 +52,7 @@ class AuthService {
         console.error('Invalid response structure:', data);
         return {
           success: false,
-          error: 'Invalid response from server'
+          error: 'Invalid server response. Please try again.'
         };
       }
 
@@ -51,16 +62,13 @@ class AuthService {
         refreshToken: data.refreshToken
       });
 
-      // Extract user info from JWT token
-      const tokenPayload = JSON.parse(atob(data.accessToken.split('.')[1]));
-      
-      // Create a proper User object from the token payload and email pattern
+      // Extract user info from JWT token or response data
       const user: User = {
-        id: tokenPayload.id || data.id,
-        firstName: tokenPayload.firstName || data.firstName,
-        lastName: tokenPayload.lastName || data.lastName,
-        email: tokenPayload.email || email,
-        role: email.includes('artist') ? 'artist' : 'customer'
+        id: data.id,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: email,
+        role: data.role || (email.includes('artist') ? 'artist' : 'customer')
       };
 
       return {
@@ -71,10 +79,9 @@ class AuthService {
       };
     } catch (error) {
       console.error('Login error:', error);
-      const message = error instanceof Error ? error.message : 'An unexpected error occurred';
       return {
         success: false,
-        error: message
+        error: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.'
       };
     }
   }

@@ -21,7 +21,11 @@ const RegisterForm = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value.trim() }));
+    // Only clear error if there was one
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
   const validate = () => {
@@ -100,7 +104,7 @@ const RegisterForm = () => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="firstName" className={`block text-sm font-medium ${
@@ -112,13 +116,14 @@ const RegisterForm = () => {
               type="text"
               id="firstName"
               name="firstName"
+              autoComplete="given-name"
               value={formData.firstName}
               onChange={handleChange}
-              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm 
+              className={`mt-1 block w-full rounded-md border shadow-sm sm:text-sm
                 focus:ring-purple-500 focus:border-purple-500 ${
                 isDarkMode 
                   ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                  : 'border-gray-300 placeholder-gray-400'
+                  : 'bg-white border-gray-300 placeholder-gray-400'
               }`}
             />
             {errors.firstName && (
@@ -138,11 +143,11 @@ const RegisterForm = () => {
               name="lastName"
               value={formData.lastName}
               onChange={handleChange}
-              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm 
+              className={`mt-1 block w-full rounded-md border shadow-sm sm:text-sm
                 focus:ring-purple-500 focus:border-purple-500 ${
                 isDarkMode 
                   ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                  : 'border-gray-300 placeholder-gray-400'
+                  : 'bg-white border-gray-300 placeholder-gray-400'
               }`}
             />
             {errors.lastName && (
@@ -151,78 +156,57 @@ const RegisterForm = () => {
           </div>
         </div>
 
-        <div>
-          <label htmlFor="email" className={`block text-sm font-medium ${
-            isDarkMode ? 'text-gray-200' : 'text-gray-700'
-          }`}>
-            Email Address
-          </label>
+        <div className="col-span-full">
           <input
             type="email"
             id="email"
             name="email"
+            autoComplete="email"
             value={formData.email}
             onChange={handleChange}
-            className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm 
+            className={`mt-1 block w-full rounded-md border shadow-sm sm:text-sm
               focus:ring-purple-500 focus:border-purple-500 ${
               isDarkMode 
                 ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                : 'border-gray-300 placeholder-gray-400'
+                : 'bg-white border-gray-300 placeholder-gray-400'
             }`}
           />
-          {errors.email && (
-            <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-          )}
         </div>
 
-        <div>
-          <label htmlFor="password" className={`block text-sm font-medium ${
-            isDarkMode ? 'text-gray-200' : 'text-gray-700'
-          }`}>
-            Password
-          </label>
+        <div className="col-span-full">
           <input
             type="password"
             id="password"
             name="password"
+            autoComplete="new-password"
             value={formData.password}
             onChange={handleChange}
-            className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm 
+            className={`mt-1 block w-full rounded-md border shadow-sm sm:text-sm
               focus:ring-purple-500 focus:border-purple-500 ${
               isDarkMode 
                 ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                : 'border-gray-300 placeholder-gray-400'
+                : 'bg-white border-gray-300 placeholder-gray-400'
             }`}
           />
-          {errors.password && (
-            <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-          )}
         </div>
 
-        <div>
-          <label htmlFor="confirmPassword" className={`block text-sm font-medium ${
-            isDarkMode ? 'text-gray-200' : 'text-gray-700'
-          }`}>
-            Confirm Password
-          </label>
+        <div className="col-span-full">
           <input
             type="password"
             id="confirmPassword"
             name="confirmPassword"
+            autoComplete="new-password"
             value={formData.confirmPassword}
             onChange={handleChange}
-            className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm 
+            className={`mt-1 block w-full rounded-md border shadow-sm sm:text-sm
               focus:ring-purple-500 focus:border-purple-500 ${
               isDarkMode 
                 ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                : 'border-gray-300 placeholder-gray-400'
+                : 'bg-white border-gray-300 placeholder-gray-400'
             }`}
           />
-          {errors.confirmPassword && (
-            <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
-          )}
         </div>
-
+        
         <div>
           <button
             type="submit"

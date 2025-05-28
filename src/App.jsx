@@ -21,6 +21,7 @@ import ManageGalleryPage from './pages/artist/ManageGalleryPage';
 import CreateGalleryPage from './pages/artist/CreateGalleryPage';
 import ArtistRoute from './components/auth/ArtistRoute';
 import { useAuth } from './hooks/useAuth';
+import PictureManagementPage from './pages/artist/PictureManagementPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -123,6 +124,11 @@ function AppContent() {
             <Route path="/artist/gallery/edit/:id" element={
               <ArtistRoute>
                 <CreateGalleryPage />
+              </ArtistRoute>
+            } />
+            <Route path="/artist/pictures" element={
+              <ArtistRoute>
+                <PictureManagementPage />
               </ArtistRoute>
             } />
           </Routes>
