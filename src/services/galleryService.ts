@@ -117,29 +117,44 @@ export class GalleryService {
     
     console.log('Using headers:', headers);
     return headers;
-  }
-
-  async fetchGalleryGroups(): Promise<GalleryGroup[]> {
+  }  // Fetch all galleries (public + private)
+  async fetchAllGalleryGroups(): Promise<GalleryGroup[]> {
     try {
-      console.log('Fetching gallery groups...');
+      console.log('Fetching all gallery groups...');
       const headers = await this.getAuthenticatedHeaders();
-      const url = '/api/groups/all';  // Use the proxied path
+      const url = '/api/groups/all';
       console.log('Making request to:', url);
       
       const response = await axios.get<GalleryGroupsResponse>(url, { 
         headers,
-        withCredentials: true,
-        validateStatus: (status) => status < 500 // Handle 4xx errors gracefully
+        withCredentials: true
       });
       
-      console.log('Gallery groups response:', response.data);
+      console.log('All galleries response:', response.data);
+      return response.data.groups || [];
+    } catch (error) {
+      console.error('Error fetching all gallery groups:', error);
+      throw error;
+    }
+  }
+
+  // Fetch only artist's galleries
+  async fetchGalleryGroups(): Promise<GalleryGroup[]> {
+    try {
+      console.log('Fetching artist gallery groups...');
+      const headers = await this.getAuthenticatedHeaders();
+      const url = '/api/groups';
+      console.log('Making request to:', url);
+      
+      const response = await axios.get<GalleryGroupsResponse>(url, { 
+        headers,
+        withCredentials: true
+      });
+      
+      console.log('Gallery response data:', response.data);
       return response.data.groups || [];
     } catch (error) {
       console.error('Error fetching gallery groups:', error);
-      if (axios.isAxiosError(error) && error.response?.status === 401) {
-        // Handle unauthorized error
-        throw new Error('Please login to access this content');
-      }
       throw error;
     }
   }
@@ -163,6 +178,91 @@ export class GalleryService {
       console.error('Error fetching gallery group:', error);
       if (axios.isAxiosError(error) && error.response?.status === 401) {
         throw new Error('Please login to access this content');
+      }
+      throw error;
+    }
+  }
+
+  async deleteGalleryGroup(groupId: string): Promise<void> {
+    try {
+      console.log('Deleting gallery group:', groupId);
+      const headers = await this.getAuthenticatedHeaders();
+      const url = `/api/groups/${groupId}`;
+      
+      await axios.delete(url, { 
+        headers,
+        withCredentials: true,
+        validateStatus: (status) => status < 500
+      });
+    } catch (error) {
+      console.error('Error deleting gallery group:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        throw new Error('Please login to access this content');
+      }
+      throw error;
+    }
+  }
+
+  async uploadArtistImage(formData: FormData): Promise<GalleryImage> {
+    try {
+      const headers = await this.getAuthenticatedHeaders();
+      // Remove content-type from headers as it will be set automatically with FormData      delete headers['Content-Type'];      console.log('Uploading image...');
+      const response = await axios.post<{ success: boolean; imageUrl: string }>('/uploads', formData, {
+        headers,
+        withCredentials: true,
+        validateStatus: (status) => status < 500  // Handle 4xx errors gracefully
+      });
+
+      console.log('Upload response:', response.data);
+
+      if (!response.data.success || !response.data.imageUrl) {
+        throw new Error('Invalid response from server');
+      }
+
+      // Return the new image object
+      return {
+        imageId: `img-${Date.now()}`,
+        imageUrl: response.data.imageUrl,
+        _id: `img-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        sharedWith: []
+      };
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.message || 'Failed to upload image');
+      }
+      throw error;
+    }
+  }
+
+  async fetchUserGalleries(userId: string): Promise<GalleryGroup[]> {
+    try {
+      console.log('Starting fetchUserGalleries for user:', userId);
+      const headers = await this.getAuthenticatedHeaders();
+      const url = `/api/groups/user/${userId}`;
+      console.log('Making request to:', url);
+      
+      const response = await axios.get<GalleryGroupsResponse>(url, { 
+        headers,
+        withCredentials: true,
+        validateStatus: (status) => status < 500
+      });
+      
+      console.log('User galleries raw response:', response);
+      console.log('User galleries response data:', response.data);
+
+      if (!response.data || !response.data.groups) {
+        console.warn('Unexpected response format:', response.data);
+        return [];
+      }
+
+      return response.data.groups;
+    } catch (error) {
+      console.error('Error in fetchUserGalleries:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Response data:', error.response?.data);
+        console.error('Response status:', error.response?.status);
       }
       throw error;
     }

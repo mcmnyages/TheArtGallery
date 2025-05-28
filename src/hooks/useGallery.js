@@ -25,9 +25,8 @@ export const useGallery = () => {
     setLoading(true);
     setError(null);
     
-    try {
-      console.log('Fetching all galleries from service');
-      const groups = await galleryService.fetchGalleryGroups();
+    try {      console.log('Fetching all public galleries from service');
+      const groups = await galleryService.fetchAllGalleryGroups();
       console.log('Received galleries:', groups);
       setGalleries(groups || []); // Ensure we always have an array
     } catch (err) {

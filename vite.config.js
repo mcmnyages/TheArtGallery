@@ -114,6 +114,10 @@ export default defineConfig(({ mode }) => {
               }
             });
           }
+        },
+        '/uploads': {
+          target: 'https://gallery.secretstartups.org',
+          ...sharedProxyOptions
         }
       }
     },

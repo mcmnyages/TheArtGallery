@@ -17,6 +17,8 @@ const ArtistPictureManager = () => {
   const [filterCategory, setFilterCategory] = useState('all');
   const [selectedImages, setSelectedImages] = useState(new Set());
   const [categories, setCategories] = useState(['all', 'portraits', 'landscapes', 'abstract', 'other']);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef(null);
 
   useEffect(() => {
     fetchArtistImages();
@@ -78,6 +80,31 @@ const ArtistPictureManager = () => {
       } catch (err) {
         console.error('Failed to delete images:', err);
         alert(err.response?.data?.message || 'Failed to delete images');
+      }
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setUploading(true);
+    try {
+      const uploadPromises = files.map(file => {
+        const formData = new FormData();
+        formData.append('image', file);
+        return galleryService.uploadArtistImage(formData);
+      });
+
+      await Promise.all(uploadPromises);
+      await fetchArtistImages(); // Refresh the image list
+    } catch (err) {
+      console.error('Failed to upload images:', err);
+      alert(err.message || 'Failed to upload images');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''; // Reset file input
       }
     }
   };
@@ -155,6 +182,23 @@ const ArtistPictureManager = () => {
             <option value="oldest">Oldest First</option>
             <option value="title">By Title</option>
           </select>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleImageUpload}
+            className="hidden"
+            ref={fileInputRef}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className={`px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors ${
+              uploading ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {uploading ? 'Uploading...' : 'Upload Images'}
+          </button>
         </div>
 
         {selectedImages.size > 0 && (
@@ -165,6 +209,28 @@ const ArtistPictureManager = () => {
             Delete Selected ({selectedImages.size})
           </button>
         )}
+      </div>
+
+      {/* Upload Section */}
+      <div className="mb-8">
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleImageUpload}
+          ref={fileInputRef}
+          className={`hidden`}
+        />
+        <button
+          onClick={() => fileInputRef.current.click()}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            isDarkMode
+              ? 'bg-blue-600 text-white hover:bg-blue-700'
+              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+          }`}
+        >
+          {uploading ? 'Uploading...' : 'Upload New Images'}
+        </button>
       </div>
 
       {/* Images Grid */}
