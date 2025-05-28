@@ -12,7 +12,8 @@ import {
   HiEnvelope,
   HiLockClosed,
   HiArrowPath,
-  HiArrowRightOnRectangle
+  HiArrowRightOnRectangle,
+  HiCheckCircle
 } from 'react-icons/hi2';
 
 interface FormErrors {
@@ -140,6 +141,7 @@ export const LoginForm: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [loginSuccess, setLoginSuccess] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState('');
   const { login } = useAuth();
@@ -152,7 +154,7 @@ export const LoginForm: React.FC = () => {
     if (!email) {
       formErrors.email = 'Email is required';
     } else if (!validateEmail(email)) {
-      formErrors.email = 'Invalid email format';
+      formErrors.email = 'Please enter a valid email address';
     }
     
     if (!password) {
@@ -173,15 +175,12 @@ export const LoginForm: React.FC = () => {
     
     setIsSubmitting(true);
     setLoginError('');
+    setLoginSuccess('');
     
     try {
       const result = await login(email, password);
-      console.log('Login response received:', {
-        firstName: result.user?.firstName,
-        email: result.user?.email,
-      });
-        if (result.success && result.user) {
-        // Determine role and redirect accordingly
+      console.log('Login response received:', result);      if (result.success && result.user) {
+        setLoginSuccess('Login successful! Redirecting...');
         const role = result.user.role;
         let redirectPath = '/galleries'; // default path for customers
 
@@ -192,14 +191,42 @@ export const LoginForm: React.FC = () => {
           console.log('Customer login detected, redirecting to galleries');
         }
 
-        console.log('Navigating to:', redirectPath);
-        navigate(redirectPath);
+        // Add a small delay to show the success message before redirecting
+        setTimeout(() => {
+          console.log('Navigating to:', redirectPath);
+          navigate(redirectPath);
+        }, 1000);
       } else {
-        setLoginError(result.error || 'Invalid credentials');
+        console.error('Login failed:', result);
+        // Display the error message from the server or auth provider
+        const errorMessage = result.error || 'Invalid email or password. Please check your credentials and try again.';
+        setLoginError(errorMessage);
+        // Clear the password field when there's an error
+        setPassword('');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      setLoginError('An unexpected error occurred. Please try again.');
+      
+      // Extract the most meaningful error message
+      let errorMessage = 'An error occurred during login. Please try again.';
+      
+      if (error.response) {
+        // Handle structured error responses
+        const data = error.response.data;
+        errorMessage = data.error || data.message || errorMessage;
+      } else if (error.message?.toLowerCase().includes('network')) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (error.message?.toLowerCase().includes('timeout')) {
+        errorMessage = 'Request timed out. Please try again.';
+      } else if (error.status === 400) {
+        errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+      } else if (error.status === 401) {
+        errorMessage = 'Invalid credentials. Please check your email and password.';
+      } else if (error.status === 403) {
+        errorMessage = 'Your account has been locked. Please contact support.';
+      }
+      
+      setLoginError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -219,6 +246,8 @@ export const LoginForm: React.FC = () => {
         [field]: ''
       });
     }
+    // Clear general error messages when user starts typing
+    setLoginError('');
   };
 
 
@@ -253,6 +282,16 @@ export const LoginForm: React.FC = () => {
               <div className="flex items-center space-x-3">
                 <HiExclamationTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
                 <p className="text-sm font-medium text-red-800 dark:text-red-200">{loginError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Success Alert */}
+          {loginSuccess && (
+            <div className="rounded-2xl bg-green-50 dark:bg-green-900/20 p-4 mb-6 border border-green-200 dark:border-green-800 animate-in slide-in-from-top-2 duration-300">
+              <div className="flex items-center space-x-3">
+                <HiCheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                <p className="text-sm font-medium text-green-800 dark:text-green-200">{loginSuccess}</p>
               </div>
             </div>
           )}
