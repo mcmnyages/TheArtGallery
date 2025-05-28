@@ -14,7 +14,8 @@ import {
   HiChevronLeft,
   HiChevronRight,
   HiX,
-  HiSparkles
+  HiSparkles,
+  HiPhotograph as HiPicture
 } from 'react-icons/hi';
 
 const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
@@ -28,6 +29,11 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
       name: 'Artist Dashboard',
       path: '/artist/dashboard',
       icon: <HiChartBar className="h-6 w-6" />
+    },
+    {
+      name: 'Picture Management',
+      path: '/artist/pictures',
+      icon: <HiPicture className="h-6 w-6" />
     },
     {
       name: 'Manage Gallery',
