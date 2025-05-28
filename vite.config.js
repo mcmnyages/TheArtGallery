@@ -9,8 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  
-  const sharedProxyOptions = {
+    const sharedProxyOptions = {
     changeOrigin: true,
     secure: mode === 'production',
     configure: (proxy, options) => {
@@ -26,6 +25,17 @@ export default defineConfig(({ mode }) => {
         Object.entries(requestHeaders).forEach(([key, value]) => {
           proxyReq.setHeader(key, value);
         });
+
+        // Handle CORS preflight
+        if (req.method === 'OPTIONS') {
+          res.writeHead(200, {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          });
+          res.end();
+          return;
+        }
       });
 
       proxy.on('proxyRes', (proxyRes, req, res) => {
@@ -73,7 +83,12 @@ export default defineConfig(({ mode }) => {
           ...sharedProxyOptions
         },        '/api/v0.1/gallery': {
           target: 'https://gallery.secretstartups.org',
-          rewrite: (path) => path.replace('/api/v0.1/gallery', '/images'),
+          rewrite: (path) => {
+            if (path.includes('/upload')) {
+              return '/upload';
+            }
+            return path.replace('/api/v0.1/gallery', '/images');
+          },
           ...sharedProxyOptions
         },
         '/api/groups': {
@@ -114,9 +129,9 @@ export default defineConfig(({ mode }) => {
               }
             });
           }
-        },
-        '/uploads': {
+        },        '/uploads': {
           target: 'https://gallery.secretstartups.org',
+          rewrite: (path) => path.replace('/uploads', '/upload'),
           ...sharedProxyOptions
         }
       }

@@ -18,6 +18,7 @@ const ArtistPictureManager = () => {
   const [selectedImages, setSelectedImages] = useState(new Set());
   const [categories, setCategories] = useState(['all', 'portraits', 'landscapes', 'abstract', 'other']);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({});
   const fileInputRef = React.useRef(null);
 
   useEffect(() => {
@@ -66,20 +67,20 @@ const ArtistPictureManager = () => {
     setViewerOpen(true);
   };
   const handleBulkDelete = async () => {
-    if (selectedImages.size === 0) return;
-    
-    if (window.confirm(`Are you sure you want to delete ${selectedImages.size} selected images?`)) {
+    if (window.confirm(`Are you sure you want to delete ${selectedImages.size} images?`)) {
+      setLoading(true);
       try {
         const deletePromises = Array.from(selectedImages).map(imageId =>
           galleryService.deleteArtistImage(imageId)
         );
-        
         await Promise.all(deletePromises);
-        setSelectedImages(new Set());
-        await fetchArtistImages();
+        setSelectedImages(new Set()); // Clear selection
+        await fetchArtistImages(); // Refresh the image list
       } catch (err) {
         console.error('Failed to delete images:', err);
-        alert(err.response?.data?.message || 'Failed to delete images');
+        setError(err.response?.data?.message || 'Failed to delete images');
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -89,23 +90,36 @@ const ArtistPictureManager = () => {
     if (files.length === 0) return;
 
     setUploading(true);
-    try {
+    const newUploadProgress = {};    try {
       const uploadPromises = files.map(file => {
         const formData = new FormData();
-        formData.append('image', file);
-        return galleryService.uploadArtistImage(formData);
+        formData.append('images', file);  // Changed from 'images' to 'image' to match backend
+        formData.append('type', 'artwork');
+
+        // Initialize progress for this file
+        newUploadProgress[file.name] = 0;
+        setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
+
+        // Call uploadArtistImage with progress tracking
+        return galleryService.uploadArtistImage(formData, (progressEvent) => {
+          if (progressEvent.total) {
+            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
+          }
+        });
       });
 
       await Promise.all(uploadPromises);
+      setUploadProgress({}); // Clear progress
       await fetchArtistImages(); // Refresh the image list
-    } catch (err) {
-      console.error('Failed to upload images:', err);
-      alert(err.message || 'Failed to upload images');
-    } finally {
-      setUploading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = ''; // Reset file input
       }
+    } catch (err) {
+      console.error('Failed to upload images:', err);
+      setError(err.message || 'Failed to upload images');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -212,25 +226,53 @@ const ArtistPictureManager = () => {
       </div>
 
       {/* Upload Section */}
-      <div className="mb-8">
+      <div className="mb-8 space-y-4">
         <input
           type="file"
           accept="image/*"
           multiple
           onChange={handleImageUpload}
           ref={fileInputRef}
-          className={`hidden`}
+          className="hidden"
         />
-        <button
-          onClick={() => fileInputRef.current.click()}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-            isDarkMode
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-          }`}
-        >
-          {uploading ? 'Uploading...' : 'Upload New Images'}
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => fileInputRef.current.click()}
+            disabled={uploading}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              isDarkMode
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+            } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {uploading ? 'Uploading...' : 'Upload New Images'}
+          </button>
+          {uploading && (
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Uploading {Object.keys(uploadProgress).length} files...
+            </span>
+          )}
+        </div>
+
+        {/* Upload Progress */}
+        {Object.keys(uploadProgress).length > 0 && (
+          <div className="space-y-2">
+            {Object.entries(uploadProgress).map(([fileName, progress]) => (
+              <div key={fileName} className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="truncate">{fileName}</span>
+                  <span>{progress}%</span>
+                </div>
+                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-600 transition-all duration-300 ease-out"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Images Grid */}
@@ -293,12 +335,12 @@ const ArtistPictureManager = () => {
               <h3 className={`font-semibold truncate ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
-                {image.title || 'Untitled'}
+                
               </h3>
               <p className={`text-sm mt-1 truncate ${
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>
-                {image.category || 'Uncategorized'}
+                
               </p>
               <p className={`text-xs mt-1 ${
                 isDarkMode ? 'text-gray-500' : 'text-gray-400'

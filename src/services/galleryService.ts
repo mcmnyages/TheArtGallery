@@ -202,35 +202,63 @@ export class GalleryService {
       throw error;
     }
   }
-
-  async uploadArtistImage(formData: FormData): Promise<GalleryImage> {
+  async uploadArtistImage(formData: FormData, onProgress?: (progressEvent: any) => void): Promise<GalleryImage> {
     try {
       const headers = await this.getAuthenticatedHeaders();
-      // Remove content-type from headers as it will be set automatically with FormData      delete headers['Content-Type'];      console.log('Uploading image...');
-      const response = await axios.post<{ success: boolean; imageUrl: string }>('/uploads', formData, {
-        headers,
-        withCredentials: true,
-        validateStatus: (status) => status < 500  // Handle 4xx errors gracefully
-      });
+        // Add ngrok-skip-browser-warning header and ensure proper content type handling
+      headers['ngrok-skip-browser-warning'] = 'true';
+      delete headers['Content-Type']; // Let browser set this for FormData
 
-      console.log('Upload response:', response.data);
-
-      if (!response.data.success || !response.data.imageUrl) {
-        throw new Error('Invalid response from server');
+      // Create a new FormData to ensure proper structure
+      const uploadFormData = new FormData();
+      
+      // Get the file from the original FormData and append with the correct field name
+      const file = formData.get('images');
+      if (!file) {
+        throw new Error('No file provided');
+      }
+      uploadFormData.append('images', file as Blob);
+      
+      // Add any additional metadata
+      const type = formData.get('type');
+      if (type) {
+        uploadFormData.append('type', type as string);
       }
 
-      // Return the new image object
+      const response = await axios.post<{
+        message: string;
+        images: Array<{ url: string }>;
+      }>('/api/v0.1/gallery/upload', uploadFormData, {
+        headers,
+        withCredentials: true,
+        validateStatus: (status) => status < 500,
+        onUploadProgress: onProgress
+      });
+
+      
+      console.log('Upload response:', response.data);
+
+      if (!response.data.images || !response.data.images.length) {
+        throw new Error('No images received from server');
+      }
+
+      const uploadedImage = response.data.images[0];      // Return the new image object
       return {
         imageId: `img-${Date.now()}`,
-        imageUrl: response.data.imageUrl,
+        imageUrl: uploadedImage.url,
         _id: `img-${Date.now()}`,
         createdAt: new Date().toISOString(),
         sharedWith: []
       };
     } catch (error) {
+      
       console.error('Error uploading image:', error);
       if (axios.isAxiosError(error)) {
-        throw new Error(error.response?.data?.message || 'Failed to upload image');
+        const errorMessage = error.response?.data?.message 
+          || error.response?.data?.error 
+          || error.message 
+          || 'Failed to upload image';
+        throw new Error(errorMessage);
       }
       throw error;
     }
@@ -263,6 +291,40 @@ export class GalleryService {
       if (axios.isAxiosError(error)) {
         console.error('Response data:', error.response?.data);
         console.error('Response status:', error.response?.status);
+      }
+      throw error;
+    }
+  }
+
+  async uploadImage(file: File): Promise<GalleryImage> {
+    try {
+      console.log('Uploading image...');
+      const headers = await this.getAuthenticatedHeaders();
+      
+      // Create FormData
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      // Override Content-Type since we're sending FormData
+      delete headers['Content-Type'];
+      
+      const response = await axios.post<{
+        message: string;
+        image: GalleryImage;
+      }>('/upload', formData, { 
+        headers,
+        withCredentials: true,
+      });
+      
+      console.log('Upload response:', response.data);
+      return response.data.image;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          throw new Error('Please login to upload images');
+        }
+        throw new Error(error.response?.data?.message || 'Failed to upload image');
       }
       throw error;
     }
