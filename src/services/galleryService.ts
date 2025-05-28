@@ -26,29 +26,23 @@ export interface GalleryGroupsResponse {
 }
 
 export class GalleryService {
-  async getArtistImages(): Promise<GalleryImage[]> {
-    try {
-      const headers = await this.getAuthenticatedHeaders();      console.log('Making request to fetch artist images...');
-      const response = await axios.get<{ success: boolean, imageUrls: string[][] }>('/api/v0.1/gallery', { 
+  async getArtistImages(): Promise<GalleryImage[]> {    try {
+      const headers = await this.getAuthenticatedHeaders();
+      console.log('Making request to fetch artist images...');
+      const response = await axios.get<{ success: boolean, images: GalleryImage[] }>('/api/v0.1/gallery', { 
         headers,
         withCredentials: true 
       });
       console.log('Raw API Response status:', response.status);
       console.log('Raw API Response data:', JSON.stringify(response.data, null, 2));
 
-      if (!response.data.success || !response.data.imageUrls) {
+      if (!response.data.success || !response.data.images) {
         console.error('Invalid response format:', response.data);
         return [];
       }
 
-      // Transform the nested array of URLs into GalleryImage objects
-      const images: GalleryImage[] = response.data.imageUrls.flat().map((url, index) => ({
-        imageId: `img-${index}`,
-        imageUrl: url,
-        _id: `img-${index}`,
-        createdAt: new Date().toISOString(),
-        sharedWith: []
-      }));
+      // The server is already sending data in the correct format, just return it
+      const images: GalleryImage[] = response.data.images;
 
       console.log('Transformed images:', images);
       return images;
@@ -325,6 +319,44 @@ export class GalleryService {
           throw new Error('Please login to upload images');
         }
         throw new Error(error.response?.data?.message || 'Failed to upload image');
+      }
+      throw error;
+    }
+  }
+  async createGalleryGroup(data: { name: string; description: string; imageIds: string[] }): Promise<GalleryGroup> {
+    try {
+      console.log('Creating gallery group with data:', data);
+      const headers = await this.getAuthenticatedHeaders();
+      console.log('Using headers:', headers);
+        const response = await axios.post<{ message: string; group: GalleryGroup }>(
+        '/api/groups',
+        data,
+        {
+          headers,
+          withCredentials: true
+        }
+      );
+      
+      console.log('Gallery creation response:', response.data);
+
+      if (!response.data.group) {
+        throw new Error('Failed to create gallery group: No group data received');
+      }
+
+      return response.data.group;} catch (error) {
+      console.error('Error creating gallery group:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Request details:', {
+          url: error.config?.url,
+          method: error.config?.method,
+          data: error.config?.data,
+          headers: error.config?.headers
+        });
+        console.error('Response details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data
+        });
       }
       throw error;
     }

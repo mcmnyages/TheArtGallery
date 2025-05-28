@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useArtist } from '../../hooks/useArtistContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Check, X, Search, ImageIcon } from 'lucide-react';
+import { galleryService } from '../../services/galleryService';
 
 const CreateGalleryForm = () => {
   const navigate = useNavigate();
-  const { createGallery } = useArtist();
   const { isDarkMode } = useTheme();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -19,56 +18,20 @@ const CreateGalleryForm = () => {
     imageIds: []
   });
 
-  // Mock data for available images - replace with actual API call
   useEffect(() => {
     const fetchImages = async () => {
       setLoadingImages(true);
       try {
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Mock image data - replace with actual API call
-        const mockImages = [
-          {
-            id: '65fd1234ab1234cd5678ef90',
-            url: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=300&h=300&fit=crop',
-            title: 'Abstract Painting 1',
-            category: 'Abstract'
-          },
-          {
-            id: '65fd5678ab9876cd4321ef90',
-            url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=300&h=300&fit=crop',
-            title: 'Digital Art Piece',
-            category: 'Digital'
-          },
-          {
-            id: '65fd9012ab3456cd7890ef12',
-            url: 'https://images.unsplash.com/photo-1571115764595-644a1f56a55c?w=300&h=300&fit=crop',
-            title: 'Modern Sculpture',
-            category: 'Sculpture'
-          },
-          {
-            id: '65fd3456ab7890cd1234ef56',
-            url: 'https://images.unsplash.com/photo-1549289524-06cf8837ace5?w=300&h=300&fit=crop',
-            title: 'Nature Photography',
-            category: 'Photography'
-          },
-          {
-            id: '65fd7890ab1234cd5678ef34',
-            url: 'https://images.unsplash.com/photo-1578321272176-b7bbc0679853?w=300&h=300&fit=crop',
-            title: 'Contemporary Art',
-            category: 'Contemporary'
-          },
-          {
-            id: '65fd2345ab6789cd0123ef78',
-            url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&h=300&fit=crop',
-            title: 'Mixed Media',
-            category: 'Mixed Media'
-          }
-        ];
-        setAvailableImages(mockImages);
+        const images = await galleryService.getArtistImages();
+        setAvailableImages(images.map(img => ({
+          id: img._id,
+          url: img.imageUrl,
+          title: img.imageId, // Using imageId as title since we don't have a title field
+          category: 'Art' // Default category since we don't have categories yet
+        })));
       } catch (err) {
         console.error('Failed to fetch images:', err);
+        setError('Failed to load images. Please try again later.');
       } finally {
         setLoadingImages(false);
       }
@@ -97,30 +60,45 @@ const CreateGalleryForm = () => {
   const filteredImages = availableImages.filter(image =>
     image.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     image.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleSubmit = async (e) => {
+  );  const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    
+    if (!formData.name.trim() || !formData.description.trim()) {
+      setError('Name and description are required');
+      return;
+    }
 
     if (formData.imageIds.length === 0) {
       setError('Please select at least one image for your gallery');
       return;
     }
 
-    setLoading(true);
-
     try {
-      const galleryData = {
-        name: formData.name,
-        description: formData.description,
+      setLoading(true);
+      setError('');
+      
+      const requestData = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
         imageIds: formData.imageIds
       };
+      
+      console.log('Submitting gallery creation with data:', requestData);
+      
+      const result = await galleryService.createGalleryGroup(requestData);
+      console.log('Gallery creation successful:', result);
 
-      await createGallery(galleryData);
       navigate('/artist/gallery');
     } catch (err) {
-      setError(err.message || 'Failed to create gallery');
+      console.error('Failed to create gallery:', err);
+      if (err.response) {
+        console.error('Error response:', {
+          status: err.response.status,
+          statusText: err.response.statusText,
+          data: err.response.data
+        });
+      }
+      setError(err.message || 'Failed to create gallery. Please try again.');
     } finally {
       setLoading(false);
     }
