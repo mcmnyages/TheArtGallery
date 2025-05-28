@@ -1,6 +1,5 @@
 import axios from 'axios';
 import * as tokenService from './tokenService';
-import { authService } from './authService';
 
 export interface GalleryImage {
   imageId: string;
@@ -27,6 +26,8 @@ export interface GalleryGroupsResponse {
 }
 
 export class GalleryService {
+  private baseUrl = import.meta.env.VITE_NGROK_API_URL;
+
   private async getAuthenticatedHeaders(): Promise<Record<string, string>> {
     const token = tokenService.getAccessToken();
     console.log('Current access token:', token);
@@ -45,10 +46,12 @@ export class GalleryService {
       }
     }
 
+    // Always include the ngrok-skip-browser-warning header
     const headers = {
       'Authorization': `Bearer ${tokenService.getAccessToken()}`,
       'Accept': 'application/json',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
     };
     
     console.log('Using headers:', headers);
@@ -59,15 +62,23 @@ export class GalleryService {
     try {
       console.log('Fetching gallery groups...');
       const headers = await this.getAuthenticatedHeaders();
-      const url = '/api/groups/all';
+      const url = '/api/groups/all';  // Use the proxied path
       console.log('Making request to:', url);
       
-      const response = await axios.get<GalleryGroupsResponse>(url, { headers });
-      console.log('Gallery groups response:', response.data);
+      const response = await axios.get<GalleryGroupsResponse>(url, { 
+        headers,
+        withCredentials: true,
+        validateStatus: (status) => status < 500 // Handle 4xx errors gracefully
+      });
       
+      console.log('Gallery groups response:', response.data);
       return response.data.groups || [];
     } catch (error) {
       console.error('Error fetching gallery groups:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        // Handle unauthorized error
+        throw new Error('Please login to access this content');
+      }
       throw error;
     }
   }
@@ -76,15 +87,22 @@ export class GalleryService {
     try {
       console.log('Fetching gallery group by ID:', id);
       const headers = await this.getAuthenticatedHeaders();
-      const url = `/api/groups/${id}`;
+      const url = `/api/groups/${id}`; // Use the proxied path
       console.log('Making request to:', url);
       
-      const response = await axios.get<{ message: string, group: GalleryGroup }>(url, { headers });
-      console.log('Gallery group response:', response.data);
+      const response = await axios.get<{ message: string, group: GalleryGroup }>(url, { 
+        headers,
+        withCredentials: true,
+        validateStatus: (status) => status < 500
+      });
       
+      console.log('Gallery group response:', response.data);
       return response.data.group || null;
     } catch (error) {
       console.error('Error fetching gallery group:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        throw new Error('Please login to access this content');
+      }
       throw error;
     }
   }
