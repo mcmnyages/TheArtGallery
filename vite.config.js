@@ -71,10 +71,9 @@ export default defineConfig(({ mode }) => {
           target: 'https://authentication.secretstartups.org',
           rewrite: (path) => path.replace('/api/v0.1/users', '/v0.1/users'),
           ...sharedProxyOptions
-        },
-        '/api/v0.1/gallery': {
-          target: env.VITE_GALLERY_API_URL.replace('/v01', ''),
-          rewrite: (path) => path.replace('/api/v0.1/gallery', '/v01'),
+        },        '/api/v0.1/gallery': {
+          target: 'https://gallery.secretstartups.org',
+          rewrite: (path) => path.replace('/api/v0.1/gallery', '/images'),
           ...sharedProxyOptions
         },
         '/api/groups': {

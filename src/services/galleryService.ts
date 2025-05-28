@@ -26,7 +26,68 @@ export interface GalleryGroupsResponse {
 }
 
 export class GalleryService {
-  private baseUrl = import.meta.env.VITE_NGROK_API_URL;
+  async getArtistImages(): Promise<GalleryImage[]> {
+    try {
+      const headers = await this.getAuthenticatedHeaders();      console.log('Making request to fetch artist images...');
+      const response = await axios.get<{ success: boolean, imageUrls: string[][] }>('/api/v0.1/gallery', { 
+        headers,
+        withCredentials: true 
+      });
+      console.log('Raw API Response status:', response.status);
+      console.log('Raw API Response data:', JSON.stringify(response.data, null, 2));
+
+      if (!response.data.success || !response.data.imageUrls) {
+        console.error('Invalid response format:', response.data);
+        return [];
+      }
+
+      // Transform the nested array of URLs into GalleryImage objects
+      const images: GalleryImage[] = response.data.imageUrls.flat().map((url, index) => ({
+        imageId: `img-${index}`,
+        imageUrl: url,
+        _id: `img-${index}`,
+        createdAt: new Date().toISOString(),
+        sharedWith: []
+      }));
+
+      console.log('Transformed images:', images);
+      return images;
+    } catch (error) {
+      console.error('Error fetching artist images:', error);
+      throw error;
+    }
+  }  async deleteArtistImage(imageId: string): Promise<void> {
+    try {
+      const headers = await this.getAuthenticatedHeaders();      await axios.delete(`/api/v0.1/gallery/images/${imageId}`, { 
+        headers,
+        withCredentials: true 
+      });
+    } catch (error) {
+      console.error('Error deleting artist image:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        throw new Error('Please login to access this content');
+      }
+      throw error;
+    }
+  }
+  async updateArtistImage(imageId: string, updates: Partial<GalleryImage>): Promise<GalleryImage> {
+    try {
+      const headers = await this.getAuthenticatedHeaders();      const response = await axios.patch<{ image: GalleryImage }>(
+        `/api/v0.1/gallery/images/${imageId}`, 
+        updates, 
+        { 
+          headers,
+          withCredentials: true 
+        }
+      );
+      return response.data.image;    } catch (error) {
+      console.error('Error updating artist image:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        throw new Error('Please login to access this content');
+      }
+      throw error;
+    }
+  }
 
   private async getAuthenticatedHeaders(): Promise<Record<string, string>> {
     const token = tokenService.getAccessToken();
