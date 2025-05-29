@@ -9,9 +9,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Define base URLs for different services
 const SERVICE_URLS = {
-  AUTH: 'https://authentication.secretstartups.org',
-  OtherURL: 'https://OtherURL.secretstartups.org',
-  GALLERY_URL: 'https://gallery.secretstartups.org'
+  AUTH: process.env.VITE_AUTH_API_URL || 'http://localhost:3000',
+  OtherURL: process.env.OTHER_SERVICE_URL || 'http://localhost:3001',
+  GALLERY_URL: process.env.VITE_GALLERY_API_URL || 'http://localhost:3002'
 };
 
 // Define proxy configurations for different service types
@@ -80,7 +80,12 @@ const createServiceProxy = (target, options = {}) => {
 };
 
 export default defineConfig(({ mode }) => {
+  // Load env file based on mode
   const env = loadEnv(mode, process.cwd(), '');
+  
+  // Update SERVICE_URLS with loaded environment variables
+  SERVICE_URLS.AUTH = env.VITE_AUTH_API_URL || 'http://localhost:3000';
+  SERVICE_URLS.GALLERY_URL = env.VITE_GALLERY_API_URL || 'http://localhost:3002';
   
   return {
     server: {
