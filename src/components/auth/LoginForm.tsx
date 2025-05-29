@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useMessage } from '../../hooks/useMessage';
 import { useTheme } from '../../contexts/ThemeContext';
 import { validateEmail } from '../../utils/validators';
 import { 
@@ -135,53 +136,24 @@ const InputField: React.FC<InputFieldProps> = ({
   </div>
 );
 
-export const LoginForm: React.FC = () => {
-  const [email, setEmail] = useState(() => {
+export const LoginForm: React.FC = () => {  const [email, setEmail] = useState(() => {
     // Try to get saved email from localStorage
     return localStorage.getItem('rememberedEmail') || '';
   });
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loginError, setLoginError] = useState('');
-  const [loginSuccess, setLoginSuccess] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState('');
   const [rememberMe, setRememberMe] = useState(() => {
     // Check if user was previously remembered
     return !!localStorage.getItem('rememberedEmail');
   });
+  
   const { login } = useAuth();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
-
-  // Listen for browser autofill events
-  useEffect(() => {
-    const emailInput = document.getElementById('email') as HTMLInputElement;
-    const passwordInput = document.getElementById('password') as HTMLInputElement;
-
-    // Create a mutation observer to watch for value changes (autofill)
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.target instanceof HTMLInputElement) {
-          if (mutation.target.id === 'email' && mutation.target.value) {
-            setEmail(mutation.target.value);
-          }
-          if (mutation.target.id === 'password' && mutation.target.value) {
-            setPassword(mutation.target.value);
-          }
-        }
-      });
-    });
-
-    // Observe both inputs for changes
-    if (emailInput && passwordInput) {
-      observer.observe(emailInput, { attributes: true, characterData: true, subtree: true });
-      observer.observe(passwordInput, { attributes: true, characterData: true, subtree: true });
-    }
-
-    return () => observer.disconnect();
-  }, []);
+  const { addMessage } = useMessage();
 
   // Load saved credentials on component mount
   useEffect(() => {
@@ -197,12 +169,15 @@ export const LoginForm: React.FC = () => {
     
     if (!email) {
       formErrors.email = 'Email is required';
+      addMessage({ type: 'error', text: 'Email is required', duration: 4000 });
     } else if (!validateEmail(email)) {
       formErrors.email = 'Please enter a valid email address';
+      addMessage({ type: 'error', text: 'Please enter a valid email address', duration: 4000 });
     }
     
     if (!password) {
       formErrors.password = 'Password is required';
+      addMessage({ type: 'error', text: 'Password is required', duration: 4000 });
     }
     
     setErrors(formErrors);
@@ -217,79 +192,53 @@ export const LoginForm: React.FC = () => {
     }
     
     setIsSubmitting(true);
-    setLoginError('');
-    setLoginSuccess('');
+    addMessage({ type: 'info', text: 'Signing in...', duration: 2000 });
     
     try {
       const result = await login(email, password);
       if (result.success && result.user) {
-        // Mark form as logged in to help password managers
-        const form = document.getElementById('loginform') as HTMLFormElement;
-        if (form) {
-          // These attributes help trigger password save
-          form.setAttribute('data-login-success', 'true');
-          
-          // Force a re-render of password field to trigger save prompt
-          const passwordInput = document.getElementById('current-password') as HTMLInputElement;
-          if (passwordInput) {
-            passwordInput.value = password;
-            passwordInput.focus();
-            passwordInput.blur();
-          }
-        }
-
-        // Handle remember me for email
+        // Handle remember me
         if (rememberMe) {
           localStorage.setItem('rememberedEmail', email);
         } else {
           localStorage.removeItem('rememberedEmail');
-        }
+        }        // Show success message and redirect immediately
+        addMessage({
+          type: 'success',
+          text: `Welcome back${result.user.firstName ? ', ' + result.user.firstName : ''}!`,
+          duration: 4000
+        });
 
-        setLoginSuccess('Login successful! Redirecting...');
-        const role = result.user.role;
-        let redirectPath = '/galleries'; // default path for customers
-
-        if (role === 'artist') {
-          redirectPath = '/artist/dashboard';
-        } else {
-          console.log('Customer login detected, redirecting to galleries');
-        }
-
-        // Add a longer delay to ensure password manager has time to save
-        setTimeout(() => {
-          navigate(redirectPath);
-        }, 2000);
+        // Redirect based on role immediately
+        const redirectPath = result.user.role === 'artist' ? '/artist/dashboard' : '/galleries';
+        navigate(redirectPath);
       } else {
-        console.error('Login failed:', result);
-        // Display the error message from the server or auth provider
-        const errorMessage = result.error || 'Invalid email or password. Please check your credentials and try again.';
-        setLoginError(errorMessage);
-        // Clear the password field when there's an error
+        addMessage({
+          type: 'error',
+          text: result.error || 'Invalid email or password',
+          duration: 5000
+        });
         setPassword('');
       }
     } catch (error: any) {
       console.error('Login error:', error);
       
-      // Extract the most meaningful error message
+      // Handle different types of errors
       let errorMessage = 'An error occurred during login. Please try again.';
       
-      if (error.response) {
-        // Handle structured error responses
-        const data = error.response.data;
-        errorMessage = data.error || data.message || errorMessage;
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
       } else if (error.message?.toLowerCase().includes('network')) {
-        errorMessage = 'Network error. Please check your internet connection and try again.';
-      } else if (error.message?.toLowerCase().includes('timeout')) {
-        errorMessage = 'Request timed out. Please try again.';
-      } else if (error.status === 400) {
-        errorMessage = 'Invalid email or password. Please check your credentials and try again.';
-      } else if (error.status === 401) {
-        errorMessage = 'Invalid credentials. Please check your email and password.';
-      } else if (error.status === 403) {
-        errorMessage = 'Your account has been locked. Please contact support.';
+        errorMessage = 'Network error. Please check your internet connection.';
       }
       
-      setLoginError(errorMessage);
+      addMessage({
+        type: 'error',
+        text: errorMessage,
+        duration: 5000
+      });
+      
+      setPassword('');
     } finally {
       setIsSubmitting(false);
     }
@@ -306,16 +255,13 @@ export const LoginForm: React.FC = () => {
     } else if (field === 'password') {
       setPassword(value);
     }
-    
-    // Clear errors for the field being edited
+      // Clear errors for the field being edited
     if (errors[field as keyof FormErrors]) {
       setErrors({
         ...errors,
         [field]: ''
       });
     }
-    // Clear general error messages when user starts typing
-    setLoginError('');
   };
 
   const handleRememberMeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -353,27 +299,7 @@ export const LoginForm: React.FC = () => {
           </p>
         </div>
 
-        {/* Form Container */}
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg shadow-2xl rounded-3xl p-8 border border-gray-200/50 dark:border-gray-700/50">
-          {/* Error Alert */}
-          {loginError && (
-            <div className="rounded-2xl bg-red-50 dark:bg-red-900/20 p-4 mb-6 border border-red-200 dark:border-red-800 animate-in slide-in-from-top-2 duration-300">
-              <div className="flex items-center space-x-3">
-                <HiExclamationTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
-                <p className="text-sm font-medium text-red-800 dark:text-red-200">{loginError}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Success Alert */}
-          {loginSuccess && (
-            <div className="rounded-2xl bg-green-50 dark:bg-green-900/20 p-4 mb-6 border border-green-200 dark:border-green-800 animate-in slide-in-from-top-2 duration-300">
-              <div className="flex items-center space-x-3">
-                <HiCheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                <p className="text-sm font-medium text-green-800 dark:text-green-200">{loginSuccess}</p>
-              </div>
-            </div>
-          )}
+        {/* Form Container */}        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg shadow-2xl rounded-3xl p-8 border border-gray-200/50 dark:border-gray-700/50">
           
           <form 
             className="space-y-6" 
