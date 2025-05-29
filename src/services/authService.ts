@@ -1,21 +1,16 @@
 import { AuthResponse, User } from '../types/auth';
 import { setTokens, getAccessToken, clearTokens, isTokenExpired, refreshAccessToken } from './tokenService';
 
-// Real API endpoint base URL
-const API_BASE = '/api/v0.1/users';
+// Base URL for auth endpoints
+const API_BASE = '/api/auth';
 
 class AuthService {
   private async handleJsonResponse(response: Response) {
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
-      return await response.json();
+      return response.json();
     }
-    const text = await response.text();
-    try {
-      return JSON.parse(text);
-    } catch {
-      return { message: text };
-    }
+    throw new Error('Invalid response type');
   }
 
   async login(email: string, password: string): Promise<AuthResponse> {
