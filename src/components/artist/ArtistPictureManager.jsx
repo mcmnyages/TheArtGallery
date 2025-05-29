@@ -235,24 +235,7 @@ const ArtistPictureManager = () => {
           ref={fileInputRef}
           className="hidden"
         />
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => fileInputRef.current.click()}
-            disabled={uploading}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              isDarkMode
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-            } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {uploading ? 'Uploading...' : 'Upload New Images'}
-          </button>
-          {uploading && (
-            <span className="text-sm text-gray-600 dark:text-gray-400">
-              Uploading {Object.keys(uploadProgress).length} files...
-            </span>
-          )}
-        </div>
+      
 
         {/* Upload Progress */}
         {Object.keys(uploadProgress).length > 0 && (
