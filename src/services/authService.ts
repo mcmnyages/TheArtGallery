@@ -1,8 +1,8 @@
 import { AuthResponse, User } from '../types/auth';
 import { setTokens, getAccessToken, clearTokens, isTokenExpired, refreshAccessToken } from './tokenService';
 
-// Base URL for auth endpoints
-const API_BASE = '/api/auth';
+// Base URL for auth endpoints - removed /api/auth prefix since it's handled by the proxy
+const API_BASE = '';
 
 class AuthService {
   private async handleJsonResponse(response: Response) {
