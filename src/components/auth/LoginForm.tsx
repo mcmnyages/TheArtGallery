@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -136,7 +136,10 @@ const InputField: React.FC<InputFieldProps> = ({
 );
 
 export const LoginForm: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => {
+    // Try to get saved email from localStorage
+    return localStorage.getItem('rememberedEmail') || '';
+  });
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -144,9 +147,50 @@ export const LoginForm: React.FC = () => {
   const [loginSuccess, setLoginSuccess] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState('');
+  const [rememberMe, setRememberMe] = useState(() => {
+    // Check if user was previously remembered
+    return !!localStorage.getItem('rememberedEmail');
+  });
   const { login } = useAuth();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
+
+  // Listen for browser autofill events
+  useEffect(() => {
+    const emailInput = document.getElementById('email') as HTMLInputElement;
+    const passwordInput = document.getElementById('password') as HTMLInputElement;
+
+    // Create a mutation observer to watch for value changes (autofill)
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.target instanceof HTMLInputElement) {
+          if (mutation.target.id === 'email' && mutation.target.value) {
+            setEmail(mutation.target.value);
+          }
+          if (mutation.target.id === 'password' && mutation.target.value) {
+            setPassword(mutation.target.value);
+          }
+        }
+      });
+    });
+
+    // Observe both inputs for changes
+    if (emailInput && passwordInput) {
+      observer.observe(emailInput, { attributes: true, characterData: true, subtree: true });
+      observer.observe(passwordInput, { attributes: true, characterData: true, subtree: true });
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Load saved credentials on component mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const validate = (): boolean => {
     const formErrors: FormErrors = {};
@@ -167,7 +211,6 @@ export const LoginForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted with email:', email);
     
     if (!validate()) {
       return;
@@ -179,23 +222,43 @@ export const LoginForm: React.FC = () => {
     
     try {
       const result = await login(email, password);
-      console.log('Login response received:', result);      if (result.success && result.user) {
+      if (result.success && result.user) {
+        // Mark form as logged in to help password managers
+        const form = document.getElementById('loginform') as HTMLFormElement;
+        if (form) {
+          // These attributes help trigger password save
+          form.setAttribute('data-login-success', 'true');
+          
+          // Force a re-render of password field to trigger save prompt
+          const passwordInput = document.getElementById('current-password') as HTMLInputElement;
+          if (passwordInput) {
+            passwordInput.value = password;
+            passwordInput.focus();
+            passwordInput.blur();
+          }
+        }
+
+        // Handle remember me for email
+        if (rememberMe) {
+          localStorage.setItem('rememberedEmail', email);
+        } else {
+          localStorage.removeItem('rememberedEmail');
+        }
+
         setLoginSuccess('Login successful! Redirecting...');
         const role = result.user.role;
         let redirectPath = '/galleries'; // default path for customers
 
         if (role === 'artist') {
           redirectPath = '/artist/dashboard';
-          console.log('Artist login detected, redirecting to dashboard');
         } else {
           console.log('Customer login detected, redirecting to galleries');
         }
 
-        // Add a small delay to show the success message before redirecting
+        // Add a longer delay to ensure password manager has time to save
         setTimeout(() => {
-          console.log('Navigating to:', redirectPath);
           navigate(redirectPath);
-        }, 1000);
+        }, 2000);
       } else {
         console.error('Login failed:', result);
         // Display the error message from the server or auth provider
@@ -235,6 +298,11 @@ export const LoginForm: React.FC = () => {
   const handleInputChange = (field: string, value: string) => {
     if (field === 'email') {
       setEmail(value);
+      // Update remember me state if email matches saved one
+      const savedEmail = localStorage.getItem('rememberedEmail');
+      if (savedEmail === value) {
+        setRememberMe(true);
+      }
     } else if (field === 'password') {
       setPassword(value);
     }
@@ -248,6 +316,17 @@ export const LoginForm: React.FC = () => {
     }
     // Clear general error messages when user starts typing
     setLoginError('');
+  };
+
+  const handleRememberMeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    setRememberMe(checked);
+    
+    if (checked && email) {
+      localStorage.setItem('rememberedEmail', email);
+    } else {
+      localStorage.removeItem('rememberedEmail');
+    }
   };
 
 
@@ -296,46 +375,81 @@ export const LoginForm: React.FC = () => {
             </div>
           )}
           
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* Email Field */}
-            <InputField
-              id="email"
-              name="email"
-              type="email"
-              label="Email address"
+          <form 
+            className="space-y-6" 
+            onSubmit={handleSubmit}
+            method="post"
+            action="/login" // Add action to help password managers identify the form
+            name="loginform" // Add name to help password managers
+            id="loginform"
+            autoComplete="on"
+          >
+            {/* Primary username/email field for password managers */}
+            <input
+              type="text"
+              style={{ display: 'none' }}
+              name="username"
+              id="username"
+              autoComplete="username"
               value={email}
-              placeholder="Enter your email address"
-              autoComplete="email"
-              icon={HiEnvelope}
-              onChange={(value) => handleInputChange('email', value)}
-              error={errors.email}
-              focusedField={focusedField}
-              onFocus={setFocusedField}
-              onBlur={() => setFocusedField('')}
+              onChange={(e) => setEmail(e.target.value)}
             />
 
-            {/* Password Field */}
-            <InputField
-              id="password"
-              name="password"
-              type="password"
-              label="Password"
-              value={password}
-              placeholder="Enter your password"
-              autoComplete="current-password"
-              icon={HiLockClosed}
-              showToggle={true}
-              showField={showPassword}
-              onToggleShow={() => setShowPassword(!showPassword)}
-              onChange={(value) => handleInputChange('password', value)}
-              error={errors.password}
-              focusedField={focusedField}
-              onFocus={setFocusedField}
-              onBlur={() => setFocusedField('')}
-            />
+            <div>
+              <InputField
+                id="email"
+                name="email"
+                type="email"
+                label="Email address"
+                value={email}
+                placeholder="Enter your email address"
+                autoComplete="username email" // Support both username and email
+                icon={HiEnvelope}
+                onChange={(value) => handleInputChange('email', value)}
+                error={errors.email}
+                focusedField={focusedField}
+                onFocus={setFocusedField}
+                onBlur={() => setFocusedField('')}
+              />
+            </div>
 
-            {/* Forgot Password Link */}
-            <div className="flex items-center justify-end">
+            <div>
+              <InputField
+                id="current-password" // Changed ID to be more specific
+                name="current-password" // Changed name to match autocomplete
+                type="password"
+                label="Password"
+                value={password}
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                icon={HiLockClosed}
+                showToggle={true}
+                showField={showPassword}
+                onToggleShow={() => setShowPassword(!showPassword)}
+                onChange={(value) => handleInputChange('password', value)}
+                error={errors.password}
+                focusedField={focusedField}
+                onFocus={setFocusedField}
+                onBlur={() => setFocusedField('')}
+              />
+            </div>
+
+            {/* Remember Me and Forgot Password Row */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={handleRememberMeChange}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+                  Remember me
+                </label>
+              </div>
+
               <Link 
                 to="/forgot-password" 
                 className="text-sm font-semibold text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors duration-200"
