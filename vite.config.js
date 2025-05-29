@@ -7,48 +7,55 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
-    const sharedProxyOptions = {
+// Define base URLs for different services
+const SERVICE_URLS = {
+  AUTH: process.env.VITE_AUTH_API_URL || 'http://localhost:3000',
+  OtherURL: process.env.OTHER_SERVICE_URL || 'http://localhost:3001',
+  GALLERY_URL: process.env.VITE_GALLERY_API_URL || 'http://localhost:3002'
+};
+
+// Define proxy configurations for different service types
+const createServiceProxy = (target, options = {}) => {
+  return {
+    target,
     changeOrigin: true,
-    secure: mode === 'production',
-    configure: (proxy, options) => {
-      // Log all requests
-      proxy.on('proxyReq', (proxyReq, req, res) => {
-        console.log(`Proxying ${req.method} request:`, req.url);
+    secure: false,
+    rewrite: options.rewrite,
+    configure: (proxy, _options) => {
+      proxy.on('proxyReq', (proxyReq, req, _res) => {
+        console.log(`Proxying ${req.method} request to ${target}:`, req.url);
         
         // Copy original headers
         const requestHeaders = { ...req.headers };
-        delete requestHeaders.host; // Remove host header as it should point to target
+        delete requestHeaders.host;
         
         // Set necessary headers for the proxied request
         Object.entries(requestHeaders).forEach(([key, value]) => {
           proxyReq.setHeader(key, value);
         });
 
-        // Handle CORS preflight
-        if (req.method === 'OPTIONS') {
-          res.writeHead(200, {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-          });
-          res.end();
-          return;
+        // Add required headers for specific services
+        if (target === SERVICE_URLS.GALLERY_URL) {
+          proxyReq.setHeader('ngrok-skip-browser-warning', 'true');
+        }
+
+        // Copy authorization header if present
+        const authHeader = req.headers['authorization'];
+        if (authHeader) {
+          proxyReq.setHeader('Authorization', authHeader);
         }
       });
 
       proxy.on('proxyRes', (proxyRes, req, res) => {
-        // Set CORS headers before any response is sent
+        // Set CORS headers
         res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8080');
-        res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
         res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, ngrok-skip-browser-warning');
         
-        // Handle OPTIONS preflight requests
+        // Handle OPTIONS preflight
         if (req.method === 'OPTIONS') {
           res.statusCode = 204;
-          res.setHeader('Content-Length', '0');
           res.end();
           return;
         }
@@ -70,73 +77,32 @@ export default defineConfig(({ mode }) => {
       });
     }
   };
+};
+
+export default defineConfig(({ mode }) => {
+  // Load env file based on mode
+  const env = loadEnv(mode, process.cwd(), '');
+  
+  // Update SERVICE_URLS with loaded environment variables
+  SERVICE_URLS.AUTH = env.VITE_AUTH_API_URL || 'http://localhost:3000';
+  SERVICE_URLS.GALLERY_URL = env.VITE_GALLERY_API_URL || 'http://localhost:3002';
   
   return {
     server: {
       host: "::",
-      port: 8080,
-      proxy: {
-        // Proxy all API requests
-        '/api/v0.1/users': {
-          target: 'https://authentication.secretstartups.org',
-          rewrite: (path) => path.replace('/api/v0.1/users', '/v0.1/users'),
-          ...sharedProxyOptions
-        },        '/api/v0.1/gallery': {
-          target: 'https://gallery.secretstartups.org',
-          rewrite: (path) => {
-            if (path.includes('/upload')) {
-              return '/upload';
-            }
-            if (path.includes('/delete/')) {
-              return path.replace('/api/v0.1/gallery/delete', '/delete');
-            }
-            return path.replace('/api/v0.1/gallery', '/images');
-          },
-          ...sharedProxyOptions
-        },
-        '/api/groups': {
-          target: env.VITE_NGROK_API_URL,
-          changeOrigin: true,
-          ws: true,
-          secure: false,
-          rewrite: (path) => path.replace('/api/groups', '/groups'),
-          configure: (proxy, _options) => {
-            proxy.on('proxyReq', (proxyReq, req, _res) => {
-              // Remove origin header to prevent CORS issues
-              proxyReq.removeHeader('origin');
-              proxyReq.removeHeader('referer');
-              
-              // Add required headers
-              proxyReq.setHeader('ngrok-skip-browser-warning', 'true');
-              proxyReq.setHeader('Access-Control-Allow-Credentials', 'true');
-              
-              // Copy authorization header if present
-              const authHeader = req.headers['authorization'];
-              if (authHeader) {
-                proxyReq.setHeader('Authorization', authHeader);
-              }
-            });
+      port: 8080,      proxy: {
+        // Auth Service - handles all authentication related endpoints
+        '^/(login|register|logout|profile)': createServiceProxy(SERVICE_URLS.AUTH, {
+          rewrite: (path) => `/v0.1/users${path}`
+        }),
+        
+        // OtherURL Service - handles all OtherURL related endpoints
+        '^/(images|upload|delete)': createServiceProxy(SERVICE_URLS.OtherURL),
 
-            proxy.on('proxyRes', (proxyRes, req, res) => {
-              // Set CORS headers
-              res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8080');
-              res.setHeader('Access-Control-Allow-Credentials', 'true');
-              res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-              res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, ngrok-skip-browser-warning');
-              
-              // Handle preflight
-              if (req.method === 'OPTIONS') {
-                res.statusCode = 204;
-                res.end();
-                return;
-              }
-            });
-          }
-        },        '/uploads': {
-          target: 'https://gallery.secretstartups.org',
-          rewrite: (path) => path.replace('/uploads', '/upload'),
-          ...sharedProxyOptions
-        }
+        // Gallery Service - handles all gallery related endpoints
+        '^/gallery/?(.*)': createServiceProxy(SERVICE_URLS.GALLERY_URL, {
+          rewrite: (path) => path.replace(/^\/gallery/, '')
+        })
       }
     },
     plugins: [

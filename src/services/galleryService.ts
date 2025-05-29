@@ -1,6 +1,11 @@
 import axios from 'axios';
 import * as tokenService from './tokenService';
 
+// Base URL for gallery API endpoints
+const API_URLS = {
+  GALLERY: '/gallery'  // Base path for all gallery-related endpoints
+};
+
 export interface GalleryImage {
   imageId: string;
   imageUrl: string;
@@ -25,23 +30,23 @@ export interface GalleryGroupsResponse {
   groups: GalleryGroup[];
 }
 
-export class GalleryService {
-  async getArtistImages(): Promise<GalleryImage[]> {    try {
+export class GalleryService {  async getArtistImages(): Promise<GalleryImage[]> {
+    try {
       const headers = await this.getAuthenticatedHeaders();
       console.log('Making request to fetch artist images...');
-      const response = await axios.get<{ success: boolean, images: GalleryImage[] }>('/api/v0.1/gallery', { 
+      const response = await axios.get<{ message: string, images: GalleryImage[] }>(`${API_URLS.GALLERY}/images`, { 
         headers,
         withCredentials: true 
       });
       console.log('Raw API Response status:', response.status);
       console.log('Raw API Response data:', JSON.stringify(response.data, null, 2));
 
-      if (!response.data.success || !response.data.images) {
-        console.error('Invalid response format:', response.data);
+      if (!response.data.images) {
+        console.error('No images found in response:', response.data);
         return [];
       }
 
-      // The server is already sending data in the correct format, just return it
+      // Extract images from the response
       const images: GalleryImage[] = response.data.images;
 
       console.log('Transformed images:', images);
@@ -54,9 +59,7 @@ export class GalleryService {
     try {
       console.log('Attempting to delete image with ID:', imageId);
       const headers = await this.getAuthenticatedHeaders();
-      console.log('Using headers:', headers);
-      
-      const url = `/api/v0.1/gallery/delete/${imageId}`;
+      const url = `${API_URLS.GALLERY}/delete/${imageId}`;
       console.log('Making delete request to:', url);
       
       const response = await axios.delete(url, { 
@@ -89,8 +92,9 @@ export class GalleryService {
   }
   async updateArtistImage(imageId: string, updates: Partial<GalleryImage>): Promise<GalleryImage> {
     try {
-      const headers = await this.getAuthenticatedHeaders();      const response = await axios.patch<{ image: GalleryImage }>(
-        `/api/v0.1/gallery/images/${imageId}`, 
+      const headers = await this.getAuthenticatedHeaders();
+      const response = await axios.patch<{ image: GalleryImage }>(
+        `${API_URLS.GALLERY}/images/${imageId}`, 
         updates, 
         { 
           headers,
@@ -139,7 +143,7 @@ export class GalleryService {
     try {
       console.log('Fetching all gallery groups...');
       const headers = await this.getAuthenticatedHeaders();
-      const url = '/api/groups/all';
+      const url = `${API_URLS.GALLERY}/groups/all`;
       console.log('Making request to:', url);
       
       const response = await axios.get<GalleryGroupsResponse>(url, { 
@@ -160,7 +164,7 @@ export class GalleryService {
     try {
       console.log('Fetching artist gallery groups...');
       const headers = await this.getAuthenticatedHeaders();
-      const url = '/api/groups';
+      const url = `${API_URLS.GALLERY}/groups`;
       console.log('Making request to:', url);
       
       const response = await axios.get<GalleryGroupsResponse>(url, { 
@@ -180,7 +184,7 @@ export class GalleryService {
     try {
       console.log('Fetching gallery group by ID:', id);
       const headers = await this.getAuthenticatedHeaders();
-      const url = `/api/groups/${id}`; // Use the proxied path
+      const url = `${API_URLS.GALLERY}/groups/${id}`;
       console.log('Making request to:', url);
       
       const response = await axios.get<{ message: string, group: GalleryGroup }>(url, { 
@@ -204,7 +208,7 @@ export class GalleryService {
     try {
       console.log('Deleting gallery group:', groupId);
       const headers = await this.getAuthenticatedHeaders();
-      const url = `/api/groups/${groupId}`;
+      const url = `${API_URLS.GALLERY}/groups/${groupId}`;
       
       await axios.delete(url, { 
         headers,
@@ -245,7 +249,7 @@ export class GalleryService {
       const response = await axios.post<{
         message: string;
         images: Array<{ url: string }>;
-      }>('/api/v0.1/gallery/upload', uploadFormData, {
+      }>(`${API_URLS.GALLERY}/upload`, uploadFormData, {
         headers,
         withCredentials: true,
         validateStatus: (status) => status < 500,
@@ -285,7 +289,7 @@ export class GalleryService {
     try {
       console.log('Starting fetchUserGalleries for user:', userId);
       const headers = await this.getAuthenticatedHeaders();
-      const url = `/api/groups/user/${userId}`;
+      const url = `${API_URLS.GALLERY}/groups/user/${userId}`;
       console.log('Making request to:', url);
       
       const response = await axios.get<GalleryGroupsResponse>(url, { 
@@ -328,7 +332,7 @@ export class GalleryService {
       const response = await axios.post<{
         message: string;
         image: GalleryImage;
-      }>('/upload', formData, { 
+      }>(`${API_URLS.GALLERY}/upload`, formData, { 
         headers,
         withCredentials: true,
       });
@@ -350,10 +354,10 @@ export class GalleryService {
     try {
       console.log('Creating gallery group with data:', data);
       const headers = await this.getAuthenticatedHeaders();
-      console.log('Using headers:', headers);
+      const url = `${API_URLS.GALLERY}/groups`;
       
       const response = await axios.post<{ success: boolean; group: GalleryGroup }>(
-        '/api/groups',
+        url,
         data,
         {
           headers,
