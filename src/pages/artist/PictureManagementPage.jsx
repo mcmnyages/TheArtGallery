@@ -48,68 +48,7 @@ const PictureManagementPage = () => {
           </div>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className={`p-6 rounded-lg shadow-md ${
-            isDarkMode ? 'bg-gray-800' : 'bg-white'
-          }`}>
-            <div className="flex items-center">
-              <div className={`p-3 rounded-full ${
-                isDarkMode ? 'bg-blue-900/50' : 'bg-blue-100'
-              }`}>
-                <HiPhotograph className="w-6 h-6 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Total Pictures
-                </p>
-                <h3 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  {totalPictures}
-                </h3>
-              </div>
-            </div>
-          </div>
-          
-          <div className={`p-6 rounded-lg shadow-md ${
-            isDarkMode ? 'bg-gray-800' : 'bg-white'
-          }`}>
-            <div className="flex items-center">
-              <div className={`p-3 rounded-full ${
-                isDarkMode ? 'bg-purple-900/50' : 'bg-purple-100'
-              }`}>
-                <HiViewGrid className="w-6 h-6 text-purple-600" />
-              </div>
-              <div className="ml-4">
-                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Total Galleries
-                </p>
-                <h3 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  {totalGalleries}
-                </h3>
-              </div>
-            </div>
-          </div>
-          
-          <div className={`p-6 rounded-lg shadow-md ${
-            isDarkMode ? 'bg-gray-800' : 'bg-white'
-          }`}>
-            <div className="flex items-center">
-              <div className={`p-3 rounded-full ${
-                isDarkMode ? 'bg-green-900/50' : 'bg-green-100'
-              }`}>
-                <HiUpload className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Recent Uploads
-                </p>
-                <h3 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  {recentUploads}
-                </h3>
-              </div>
-            </div>
-          </div>
-        </div>
+        
 
         <ArtistPictureManager />
       </div>

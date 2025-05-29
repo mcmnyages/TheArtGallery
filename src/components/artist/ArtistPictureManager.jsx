@@ -322,7 +322,7 @@ const ArtistPictureManager = () => {
                   <FaEye className="w-5 h-5" />
                 </button>
                 <button
-                  onClick={() => handleDeleteImage(image._id)}
+                  onClick={() => handleDeleteImage(image.imageId)}
                   className="p-2 bg-white rounded-full text-red-600 hover:bg-gray-100 transition-colors"
                 >
                   <FaTrash className="w-5 h-5" />

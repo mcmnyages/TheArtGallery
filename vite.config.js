@@ -87,6 +87,9 @@ export default defineConfig(({ mode }) => {
             if (path.includes('/upload')) {
               return '/upload';
             }
+            if (path.includes('/delete/')) {
+              return path.replace('/api/v0.1/gallery/delete', '/delete');
+            }
             return path.replace('/api/v0.1/gallery', '/images');
           },
           ...sharedProxyOptions

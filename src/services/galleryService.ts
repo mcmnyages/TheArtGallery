@@ -52,14 +52,37 @@ export class GalleryService {
     }
   }  async deleteArtistImage(imageId: string): Promise<void> {
     try {
-      const headers = await this.getAuthenticatedHeaders();      await axios.delete(`/api/v0.1/gallery/images/${imageId}`, { 
+      console.log('Attempting to delete image with ID:', imageId);
+      const headers = await this.getAuthenticatedHeaders();
+      console.log('Using headers:', headers);
+      
+      const url = `/api/v0.1/gallery/delete/${imageId}`;
+      console.log('Making delete request to:', url);
+      
+      const response = await axios.delete(url, { 
         headers,
-        withCredentials: true 
+        withCredentials: true,
+        validateStatus: (status) => status < 500
       });
+      
+      console.log('Delete response status:', response.status);
+      console.log('Delete response data:', response.data);
     } catch (error) {
       console.error('Error deleting artist image:', error);
-      if (axios.isAxiosError(error) && error.response?.status === 401) {
-        throw new Error('Please login to access this content');
+      if (axios.isAxiosError(error)) {
+        console.error('Request details:', {
+          url: error.config?.url,
+          method: error.config?.method,
+          headers: error.config?.headers
+        });
+        console.error('Response details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data
+        });
+        if (error.response?.status === 401) {
+          throw new Error('Please login to access this content');
+        }
       }
       throw error;
     }
@@ -328,7 +351,8 @@ export class GalleryService {
       console.log('Creating gallery group with data:', data);
       const headers = await this.getAuthenticatedHeaders();
       console.log('Using headers:', headers);
-        const response = await axios.post<{ message: string; group: GalleryGroup }>(
+      
+      const response = await axios.post<{ success: boolean; group: GalleryGroup }>(
         '/api/groups',
         data,
         {
@@ -339,11 +363,11 @@ export class GalleryService {
       
       console.log('Gallery creation response:', response.data);
 
-      if (!response.data.group) {
-        throw new Error('Failed to create gallery group: No group data received');
+      if (!response.data.success || !response.data.group) {
+        throw new Error('Failed to create gallery group');
       }
 
-      return response.data.group;} catch (error) {
+      return response.data.group;    } catch (error) {
       console.error('Error creating gallery group:', error);
       if (axios.isAxiosError(error)) {
         console.error('Request details:', {
