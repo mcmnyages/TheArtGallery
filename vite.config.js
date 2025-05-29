@@ -11,7 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SERVICE_URLS = {
   AUTH: 'https://authentication.secretstartups.org',
   OtherURL: 'https://OtherURL.secretstartups.org',
-  GALLERY_URL: process.env.VITE_NGROK_API_URL || 'http://localhost:3000'
+  GALLERY_URL: 'https://gallery.secretstartups.org'
 };
 
 // Define proxy configurations for different service types
@@ -82,16 +82,10 @@ const createServiceProxy = (target, options = {}) => {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   
-  // Update SERVICE_URLS with environment variables if needed
-  if (env.VITE_NGROK_API_URL) {
-    SERVICE_URLS.GALLERY_URL = env.VITE_NGROK_API_URL;
-  }
-
   return {
     server: {
       host: "::",
-      port: 8080,
-      proxy: {
+      port: 8080,      proxy: {
         // Auth Service - handles all authentication related endpoints
         '^/(login|register|logout|profile)': createServiceProxy(SERVICE_URLS.AUTH, {
           rewrite: (path) => `/v0.1/users${path}`
@@ -99,10 +93,10 @@ export default defineConfig(({ mode }) => {
         
         // OtherURL Service - handles all OtherURL related endpoints
         '^/(images|upload|delete)': createServiceProxy(SERVICE_URLS.OtherURL),
-        
-        // Groups Service - handles all group related endpoints
-        '^/api/groups/.*': createServiceProxy(SERVICE_URLS.GALLERY_URL, {
-          rewrite: (path) => path.replace(/^\/api\/groups/, '/groups')
+
+        // Gallery Service - handles all gallery related endpoints
+        '^/gallery/?(.*)': createServiceProxy(SERVICE_URLS.GALLERY_URL, {
+          rewrite: (path) => path.replace(/^\/gallery/, '')
         })
       }
     },
