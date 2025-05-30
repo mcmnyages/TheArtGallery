@@ -256,7 +256,7 @@ export const LoginForm: React.FC = () => {
 
       try {
         setAuthState('verifying');
-        addMessage({ type: 'info', text: 'Verifying access permissions...', duration: 2000 });
+        
 
         const resources = result.user.userResources || [];
         const { path: redirectPath, message: welcomeMessage } = getRedirectPathAndMessage(
@@ -267,7 +267,7 @@ export const LoginForm: React.FC = () => {
         setAuthState('redirecting');
         addMessage({
           type: 'success',
-          text: welcomeMessage,
+          text: 'Logged in successfully',
           icon: HiCheckCircle,
           duration: 4000
         });
