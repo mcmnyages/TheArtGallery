@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { galleryService } from '../../services/galleryService';
 import { Search, Plus, X } from 'lucide-react';
-import {useMessage} from '../../hooks/useMessage';
+import { useMessage } from '../../hooks/useMessage';
 
 const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
   const { isDarkMode } = useTheme();
-  const addMessage = useMessage();
+  const { addMessage } = useMessage();
   const [gallery, setGallery] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -22,15 +22,17 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
   useEffect(() => {
     const fetchGalleryAndImages = async () => {
       if (!isOpen || !galleryId) return;
-      
-      try {
+        try {
         setLoading(true);
         const [fetchedGallery, images] = await Promise.all([
           galleryService.fetchGalleryGroupById(galleryId),
           galleryService.getArtistImages()
-        ]);        if (!fetchedGallery) {
-          setError('Gallery not found');
-          addMessage({ text: 'Gallery not found', type: 'error' });
+        ]);
+        
+        if (!fetchedGallery) {
+          const errorMsg = 'Gallery not found';
+          setError(errorMsg);
+          addMessage({ text: errorMsg, type: 'error' });
           onClose();
           return;
         }
@@ -39,17 +41,22 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
         setOriginalImageIds(new Set(fetchedGallery.images.map(img => img.imageId)));
         setSelectedImages(new Set(fetchedGallery.images.map(img => img.imageId)));
 
+        if (!images || images.length === 0) {
+          addMessage({ text: 'No images available to add to gallery', type: 'warning' });
+        }
+
         const availableImgs = images.map(img => ({
           id: img.imageId,
           url: img.imageUrl,
-          title: img.imageId,
+          title: img.imageId || 'Untitled Image',
           category: 'Art'
         }));
         setAvailableImages(availableImgs);
       } catch (err) {
         console.error('Failed to fetch gallery or images:', err);
-        setError(err.message || 'Failed to load gallery and images');
-        addMessage({ text: err.message || 'Failed to load gallery and images', type: 'error' });
+        const errorMsg = err.message || 'Failed to load gallery and images';
+        setError(errorMsg);
+        addMessage({ text: errorMsg, type: 'error' });
       } finally {
         setLoading(false);
         setLoadingImages(false);
@@ -74,7 +81,6 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
       return next;
     });
   };
-
   const handleSave = async () => {
     try {
       setProcessing(true);
@@ -86,23 +92,32 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
       const imagesToRemove = Array.from(originalImageIds)
         .filter(id => !selectedImages.has(id));
 
+      if (imagesToAdd.length === 0 && imagesToRemove.length === 0) {
+        addMessage({ text: 'No changes to save', type: 'info' });
+        onClose();
+        return;
+      }
+
       // Add new images if any
       if (imagesToAdd.length > 0) {
         await galleryService.addImagesToGalleryGroup(galleryId, imagesToAdd);
+        addMessage({ text: `Added ${imagesToAdd.length} new image(s) to gallery`, type: 'success' });
       }
 
       // Remove deselected images if any
       if (imagesToRemove.length > 0) {
         await galleryService.removeImagesFromGalleryGroup(galleryId, imagesToRemove);
+        addMessage({ text: `Removed ${imagesToRemove.length} image(s) from gallery`, type: 'success' });
       }
 
       onSuccess?.();
-        addMessage({ text: 'Gallery images updated successfully!', type: 'success' });
+      addMessage({ text: 'Gallery updated successfully!', type: 'success' });
       onClose();
     } catch (err) {
       console.error('Failed to update gallery images:', err);
-      setError(err.message || 'Failed to update gallery images');
-        addMessage({ text: err.message || 'Failed to update gallery images', type: 'error' });
+      const errorMsg = err.message || 'Failed to update gallery images';
+      setError(errorMsg);
+      addMessage({ text: errorMsg, type: 'error' });
     } finally {
       setProcessing(false);
     }

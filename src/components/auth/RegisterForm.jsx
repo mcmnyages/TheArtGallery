@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../contexts/ThemeContext';
-import { validateEmail, validatePassword } from '../../utils/validators';
 
 const RegisterForm = () => {
+  const navigate = useNavigate();
+  const { register } = useAuth();
   const { isDarkMode } = useTheme();
+  
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -13,224 +15,146 @@ const RegisterForm = () => {
     password: '',
     confirmPassword: ''
   });
-  const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [registerError, setRegisterError] = useState('');
-  const { register } = useAuth();
-  const navigate = useNavigate();
+
+  const [error, setError] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value.trim() }));
-    // Only clear error if there was one
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  const validate = () => {
-    const formErrors = {};
-    
-    if (!formData.firstName) {
-      formErrors.firstName = 'First name is required';
-    }
-    
-    if (!formData.lastName) {
-      formErrors.lastName = 'Last name is required';
-    }
-    
-    if (!formData.email) {
-      formErrors.email = 'Email is required';
-    } else if (!validateEmail(formData.email)) {
-      formErrors.email = 'Invalid email format';
-    }
-    
-    if (!formData.password) {
-      formErrors.password = 'Password is required';
-    } else if (!validatePassword(formData.password)) {
-      formErrors.password = 'Password must be at least 8 characters with a number and a special character';
-    }
-    
-    if (!formData.confirmPassword) {
-      formErrors.confirmPassword = 'Please confirm your password';
-    } else if (formData.password !== formData.confirmPassword) {
-      formErrors.confirmPassword = 'Passwords do not match';
-    }
-    
-    setErrors(formErrors);
-    return Object.keys(formErrors).length === 0;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     
-    if (!validate()) {
+    if (!formData.email || !formData.password || !formData.firstName || !formData.lastName) {
+      setError('Please fill in all fields');
       return;
     }
-    
-    setIsSubmitting(true);
-    setRegisterError('');
-    
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
     try {
-      const { confirmPassword, ...userData } = formData;
+      // Only trim values when submitting
+      const trimmedData = {
+        ...formData,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        confirmPassword: formData.confirmPassword
+      };
+
+      const { confirmPassword, ...userData } = trimmedData;
       const result = await register(userData);
       
       if (result.success) {
         navigate('/login');
       } else {
-        setRegisterError(result.error);
+        setError(result.error || 'Registration failed');
       }
-    } catch (error) {
-      setRegisterError('An unexpected error occurred. Please try again.');
-      console.error('Registration error:', error);
-    } finally {
-      setIsSubmitting(false);
+    } catch (err) {
+      setError('Registration failed');
     }
   };
 
-  return (
-    <div className={`max-w-md mx-auto p-6 rounded-lg shadow-lg ${
-      isDarkMode ? 'bg-gray-800' : 'bg-white'
-    }`}>
-      <h2 className={`text-2xl font-bold mb-6 ${
-        isDarkMode ? 'text-white' : 'text-gray-900'
-      }`}>
-        Create an Account
-      </h2>
+  const inputStyle = `block w-full p-2.5 rounded-md border text-sm transition-colors
+    ${isDarkMode 
+      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+    }`;
 
-      {registerError && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
-          <p className="text-red-700">{registerError}</p>
+  return (
+    <div className={`max-w-md mx-auto p-6 rounded-lg ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}>
+      <h2 className="text-2xl font-bold mb-6">Create an Account</h2>
+
+      {error && (
+        <div className="mb-4 p-3 text-sm text-red-600 bg-red-100 rounded-lg">
+          {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="firstName" className={`block text-sm font-medium ${
-              isDarkMode ? 'text-gray-200' : 'text-gray-700'
-            }`}>
-              First Name
-            </label>
             <input
               type="text"
-              id="firstName"
               name="firstName"
-              autoComplete="given-name"
+              placeholder="First Name"
               value={formData.firstName}
               onChange={handleChange}
-              className={`mt-1 block w-full rounded-md border shadow-sm sm:text-sm
-                focus:ring-purple-500 focus:border-purple-500 ${
-                isDarkMode 
-                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                  : 'bg-white border-gray-300 placeholder-gray-400'
-              }`}
+              className={inputStyle}
             />
-            {errors.firstName && (
-              <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
-            )}
           </div>
-
           <div>
-            <label htmlFor="lastName" className={`block text-sm font-medium ${
-              isDarkMode ? 'text-gray-200' : 'text-gray-700'
-            }`}>
-              Last Name
-            </label>
             <input
               type="text"
-              id="lastName"
               name="lastName"
+              placeholder="Last Name"
               value={formData.lastName}
               onChange={handleChange}
-              className={`mt-1 block w-full rounded-md border shadow-sm sm:text-sm
-                focus:ring-purple-500 focus:border-purple-500 ${
-                isDarkMode 
-                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                  : 'bg-white border-gray-300 placeholder-gray-400'
-              }`}
+              className={inputStyle}
             />
-            {errors.lastName && (
-              <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
-            )}
           </div>
         </div>
 
-        <div className="col-span-full">
+        <div>
           <input
             type="email"
-            id="email"
             name="email"
-            autoComplete="email"
+            placeholder="Email address"
             value={formData.email}
             onChange={handleChange}
-            className={`mt-1 block w-full rounded-md border shadow-sm sm:text-sm
-              focus:ring-purple-500 focus:border-purple-500 ${
-              isDarkMode 
-                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                : 'bg-white border-gray-300 placeholder-gray-400'
-            }`}
+            className={inputStyle}
           />
         </div>
 
-        <div className="col-span-full">
+        <div>
           <input
             type="password"
-            id="password"
             name="password"
-            autoComplete="new-password"
+            placeholder="Create password"
             value={formData.password}
             onChange={handleChange}
-            className={`mt-1 block w-full rounded-md border shadow-sm sm:text-sm
-              focus:ring-purple-500 focus:border-purple-500 ${
-              isDarkMode 
-                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                : 'bg-white border-gray-300 placeholder-gray-400'
-            }`}
+            className={inputStyle}
           />
         </div>
 
-        <div className="col-span-full">
+        <div>
           <input
             type="password"
-            id="confirmPassword"
             name="confirmPassword"
-            autoComplete="new-password"
+            placeholder="Confirm password"
             value={formData.confirmPassword}
             onChange={handleChange}
-            className={`mt-1 block w-full rounded-md border shadow-sm sm:text-sm
-              focus:ring-purple-500 focus:border-purple-500 ${
-              isDarkMode 
-                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                : 'bg-white border-gray-300 placeholder-gray-400'
-            }`}
+            className={inputStyle}
           />
         </div>
-        
-        <div>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white 
-              ${isSubmitting ? 'cursor-not-allowed opacity-50' : ''} ${
-              isDarkMode 
-                ? 'bg-purple-600 hover:bg-purple-700 focus:ring-purple-500' 
-                : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
-            } focus:outline-none focus:ring-2 focus:ring-offset-2`}
-          >
-            {isSubmitting ? 'Creating Account...' : 'Create Account'}
-          </button>
-        </div>
+
+        <button
+          type="submit"
+          className={`w-full p-2.5 text-white font-medium rounded-md transition-colors
+            ${isDarkMode 
+              ? 'bg-purple-600 hover:bg-purple-700' 
+              : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+        >
+          Create Account
+        </button>
       </form>
 
-      <p className={`mt-4 text-center text-sm ${
-        isDarkMode ? 'text-gray-400' : 'text-gray-600'
-      }`}>
+      <p className="mt-4 text-center text-sm">
         Already have an account?{' '}
-        <Link
+        <Link 
           to="/login"
           className={`font-medium hover:underline ${
-            isDarkMode ? 'text-purple-400' : 'text-blue-600'
+            isDarkMode ? 'text-purple-400 hover:text-purple-300' : 'text-blue-600 hover:text-blue-500'
           }`}
         >
           Sign in

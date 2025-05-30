@@ -1,9 +1,14 @@
+export interface Resource {
+  name: string;
+  status: string;
+}
+
 export interface User {
   id: string;
   firstName: string;
   lastName: string;
   email: string;
-  role: 'artist' | 'customer';
+  userResources?: Resource[];
 }
 
 export interface AuthSuccessResponse {

@@ -4,8 +4,13 @@ import { MessageContext } from './context';
 export const MessageProvider = ({ children }) => {
   const [messages, setMessages] = useState([]);
 
+  // Generate a unique ID combining timestamp and random number
+  const generateUniqueId = () => {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  };
+
   const addMessage = useCallback((message) => {
-    const id = Date.now();
+    const id = generateUniqueId();
     const newMessage = {
       id,
       text: message.text,

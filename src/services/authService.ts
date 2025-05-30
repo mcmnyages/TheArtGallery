@@ -27,43 +27,23 @@ class AuthService {
 
       const data = await this.handleJsonResponse(response);
       
-      if (!response.ok) {
+      if (!response.ok || !data.accessToken) {
         return {
           success: false,
-          error: data.error || data.message || 'Invalid credentials. Please check your email and password.'
+          error: data.error || 'Invalid credentials'
         };
       }
 
-      // Handle 2xx responses that might still indicate an error
-      if (data.error) {
-        return {
-          success: false,
-          error: data.error
-        };
-      }
+      // Immediately check resources after successful login
+      console.log('Checking resources with token:', data.accessToken);
+      const resources = await this.checkAccessibleResources(data.accessToken);
       
-      // Check for required tokens in the response
-      if (!data.accessToken || !data.refreshToken) {
-        console.error('Invalid response structure:', data);
-        return {
-          success: false,
-          error: 'Invalid server response. Please try again.'
-        };
-      }
-
-      // Store tokens using tokenService
-      setTokens({
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken
-      });
-
-      // Extract user info from JWT token or response data
-      const user: User = {
+      const user = {
         id: data.id,
         firstName: data.firstName,
         lastName: data.lastName,
         email: email,
-        role: data.role || (email.includes('artist') ? 'artist' : 'customer')
+        userResources: resources
       };
 
       return {
@@ -76,7 +56,7 @@ class AuthService {
       console.error('Login error:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.'
+        error: error instanceof Error ? error.message : 'An unexpected error occurred'
       };
     }
   }
@@ -130,7 +110,6 @@ class AuthService {
         firstName: userData.firstName,
         lastName: userData.lastName,
         email: userData.email,
-        role: role // Set role based on email pattern
       };
 
       return {
@@ -185,6 +164,117 @@ class AuthService {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
+  }
+  async checkAccessibleResources(token: string): Promise<Array<{ name: string; status: string }>> {
+    try {
+      console.log('Checking accessible resources with token:', token.substring(0, 10) + '...');
+      
+      const response = await fetch('/resource/accessibleResources', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.error('Resource check failed:', response.status);
+        return [{
+          name: 'Consumer_content',
+          status: 'success'
+        }];
+      }
+
+      const data = await response.json();
+      console.log('Raw resource response:', data);
+
+      // Simple array normalization
+      let resources = Array.isArray(data) ? data : 
+                     Array.isArray(data.resources) ? data.resources :
+                     Array.isArray(data.data) ? data.data : [];
+
+      // Normalize and validate each resource
+      resources = resources
+        .filter(resource => 
+          resource && 
+          typeof resource === 'object' && 
+          typeof resource.name === 'string' &&
+          typeof resource.status === 'string'
+        )
+        .map(resource => this.normalizeResource(resource));
+
+      console.log('Normalized resources:', resources);
+
+      return resources.length > 0 ? resources : [{
+        name: 'Consumer_content',
+        status: 'success'
+      }];
+    } catch (error) {
+      console.error('Error checking resources:', error);
+      return [{
+        name: 'Consumer_content',
+        status: 'success'
+      }];
+    }
+  }
+
+  private normalizeResource(resource: { name: string; status: string }): { name: string; status: string } {
+    const nameMap: { [key: string]: string } = {
+      'artist': 'Artwork',
+      'ARTWORK': 'Artwork',
+      'artwork': 'Artwork',
+      'ARTIST': 'Artwork',
+      'Artist': 'Artwork',
+      'admin': 'Admin_dashboard',
+      'ADMIN': 'Admin_dashboard',
+      'consumer': 'Consumer_content',
+      'CONSUMER': 'Consumer_content',
+      'Customer': 'Consumer_content'
+    };
+
+    // If it's already a valid resource name, return as is
+    if (Object.values(nameMap).includes(resource.name)) {
+      console.log('Resource already normalized:', resource.name);
+      return resource;
+    }
+
+    // Try to map the resource name
+    const normalizedName = nameMap[resource.name] || 'Consumer_content';
+    console.log('Normalizing resource:', resource.name, 'to:', normalizedName);
+
+    return {
+      ...resource,
+      name: normalizedName
+    };
+  }
+
+  async getAuthToken(): Promise<string | null> {
+    const token = getAccessToken();
+
+    if (!token) {
+      console.error('No authentication token available');
+      return null;
+    }
+
+    // Check if token is expired and try to refresh if needed
+    if (isTokenExpired()) {
+      console.log('Token expired, attempting refresh...');
+      try {
+        const refreshed = await this.refreshToken();
+        if (!refreshed) {
+          console.error('Token refresh failed');
+          return null;
+        }
+        // Get fresh token after refresh
+        return getAccessToken();
+      } catch (error) {
+        console.error('Error refreshing token:', error);
+        return null;
+      }
+    }
+
+    return token;
   }
 }
 
