@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext/index';
 import { ArtistProvider } from './contexts/ArtistContext/provider';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { MessageProvider } from './contexts/MessageContext/provider';
 import TopNavBar from './components/layout/TopNavBar';
 import LeftSidebar from './components/layout/LeftSidebar';
 import BottomNavBar from './components/layout/BottomNavBar';
@@ -147,7 +148,9 @@ function App() {
         <SubscriptionProvider>
           <ArtistProvider>
             <ThemeProvider>
-              <AppContent />
+              <MessageProvider>
+                <AppContent />
+              </MessageProvider>
             </ThemeProvider>
           </ArtistProvider>
         </SubscriptionProvider>

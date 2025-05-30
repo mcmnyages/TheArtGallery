@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useMessage } from '../../hooks/useMessage';
 
 const PaymentForm = ({ selectedPlan, onSuccess, onCancel }) => {
+  const { addMessage } = useMessage();
   const [formData, setFormData] = useState({
     cardName: '',
     cardNumber: '',
@@ -118,13 +120,23 @@ const PaymentForm = ({ selectedPlan, onSuccess, onCancel }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    if (!validate()) return;
+    if (!validate()) {
+      addMessage({
+        text: 'Please fix the errors in the form',
+        type: 'error'
+      });
+      return;
+    }
     
     setIsSubmitting(true);
     
     // This is just a UI mockup so we simulate a successful payment after a delay
     setTimeout(() => {
       setIsSubmitting(false);
+      addMessage({
+        text: 'Payment processed successfully!',
+        type: 'success'
+      });
       onSuccess();
     }, 2000);
   };
