@@ -9,15 +9,58 @@ export const validateEmail = (email) => {
 };
 
 /**
- * Validates password strength
+ * Validates password strength and returns array of error messages
  * @param {string} password - The password to validate
- * @returns {boolean} - True if password meets requirements
+ * @returns {string[]} - Array of error messages, empty if password is valid
  */
 export const validatePassword = (password) => {
-  // At least 8 chars, 1 number, 1 special character
-  const hasNumber = /[0-9]/.test(password);
-  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
-  return password.length >= 8 && hasNumber && hasSpecial;
+  const errors = [];
+  const minLength = 8;
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumbers = /\d/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+  if (password.length < minLength) {
+    errors.push(`Password must be at least ${minLength} characters long`);
+  }
+  if (!hasUpperCase) {
+    errors.push('Password must contain at least one uppercase letter');
+  }
+  if (!hasLowerCase) {
+    errors.push('Password must contain at least one lowercase letter');
+  }
+  if (!hasNumbers) {
+    errors.push('Password must contain at least one number');
+  }
+  if (!hasSpecialChar) {
+    errors.push('Password must contain at least one special character');
+  }
+
+  return errors;
+};
+
+/**
+ * Validates name format (first name, last name)
+ * @param {string} name - The name to validate
+ * @returns {{ isValid: boolean, error?: string }} - Validation result
+ */
+export const validateName = (name) => {
+  if (!name || typeof name !== 'string') {
+    return { isValid: false, error: 'Name is required' };
+  }
+
+  const trimmedName = name.trim();
+  
+  if (trimmedName.length < 2) {
+    return { isValid: false, error: 'Name must be at least 2 characters long' };
+  }
+
+  if (!/^[a-zA-ZÀ-ÿ\s'-]+$/.test(trimmedName)) {
+    return { isValid: false, error: 'Name can only contain letters, spaces, hyphens, and apostrophes' };
+  }
+
+  return { isValid: true };
 };
 
 /**
@@ -25,9 +68,6 @@ export const validatePassword = (password) => {
  * @param {string} name - The name to validate
  * @returns {boolean} - True if name is valid
  */
-export const validateName = (name) => {
-  return name.trim().length >= 2;
-};
 
 /**
  * Get password strength assessment
