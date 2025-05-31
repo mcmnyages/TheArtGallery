@@ -6,7 +6,7 @@ import { useGallery } from '../hooks/useGallery';
 import { useSubscription } from '../hooks/useSubscription';
 
 const GalleriesPage = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const { isDarkMode } = useTheme();
   const { galleries, loading, error: galleryError, fetchGalleries } = useGallery();
@@ -98,10 +98,10 @@ const GalleriesPage = () => {
                       Try adjusting your search criteria.
                     </p>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mt-6">
-                    {filteredGalleries.map(gallery => {
-                      const isLocked = !hasGalleryAccess(gallery._id);
+                ) : (                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mt-6">                    {filteredGalleries.map(gallery => {
+                      // Check if the user created this gallery or has subscription access
+                      const isCreator = gallery.creatorId === user?.id;
+                      const isLocked = !isCreator && !hasGalleryAccess(gallery._id);
                       
                       return (
                         <div 
