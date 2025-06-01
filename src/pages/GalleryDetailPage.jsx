@@ -26,6 +26,30 @@ const GalleryDetailPage = () => {
   }, [id, fetchGalleryById]);
 
   useEffect(() => {
+    // Track gallery views and debug image loading
+    if (gallery) {
+      console.log('Gallery detail loaded:', {
+        id: gallery._id,
+        name: gallery.name,
+        imageCount: gallery?.images?.length,
+        images: gallery?.images?.map(img => ({
+          id: img._id,
+          imageId: img.imageId,
+          imageUrl: img.imageUrl
+        }))
+      });
+
+      // Preload images
+      gallery.images?.forEach(image => {
+        if (image.imageUrl) {
+          const img = new Image();
+          img.src = image.imageUrl;
+        }
+      });
+    }
+  }, [gallery]);
+
+  useEffect(() => {
     // Track gallery views
     if (gallery) {
       console.log('Viewing gallery:', {
@@ -36,11 +60,20 @@ const GalleryDetailPage = () => {
       });
     }
   }, [gallery, loading, error]);
-
   const handleImageClick = (image) => {
-    if (!hasAccess) return;
-    if (!image?.imageUrl) return;
-    setSelectedImage(image);
+    console.log('Image clicked:', image);
+    if (!hasAccess) {
+      console.log('Access denied');
+      return;
+    }
+    if (!image?.imageUrl) {
+      console.log('No image URL found');
+      return;
+    }
+    setSelectedImage({
+      ...image,
+      url: image.imageUrl
+    });
     setViewerOpen(true);
   };
   
@@ -51,14 +84,14 @@ const GalleryDetailPage = () => {
   
   const handlePrevImage = () => {
     if (!gallery?.images?.length) return;
-    const currentIndex = gallery.images.findIndex(img => img.imageId === selectedImage?.imageId);
+    const currentIndex = gallery.images.findIndex(img => img._id === selectedImage?._id);
     const prevIndex = currentIndex > 0 ? currentIndex - 1 : gallery.images.length - 1;
     setSelectedImage(gallery.images[prevIndex]);
   };
   
   const handleNextImage = () => {
     if (!gallery?.images?.length) return;
-    const currentIndex = gallery.images.findIndex(img => img.imageId === selectedImage?.imageId);
+    const currentIndex = gallery.images.findIndex(img => img._id === selectedImage?._id);
     const nextIndex = currentIndex < gallery.images.length - 1 ? currentIndex + 1 : 0;
     setSelectedImage(gallery.images[nextIndex]);
   };
@@ -209,41 +242,51 @@ const GalleryDetailPage = () => {
               </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {gallery.images.map((image, index) => (
-                <div 
-                  key={image.imageId}
-                  onClick={() => handleImageClick(image)}
-                  className={`rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer group transform hover:-translate-y-1 ${
-                    isDarkMode ? 'bg-gray-800' : 'bg-white'
-                  } ${!hasAccess ? 'pointer-events-none' : ''}`}
-                >
-                  <div className="relative aspect-[4/3] bg-gray-200 overflow-hidden">
-                    <img 
-                      src={image.imageUrl}
-                      alt={`Image ${index + 1} in ${gallery.name}`}
-                      className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ${
-                        !hasAccess ? 'opacity-50' : ''
-                      }`}
-                      loading="lazy"
-                      onError={(e) => {
-                        console.error('Image failed to load:', image.imageUrl);
-                        e.target.src = '/assets/images/placeholder.jpg';
-                      }}
-                    />
-                    {!hasAccess && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className={`p-3 rounded-full ${
-                          isDarkMode 
-                            ? 'bg-gray-800/80 text-white' 
-                            : 'bg-white/80 text-gray-900'
-                        }`}>
-                          <Lock className="h-6 w-6" />
+              {gallery.images.map((image, index) => {
+                console.log('Rendering image:', image);
+                return (
+                  <div 
+                    key={image._id}
+                    onClick={() => handleImageClick(image)}
+                    className={`rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer group transform hover:-translate-y-1 ${
+                      isDarkMode ? 'bg-gray-800' : 'bg-white'
+                    } ${!hasAccess ? 'pointer-events-none' : ''}`}
+                  >
+                    <div className="relative aspect-[4/3] bg-gray-200 overflow-hidden">
+                      {image.imageUrl ? (
+                        <img 
+                          src={image.imageUrl}
+                          alt={`Image ${index + 1} in ${gallery.name}`}
+                          className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ${
+                            !hasAccess ? 'opacity-50' : ''
+                          }`}
+                          loading="lazy"
+                          onError={(e) => {
+                            console.error('Image failed to load:', image.imageUrl);
+                            e.target.src = '/assets/images/placeholder.jpg';
+                            e.target.onerror = null; // Prevent infinite loop if placeholder also fails
+                          }}
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center w-full h-full">
+                          <span className="text-gray-400">Image not available</span>
                         </div>
-                      </div>
-                    )}
+                      )}
+                      {!hasAccess && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className={`p-3 rounded-full ${
+                            isDarkMode 
+                              ? 'bg-gray-800/80 text-white' 
+                              : 'bg-white/80 text-gray-900'
+                          }`}>
+                            <Lock className="h-6 w-6" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         ) : (
@@ -259,22 +302,19 @@ const GalleryDetailPage = () => {
         )}
       </div>
       
-      {viewerOpen && selectedImage && gallery?.images && hasAccess && (
-        <ImageViewer
-          image={selectedImage}
+      {viewerOpen && selectedImage && gallery?.images && hasAccess && (        <ImageViewer
           imageData={{
             url: selectedImage.imageUrl,
             title: `Image in ${gallery.name}`,
-            metadata: {
-              addedOn: new Date(selectedImage.createdAt).toLocaleDateString(),
-              id: selectedImage.imageId
-            }
+            metadata: selectedImage.metadata || {},
+            addedOn: new Date(selectedImage.uploadedAt || selectedImage.createdAt).toLocaleDateString(),
+            id: selectedImage._id
           }}
           onClose={handleCloseViewer}
           onPrevious={gallery.images.length > 1 ? handlePrevImage : undefined}
           onNext={gallery.images.length > 1 ? handleNextImage : undefined}
           totalImages={gallery.images.length}
-          currentIndex={gallery.images.findIndex(img => img.imageId === selectedImage.imageId)}
+          currentIndex={gallery.images.findIndex(img => img._id === selectedImage._id)}
           isDarkMode={isDarkMode}
         />
       )}

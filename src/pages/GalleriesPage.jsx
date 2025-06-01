@@ -5,13 +5,15 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useGallery } from '../hooks/useGallery';
 import { Lock } from 'lucide-react';
 import { useMessage } from '../hooks/useMessage';
+import { useArtist } from '../hooks/useArtistContext'; // Add this import
 
 const GalleriesPage = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();  // Add user here
   const navigate = useNavigate();
   const { isDarkMode } = useTheme();
   const { galleries, loading, error: galleryError, fetchGalleries } = useGallery();
   const { addMessage } = useMessage();
+  const { artistProfile } = useArtist(); // Add this line
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -31,16 +33,12 @@ const GalleriesPage = () => {
     return matchesSearch;
   });
 
-  // Handle gallery click to show subscription message
+  // Handle gallery click to check for artist access or subscription
   const handleGalleryClick = (e, gallery) => {
     e.preventDefault();
-    addMessage({ 
-      text: 'Please subscribe first to access this gallery album', 
-      type: 'info'
-    });
-    navigate('/subscriptions');
+    navigate(`/gallery/${gallery._id}`);
   };
-
+  
   return (
     <div className="min-h-full">
       <div className="p-4 md:p-6">
@@ -106,43 +104,32 @@ const GalleriesPage = () => {
                           isDarkMode ? 'bg-gray-800' : 'bg-white'
                         }`}
                       >
-                        <div className="h-48 bg-gray-200 relative">
-                          {gallery.images && gallery.images[0] && (
-                            <>
-                              <img 
-                                src={gallery.images[0].imageUrl}
-                                alt={gallery.name} 
-                                className="w-full h-full object-cover opacity-50"
-                              />
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <div className={`p-3 rounded-full ${
-                                  isDarkMode 
-                                    ? 'bg-gray-800/80 text-white hover:bg-gray-700/80' 
-                                    : 'bg-white/80 text-gray-900 hover:bg-gray-100/80'
-                                } transition-transform duration-200 hover:scale-110`}>
-                                  <Lock className="h-6 w-6" />
-                                </div>
-                              </div>
-                            </>
+                        <div className="h-48 bg-gray-200 relative">                          {gallery.images && gallery.images[0] && (
+                            <img 
+                              src={gallery.images[0].imageUrl}
+                              alt={gallery.name} 
+                              className="w-full h-full object-cover"
+                            />
                           )}
                           <div className="absolute bottom-0 right-0 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded-tl-md">
                             {gallery.images?.length || 0} images
                           </div>
                         </div>
                         <div className="p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className={`text-xl font-bold ${
+                          <div className="flex items-center justify-between mb-2">                            <h3 className={`text-xl font-bold ${
                               isDarkMode ? 'text-white' : 'text-gray-900'
                             }`}>
                               {gallery.name}
                             </h3>
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              isDarkMode 
-                                ? 'bg-gray-700 text-gray-300' 
-                                : 'bg-gray-100 text-gray-600'
-                            }`}>
-                              Subscribers Only
-                            </span>
+                            {artistProfile && artistProfile.id === gallery.artistId && (
+                              <span className={`text-xs px-2 py-1 rounded ${
+                                isDarkMode
+                                  ? 'bg-green-700 text-green-100'
+                                  : 'bg-green-100 text-green-700'
+                              }`}>
+                                Your Gallery
+                              </span>
+                            )}
                           </div>
                           <p className={`text-sm ${
                             isDarkMode ? 'text-gray-300' : 'text-gray-600'
