@@ -5,15 +5,15 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useGallery } from '../hooks/useGallery';
 import { Lock } from 'lucide-react';
 import { useMessage } from '../hooks/useMessage';
-import { useArtist } from '../hooks/useArtistContext'; // Add this import
+import { useArtist } from '../hooks/useArtistContext';
 
 const GalleriesPage = () => {
-  const { isAuthenticated, user } = useAuth();  // Add user here
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const { isDarkMode } = useTheme();
   const { galleries, loading, error: galleryError, fetchGalleries } = useGallery();
   const { addMessage } = useMessage();
-  const { artistProfile } = useArtist(); // Add this line
+  const { artistProfile } = useArtist();
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -26,6 +26,18 @@ const GalleriesPage = () => {
     fetchGalleries();
   }, [isAuthenticated, navigate, fetchGalleries]);
 
+  // Function to determine if a gallery should be locked
+  const isGalleryLocked = (gallery) => {
+    // Gallery is unlocked if:
+    // 1. User is the owner of the gallery
+    // 2. Gallery is marked as public (if you have such a field)
+    // 3. User has an active subscription for this gallery
+    const isOwner = artistProfile?.id === gallery.userId;
+    
+    // By default, lock all galleries except the ones owned by the current user
+    return !isOwner;
+  };
+
   // Filter galleries based on search term
   const filteredGalleries = galleries.filter(gallery => {
     const matchesSearch = gallery.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -33,9 +45,18 @@ const GalleriesPage = () => {
     return matchesSearch;
   });
 
-  // Handle gallery click to check for artist access or subscription
+  // Handle gallery click
   const handleGalleryClick = (e, gallery) => {
     e.preventDefault();
+    
+    if (isGalleryLocked(gallery)) {
+      addMessage({ 
+        type: 'info', 
+        text: 'This gallery requires subscription access. Contact admin for more information.' 
+      });
+      return;
+    }
+    
     navigate(`/gallery/${gallery._id}`);
   };
   
@@ -96,56 +117,74 @@ const GalleriesPage = () => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mt-6">
-                    {filteredGalleries.map(gallery => (
-                      <div 
-                        key={gallery._id}
-                        onClick={(e) => handleGalleryClick(e, gallery)}
-                        className={`rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer ${
-                          isDarkMode ? 'bg-gray-800' : 'bg-white'
-                        }`}
-                      >
-                        <div className="h-48 bg-gray-200 relative">                          {gallery.images && gallery.images[0] && (
-                            <img 
-                              src={gallery.images[0].imageUrl}
-                              alt={gallery.name} 
-                              className="w-full h-full object-cover"
-                            />
-                          )}
-                          <div className="absolute bottom-0 right-0 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded-tl-md">
-                            {gallery.images?.length || 0} images
-                          </div>
-                        </div>
-                        <div className="p-4">
-                          <div className="flex items-center justify-between mb-2">                            <h3 className={`text-xl font-bold ${
-                              isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>
-                              {gallery.name}
-                            </h3>
-                            {artistProfile && artistProfile.id === gallery.artistId && (
-                              <span className={`text-xs px-2 py-1 rounded ${
-                                isDarkMode
-                                  ? 'bg-green-700 text-green-100'
-                                  : 'bg-green-100 text-green-700'
-                              }`}>
-                                Your Gallery
-                              </span>
+                    {filteredGalleries.map(gallery => {
+                      const isLocked = isGalleryLocked(gallery);
+                      return (
+                        <div 
+                          key={gallery._id}
+                          onClick={(e) => handleGalleryClick(e, gallery)}
+                          className={`rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer ${
+                            isDarkMode ? 'bg-gray-800' : 'bg-white'
+                          }`}
+                        >
+                          <div className="h-48 bg-gray-200 relative">
+                            {gallery.images && gallery.images[0] && (
+                              <img 
+                                src={gallery.images[0].imageUrl}
+                                alt={gallery.name} 
+                                className={`w-full h-full object-cover ${
+                                  isLocked ? 'opacity-50' : ''
+                                }`}
+                              />
+                            )}
+                            <div className="absolute bottom-0 right-0 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded-tl-md">
+                              {gallery.images?.length || 0} images
+                            </div>
+                            {isLocked && (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className={`p-3 rounded-full ${
+                                  isDarkMode 
+                                    ? 'bg-gray-800/80 text-white' 
+                                    : 'bg-white/80 text-gray-900'
+                                }`}>
+                                  <Lock className="h-6 w-6" />
+                                </div>
+                              </div>
                             )}
                           </div>
-                          <p className={`text-sm ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                          }`}>
-                            {gallery.description}
-                          </p>
-                          <div className="mt-4 flex justify-between items-center">
-                            <span className={`text-sm ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                          <div className="p-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <h3 className={`text-xl font-bold ${
+                                isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
+                                {gallery.name}
+                              </h3>
+                              {artistProfile && artistProfile.id === gallery.userId && (
+                                <span className={`text-xs px-2 py-1 rounded ${
+                                  isDarkMode
+                                    ? 'bg-green-700 text-green-100'
+                                    : 'bg-green-100 text-green-700'
+                                }`}>
+                                  Your Gallery
+                                </span>
+                              )}
+                            </div>
+                            <p className={`text-sm ${
+                              isDarkMode ? 'text-gray-300' : 'text-gray-600'
                             }`}>
-                              {new Date(gallery.createdAt).toLocaleDateString()}
-                            </span>
+                              {gallery.description}
+                            </p>
+                            <div className="mt-4 flex justify-between items-center">
+                              <span className={`text-sm ${
+                                isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>
+                                {new Date(gallery.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </>
