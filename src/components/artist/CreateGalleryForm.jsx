@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Check, X, Search, ImageIcon } from 'lucide-react';
 import { galleryService } from '../../services/galleryService';
+import { useMessage } from '../../hooks/useMessage';
 
 const CreateGalleryForm = () => {
   const navigate = useNavigate();
+  const addMessage = useMessage();
   const { isDarkMode } = useTheme();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

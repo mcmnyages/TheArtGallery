@@ -1,15 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { mockSubscriptionAPI } from '../data/mockSubscriptions';
-import { AuthContext } from './AuthContext/context';
-
-export const SubscriptionContext = createContext({
-  userSubscriptions: [],
-  isLoading: true,
-  subscribeToGallery: () => {},
-  cancelSubscription: () => {},
-  hasGalleryAccess: () => false,
-  refreshSubscriptions: () => {}
-});
+import React, { useContext, useState, useEffect } from 'react';
+import { mockSubscriptionAPI } from '../../data/mockSubscriptions';
+import { AuthContext } from '../AuthContext/context';
+import { SubscriptionContext } from './context';
 
 export const SubscriptionProvider = ({ children }) => {
   const [userSubscriptions, setUserSubscriptions] = useState([]);
@@ -48,9 +40,9 @@ export const SubscriptionProvider = ({ children }) => {
       const success = await mockSubscriptionAPI.cancelSubscription(subscriptionId);
       if (success) {
         setUserSubscriptions(prev => 
-          prev.map(sub => 
+          prev.map(sub =>
             sub.id === subscriptionId 
-              ? { ...sub, status: 'cancelled' }
+              ? { ...sub, status: 'cancelled' } 
               : sub
           )
         );
@@ -73,17 +65,15 @@ export const SubscriptionProvider = ({ children }) => {
     );
   };
 
-  const contextValue = {
-    userSubscriptions,
-    isLoading,
-    subscribeToGallery,
-    cancelSubscription,
-    hasGalleryAccess,
-    refreshSubscriptions: loadUserSubscriptions
-  };
-
   return (
-    <SubscriptionContext.Provider value={contextValue}>
+    <SubscriptionContext.Provider value={{
+      userSubscriptions,
+      isLoading,
+      subscribeToGallery,
+      cancelSubscription,
+      hasGalleryAccess,
+      refreshSubscriptions: loadUserSubscriptions
+    }}>
       {children}
     </SubscriptionContext.Provider>
   );

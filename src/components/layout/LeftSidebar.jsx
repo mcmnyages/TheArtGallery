@@ -23,6 +23,11 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
   const { user, logout } = useAuth();
   const { isDarkMode } = useTheme();
 
+  // Check if user has Artwork resource access
+  const hasArtworkAccess = user?.userResources?.some(r => 
+    r.name === 'Artwork' && r.status === 'success'
+  );
+
   // Get artist-specific navigation links
   const getArtistNavLinks = () => [
     {
@@ -31,25 +36,20 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
       icon: <HiChartBar className="h-6 w-6" />
     },
     {
+      name: 'Upload Artwork',
+      path: '/artist/upload',
+      icon: <HiUpload className="h-6 w-6" />
+    },
+    {
       name: 'Picture Management',
       path: '/artist/pictures',
       icon: <HiPicture className="h-6 w-6" />
     },
     {
-      name: 'Manage Gallery',
+      name: 'Manage Galleries',
       path: '/artist/gallery',
       icon: <HiViewGrid className="h-6 w-6" />
-    },
-    {
-      name: 'Create Gallery',
-      path: '/artist/gallery/create',
-      icon: <HiPlusCircle className="h-6 w-6" />
-    },
-    // {
-    //   name: 'Upload Artwork',
-    //   path: '/artist/upload',
-    //   icon: <HiUpload className="h-6 w-6" />
-    // }
+    }
   ];
 
   // Get base navigation links
@@ -71,8 +71,8 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
     }
   ];
 
-  // Combine base and role-specific navigation links
-  const navLinks = user?.role === 'artist' 
+  // Combine base and resource-specific navigation links
+  const navLinks = hasArtworkAccess
     ? [...getArtistNavLinks(), ...getBaseNavLinks()]
     : getBaseNavLinks();
 

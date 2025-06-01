@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import {useTheme} from '../contexts/ThemeContext';
 
 const AccountPage = () => {
   const { user, updateUser, logout } = useAuth();
+  const { isDarkMode } = useTheme();
+  const [isLoading, setIsLoading] = useState(true);
   
   const [formState, setFormState] = useState({
     firstName: '',
@@ -144,7 +147,7 @@ const AccountPage = () => {
       <h1 className="text-2xl font-bold mb-6">Account Settings</h1>
       
       {/* Profile Summary Card */}
-      <div className="bg-white shadow-md rounded-lg p-6 mb-8">
+      <div className={`bg-white shadow-md rounded-lg p-6 mb-8 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
         <div className="flex items-center">
           <div className="h-20 w-20 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold text-white">
             {user.firstName?.charAt(0) || user.email?.charAt(0) || 'U'}

@@ -8,62 +8,41 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const handleAuthSuccess = (userData, token, refreshToken) => {
-    // Ensure user data has all required fields
-    const enrichedUserData = {
-      ...userData,
-      role: userData.role || 'user',
-      permissions: userData.permissions || [],
-      membershipTier: userData.membershipTier || 'free'
-    };
-    
-    setUser(enrichedUserData);
-    setIsAuthenticated(true);
-    tokenService.setTokens({ token, refreshToken });
-    
-    // Cache user data with role information
-    localStorage.setItem('user', JSON.stringify(enrichedUserData));
-  };  const handleLogin = async (email, password) => {
+  const handleLogin = async (email, password) => {
     try {
-      console.log('AuthContext: Attempting login with:', { email });
+      console.log('Attempting login with:', email);
       const response = await authService.login(email, password);
-      console.log('AuthContext: Raw response:', response);
-
-      if (response.success && response.user) {
-        console.log('AuthContext: Valid login response:', {
-          user: {
-            id: response.user.id,
-            email: response.user.email,
-            firstName: response.user.firstName,
-            role: response.user.role
-          }
+      
+      if (response.success && response.user && response.token) {
+        // Set tokens first
+        tokenService.setTokens({
+          accessToken: response.token,
+          refreshToken: response.refreshToken
         });
-        handleAuthSuccess(response.user, response.token, response.refreshToken);
-        return { success: true, user: response.user };
+
+        const userWithResources = {
+          ...response.user,
+          userResources: response.user.userResources || []
+        };
+
+        // Store user with resources
+        localStorage.setItem('user', JSON.stringify(userWithResources));
+        setUser(userWithResources);
+        setIsAuthenticated(true);
+
+        console.log('Login successful, user resources:', userWithResources.userResources);
+        return { success: true, user: userWithResources };
       }
       
-      // If we got here, either success is false or we don't have a user
-      const errorMessage = response.error || 'Invalid credentials. Please check your email and password.';
-      console.log('AuthContext: Login failed:', errorMessage);
-      return { success: false, error: errorMessage };
+      return { 
+        success: false, 
+        error: response.error || 'Login failed' 
+      };
     } catch (error) {
-      console.error('AuthContext: Login error:', {
-        message: error.message,
-        stack: error.stack
-      });
-
-      let errorMessage = error.message || 'An error occurred during login';
-      
-      // Make error messages more user-friendly
-      if (error.message === 'Invalid password') {
-        errorMessage = 'Invalid password. Please check your password and try again.';
-      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
-        errorMessage = 'Network error. Please check your internet connection and try again.';
-      }
-
-      return {
-        success: false,
-        error: errorMessage
+      console.error('Login error:', error);
+      return { 
+        success: false, 
+        error: error.message || 'An unexpected error occurred' 
       };
     }
   };
@@ -78,14 +57,25 @@ export const AuthProvider = ({ children }) => {
   const handleRegister = async (userData) => {
     try {
       const response = await authService.register(userData);
-      if (response.success) {
-        handleAuthSuccess(response.user, response.token, response.refreshToken);
-        return { success: true };
+      
+      if (response.success && response.user) {
+        // If registration is successful, automatically log the user in
+        const loginResponse = await handleLogin(userData.email, userData.password);
+        if (loginResponse.success) {
+          return { success: true, user: loginResponse.user };
+        }
       }
-      return { success: false, error: response.error };
+      
+      return { 
+        success: false, 
+        error: response.error || 'Registration failed' 
+      };
     } catch (error) {
       console.error('Registration error:', error);
-      return { success: false, error: error.message || 'Registration failed' };
+      return { 
+        success: false, 
+        error: error.message || 'An unexpected error occurred' 
+      };
     }
   };
 
@@ -95,6 +85,43 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(updatedUser));
       return updatedUser;
     });
+  };
+
+  const handleVerifyOTP = async (email, otp) => {
+    try {
+      const response = await authService.verifyOTP(email, otp);
+      
+      if (response.success && response.user && response.token) {
+        // Set tokens first
+        tokenService.setTokens({
+          accessToken: response.token,
+          refreshToken: response.refreshToken
+        });
+
+        const userWithResources = {
+          ...response.user,
+          userResources: response.user.userResources || []
+        };
+
+        // Store user with resources
+        localStorage.setItem('user', JSON.stringify(userWithResources));
+        setUser(userWithResources);
+        setIsAuthenticated(true);
+
+        return { success: true, user: userWithResources };
+      }
+      
+      return { 
+        success: false, 
+        error: response.error || 'OTP verification failed' 
+      };
+    } catch (error) {
+      console.error('OTP verification error:', error);
+      return { 
+        success: false, 
+        error: error.message || 'An unexpected error occurred' 
+      };
+    }
   };
 
   // Check for existing authentication on mount
@@ -115,18 +142,18 @@ export const AuthProvider = ({ children }) => {
           const cachedUser = localStorage.getItem('user');
           if (cachedUser) {
             const userData = JSON.parse(cachedUser);
-            handleAuthSuccess(userData, tokens);          } else {
-            // Token exists but no cached user data
-            // We should redirect to login
+            setUser(userData);
+            setIsAuthenticated(true);
+          } else {
+            console.log('No cached user found, logging out');
             handleLogout();
-            return;
           }
         } catch (error) {
-          console.error("Failed to fetch user profile:", error);
+          console.error('Failed to verify access:', error);
           handleLogout();
         }
       } catch (error) {
-        console.error("Auth initialization error:", error);
+        console.error('Auth initialization error:', error);
         handleLogout();
       } finally {
         setIsLoading(false);
@@ -143,7 +170,7 @@ export const AuthProvider = ({ children }) => {
     login: handleLogin,
     logout: handleLogout,
     register: handleRegister,
-    updateUser: handleUpdateUser
+    verifyOTP: handleVerifyOTP
   };
 
   return (

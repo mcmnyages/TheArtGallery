@@ -11,6 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SERVICE_URLS = {
   AUTH: process.env.VITE_AUTH_API_URL || 'http://localhost:3000',
   OtherURL: process.env.OTHER_SERVICE_URL || 'http://localhost:3001',
+  AUTHZ_URL: process.env.VITE_AUTHZ_API_URL || 'http://localhost:3003',
   GALLERY_URL: process.env.VITE_GALLERY_API_URL || 'http://localhost:3002'
 };
 
@@ -86,16 +87,21 @@ export default defineConfig(({ mode }) => {
   // Update SERVICE_URLS with loaded environment variables
   SERVICE_URLS.AUTH = env.VITE_AUTH_API_URL || 'http://localhost:3000';
   SERVICE_URLS.GALLERY_URL = env.VITE_GALLERY_API_URL || 'http://localhost:3002';
+  SERVICE_URLS.AUTHZ_URL = env.VITE_AUTHZ_API_URL || 'http://localhost:3003';
   
   return {
     server: {
       host: "::",
-      port: 8080,      proxy: {
-        // Auth Service - handles all authentication related endpoints
-        '^/(login|register|logout|profile)': createServiceProxy(SERVICE_URLS.AUTH, {
+      port: 8080,      proxy: {        // Auth Service - handles all authentication related endpoints
+        '^/(login|register|logout|profile|verify-otp|request-otp)': createServiceProxy(SERVICE_URLS.AUTH, {
           rewrite: (path) => `/v0.1/users${path}`
         }),
         
+        // Authorization Service - handles all resource access checks
+        '^/resource/accessibleResources': createServiceProxy(SERVICE_URLS.AUTHZ_URL, {
+          rewrite: (path) => `/v0.1${path}`
+        }),
+
         // OtherURL Service - handles all OtherURL related endpoints
         '^/(images|upload|delete)': createServiceProxy(SERVICE_URLS.OtherURL),
 

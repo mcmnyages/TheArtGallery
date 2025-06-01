@@ -3,15 +3,17 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
 import { useGallery } from '../hooks/useGallery';
-import { useSubscription } from '../hooks/useSubscription';
+import { Lock } from 'lucide-react';
+import { useMessage } from '../hooks/useMessage';
+import { useArtist } from '../hooks/useArtistContext';
 
 const GalleriesPage = () => {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const { isDarkMode } = useTheme();
   const { galleries, loading, error: galleryError, fetchGalleries } = useGallery();
-  const { hasGalleryAccess } = useSubscription();
-
+  const { addMessage } = useMessage();
+  const { artistProfile } = useArtist();
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -24,6 +26,18 @@ const GalleriesPage = () => {
     fetchGalleries();
   }, [isAuthenticated, navigate, fetchGalleries]);
 
+  // Function to determine if a gallery should be locked
+  const isGalleryLocked = (gallery) => {
+    // Gallery is unlocked if:
+    // 1. User is the owner of the gallery
+    // 2. Gallery is marked as public (if you have such a field)
+    // 3. User has an active subscription for this gallery
+    const isOwner = artistProfile?.id === gallery.userId;
+    
+    // By default, lock all galleries except the ones owned by the current user
+    return !isOwner;
+  };
+
   // Filter galleries based on search term
   const filteredGalleries = galleries.filter(gallery => {
     const matchesSearch = gallery.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -31,18 +45,21 @@ const GalleriesPage = () => {
     return matchesSearch;
   });
 
-  // Handle gallery click to navigate to detail page with gallery data
-  const handleGalleryClick = (galleryId, isLocked) => {
-    if (isLocked) {
-      // If gallery is locked, navigate to subscriptions page
-      navigate('/subscriptions');
+  // Handle gallery click
+  const handleGalleryClick = (e, gallery) => {
+    e.preventDefault();
+    
+    if (isGalleryLocked(gallery)) {
+      addMessage({ 
+        type: 'info', 
+        text: 'This gallery requires subscription access. Contact admin for more information.' 
+      });
       return;
     }
-    const gallery = galleries.find(g => g._id === galleryId);
-    console.log('Navigating to gallery:', gallery);
-    navigate(`/gallery/${galleryId}`, { state: { gallery } });
+    
+    navigate(`/gallery/${gallery._id}`);
   };
-
+  
   return (
     <div className="min-h-full">
       <div className="p-4 md:p-6">
@@ -98,53 +115,61 @@ const GalleriesPage = () => {
                       Try adjusting your search criteria.
                     </p>
                   </div>
-                ) : (                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mt-6">                    {filteredGalleries.map(gallery => {
-                      // Check if the user created this gallery or has subscription access
-                      const isCreator = gallery.creatorId === user?.id;
-                      const isLocked = !isCreator && !hasGalleryAccess(gallery._id);
-                      
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mt-6">
+                    {filteredGalleries.map(gallery => {
+                      const isLocked = isGalleryLocked(gallery);
                       return (
                         <div 
                           key={gallery._id}
-                          onClick={() => handleGalleryClick(gallery._id, isLocked)}
-                          className={`rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer relative ${
+                          onClick={(e) => handleGalleryClick(e, gallery)}
+                          className={`rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer ${
                             isDarkMode ? 'bg-gray-800' : 'bg-white'
                           }`}
                         >
-                          <div className="h-48 bg-gray-200 relative overflow-hidden">
-                            {/* Blur overlay for locked galleries */}
-                            {isLocked && (
-                              <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-10 flex items-center justify-center">
-                                <div className="bg-black/70 px-3 py-2 rounded-lg flex items-center">
-                                  <svg className="w-4 h-4 text-white mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                  </svg>
-                                  <span className="text-white text-sm font-medium">Subscribers Only</span>
-                                </div>
-                              </div>
-                            )}
-                            
+                          <div className="h-48 bg-gray-200 relative">
                             {gallery.images && gallery.images[0] && (
                               <img 
                                 src={gallery.images[0].imageUrl}
                                 alt={gallery.name} 
-                                className={`w-full h-full object-cover transition-transform duration-500 hover:scale-105 ${
-                                  isLocked ? 'filter blur-[1px]' : ''
+                                className={`w-full h-full object-cover ${
+                                  isLocked ? 'opacity-50' : ''
                                 }`}
                               />
                             )}
                             <div className="absolute bottom-0 right-0 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded-tl-md">
                               {gallery.images?.length || 0} images
                             </div>
+                            {isLocked && (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className={`p-3 rounded-full ${
+                                  isDarkMode 
+                                    ? 'bg-gray-800/80 text-white' 
+                                    : 'bg-white/80 text-gray-900'
+                                }`}>
+                                  <Lock className="h-6 w-6" />
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          
                           <div className="p-4">
-                            <h3 className={`text-xl font-bold mb-2 ${
-                              isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>
-                              {gallery.name}
-                            </h3>
-                            <p className={`text-sm mb-3 line-clamp-2 ${
+                            <div className="flex items-center justify-between mb-2">
+                              <h3 className={`text-xl font-bold ${
+                                isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
+                                {gallery.name}
+                              </h3>
+                              {artistProfile && artistProfile.id === gallery.userId && (
+                                <span className={`text-xs px-2 py-1 rounded ${
+                                  isDarkMode
+                                    ? 'bg-green-700 text-green-100'
+                                    : 'bg-green-100 text-green-700'
+                                }`}>
+                                  Your Gallery
+                                </span>
+                              )}
+                            </div>
+                            <p className={`text-sm ${
                               isDarkMode ? 'text-gray-300' : 'text-gray-600'
                             }`}>
                               {gallery.description}
@@ -155,30 +180,6 @@ const GalleriesPage = () => {
                               }`}>
                                 {new Date(gallery.createdAt).toLocaleDateString()}
                               </span>
-                              
-                              {isLocked && (
-                                <div className="flex items-center">
-                                  <span className={`text-sm font-medium mr-2 ${
-                                    isDarkMode ? 'text-purple-400' : 'text-purple-600'
-                                  }`}>
-                                    ${gallery.subscriptionPrice || '9.99'}/mo
-                                  </span>
-                                  <Link
-                                    to="/subscriptions"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      navigate('/subscriptions');
-                                    }}
-                                    className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                                      isDarkMode 
-                                        ? 'bg-purple-500 hover:bg-purple-600 text-white' 
-                                        : 'bg-purple-600 hover:bg-purple-700 text-white'
-                                    }`}
-                                  >
-                                    Subscribe
-                                  </Link>
-                                </div>
-                              )}
                             </div>
                           </div>
                         </div>

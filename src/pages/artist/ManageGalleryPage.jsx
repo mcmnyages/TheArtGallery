@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useMessage } from '../../hooks/useMessage';
 import { galleryService } from '../../services/galleryService';
 import PageContainer from '../../components/layout/PageContainer';
+import EditGalleryModal from '../../components/artist/EditGalleryModal';
 import { 
   Plus, 
   Camera, 
@@ -34,6 +35,8 @@ const ManageGalleryPage = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
   const [deleteLoading, setDeleteLoading] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editGalleryId, setEditGalleryId] = useState(null);
 
   useEffect(() => {
     const fetchArtistGalleries = async () => {
@@ -157,6 +160,26 @@ const ManageGalleryPage = () => {
       </div>
     </div>
   );
+
+  // Handle edit button click
+  const handleEditClick = (e, galleryId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditGalleryId(galleryId);
+    setEditModalOpen(true);
+  };
+
+  // Handle successful edit
+  const handleEditSuccess = async () => {
+    try {
+      const updatedGalleries = await galleryService.fetchGalleryGroups();
+      setGalleries(updatedGalleries || []);
+      addMessage({ type: 'success', text: 'Gallery updated successfully' });
+    } catch (err) {
+      console.error('Error refreshing galleries:', err);
+      addMessage({ type: 'error', text: 'Failed to refresh galleries: ' + err.message });
+    }
+  };
 
   return (
     <PageContainer>
@@ -399,7 +422,7 @@ const ManageGalleryPage = () => {
                             <Eye className="h-3.5 w-3.5" />
                           </button>
                           <button
-                            onClick={() => navigate(`/artist/gallery/edit/${gallery._id}`)}
+                            onClick={(e) => handleEditClick(e, gallery._id)}
                             className={`p-1.5 rounded-md transition-all duration-300 ${
                               isDarkMode 
                                 ? 'hover:bg-blue-500/20 text-gray-400 hover:text-blue-400' 
@@ -489,6 +512,19 @@ const ManageGalleryPage = () => {
                 ))
               )}
             </div>
+
+            {/* Edit Gallery Modal */}
+            {editModalOpen && (
+              <EditGalleryModal
+                isOpen={editModalOpen}
+                onClose={() => {
+                  setEditModalOpen(false);
+                  setEditGalleryId(null);
+                }}
+                galleryId={editGalleryId}
+                onSuccess={handleEditSuccess}
+              />
+            )}
           </>
         )}
       </div>

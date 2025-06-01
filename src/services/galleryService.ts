@@ -183,22 +183,39 @@ export class GalleryService {  async getArtistImages(): Promise<GalleryImage[]> 
   async fetchGalleryGroupById(id: string): Promise<GalleryGroup | null> {
     try {
       console.log('Fetching gallery group by ID:', id);
-      const headers = await this.getAuthenticatedHeaders();
-      const url = `${API_URLS.GALLERY}/groups/${id}`;
-      console.log('Making request to:', url);
       
-      const response = await axios.get<{ message: string, group: GalleryGroup }>(url, { 
-        headers,
-        withCredentials: true,
-        validateStatus: (status) => status < 500
-      });
+      // First try to get all galleries
+      const allGalleries = await this.fetchAllGalleryGroups();
       
-      console.log('Gallery group response:', response.data);
-      return response.data.group || null;
+      // Find the specific gallery
+      const gallery = allGalleries.find(g => g._id === id);
+      
+      if (!gallery) {
+        console.warn('No gallery group found with ID:', id);
+        return null;
+      }
+
+      // Ensure all image URLs are properly formatted
+      if (gallery.images) {
+        gallery.images = gallery.images.map(image => ({
+          ...image,
+          imageUrl: image.imageUrl || ''
+        }));
+      }
+
+      console.log('Found gallery:', gallery);
+      return gallery;
     } catch (error) {
       console.error('Error fetching gallery group:', error);
-      if (axios.isAxiosError(error) && error.response?.status === 401) {
-        throw new Error('Please login to access this content');
+      if (axios.isAxiosError(error)) {
+        console.error('Response details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data
+        });
+        if (error.response?.status === 401) {
+          throw new Error('Please login to access this content');
+        }
       }
       throw error;
     }

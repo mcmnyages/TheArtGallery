@@ -17,13 +17,23 @@ const ImageViewer = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [imageError, setImageError] = useState(false);
   
-  // Reset zoom and position when image changes
   useEffect(() => {
+    // Debug log for image data
+    console.log('ImageViewer received:', {
+      image,
+      imageData,
+      totalImages,
+      currentIndex
+    });
+    
+    // Reset state when image changes
     setZoomLevel(1);
     setPosition({ x: 0, y: 0 });
-  }, [image]);
-  
+    setImageError(false);
+  }, [image, imageData]);
+
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Escape') {
@@ -87,6 +97,11 @@ const ImageViewer = ({
   const handleReset = () => {
     setZoomLevel(1);
     setPosition({ x: 0, y: 0 });
+  };
+
+  const handleImageError = () => {
+    console.error('Failed to load image:', image?.url || imageData?.url);
+    setImageError(true);
   };
 
   return (
@@ -172,17 +187,29 @@ const ImageViewer = ({
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
           >
-            <img
-              src={imageData?.url || image.url}
-              alt={imageData?.title || image.title}
-              className="max-h-full max-w-full object-contain select-none"
-              style={{
-                transform: `translate(${position.x}px, ${position.y}px) scale(${zoomLevel})`,
-                transition: isDragging ? 'none' : 'transform 0.2s ease-out',
-                cursor: zoomLevel > 1 ? 'grab' : 'default'
-              }}
-              draggable={false}
-            />
+            {!imageError ? (
+              <img
+                src={image?.url || imageData?.url}
+                alt={image?.title || imageData?.title || 'Gallery image'}
+                className="max-w-full max-h-full object-contain transform-gpu"
+                style={{
+                  transform: `translate(${position.x}px, ${position.y}px) scale(${zoomLevel})`,
+                  cursor: isDragging ? 'grabbing' : 'grab'
+                }}
+                onError={handleImageError}
+                draggable={false}
+              />
+            ) : (
+              <div className={`text-center p-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                <p>Failed to load image</p>
+                <button 
+                  onClick={onClose}
+                  className="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                >
+                  Close
+                </button>
+              </div>
+            )}
             {children}
           </div>
         </div>

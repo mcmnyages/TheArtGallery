@@ -6,18 +6,32 @@ const ArtistRoute = ({ children }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
   
   if (isLoading) {
+    console.log('Route status: Loading dashboard...');
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
   
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
+    console.log('Route status: Not authenticated, redirecting to login dashboard');
     return <Navigate to="/login" />;
   }
 
-  // Check if user has artist role
-  if (!user?.role || user.role !== 'artist') {
-    return <Navigate to="/" />;
+  const hasArtworkAccess = user.userResources?.some(r => 
+    r.name === 'Artwork' && r.status === 'success'
+  );
+
+  console.log('Artist route check:', {
+    userResources: user.userResources,
+    hasAccess: hasArtworkAccess,
+    currentUser: user.email || user.username,
+    redirectingTo: hasArtworkAccess ? '/artist/dashboard' : '/galleries'
+  });
+
+  if (!hasArtworkAccess) {
+    console.log('Route status: No Artwork access, redirecting to galleries dashboard');
+    return <Navigate to="/galleries" />;
   }
 
+  console.log('Route status: Access granted, entering artist dashboard for user:', user.email || user.username);
   return children;
 };
 

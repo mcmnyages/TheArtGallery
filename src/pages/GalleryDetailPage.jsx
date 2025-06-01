@@ -1,42 +1,56 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import ImageViewer from '../components/gallery/ImageViewer';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useGallery } from '../hooks/useGallery';
 import { useTheme } from '../contexts/ThemeContext';
+import ImageViewer from '../components/gallery/ImageViewer';
 
 const GalleryDetailPage = () => {
-  const { galleryId } = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const { isDarkMode } = useTheme();
-  
+  const { currentGallery: gallery, loading, error, fetchGalleryById } = useGallery();
   const [selectedImage, setSelectedImage] = useState(null);
   const [viewerOpen, setViewerOpen] = useState(false);
-  const [gallery] = useState(location.state?.gallery);
-  const [loading] = useState(false);
-  const [error, setError] = useState(null);
-  
-  useEffect(() => {
-    if (!gallery) {
-      console.log('No gallery data found in navigation state');
-      navigate('/galleries');
-    }
-  }, [gallery, navigate]);
 
-  // Log gallery data when it changes
   useEffect(() => {
-    console.log('Current gallery data:', {
-      gallery,
-      loading,
-      error,
-      imageCount: gallery?.images?.length,
-      imageUrls: gallery?.images?.map(img => img.imageUrl)
-    });
-  }, [gallery, loading, error]);
+    if (id) {
+      fetchGalleryById(id);
+    }
+  }, [id, fetchGalleryById]);
+
+  useEffect(() => {
+    // Track gallery views and debug image loading
+    if (gallery) {
+      console.log('Gallery detail loaded:', {
+        id: gallery._id,
+        name: gallery.name,
+        imageCount: gallery?.images?.length,
+        images: gallery?.images?.map(img => ({
+          id: img._id,
+          imageId: img.imageId,
+          imageUrl: img.imageUrl
+        }))
+      });
+
+      // Preload images
+      gallery.images?.forEach(image => {
+        if (image.imageUrl) {
+          const img = new Image();
+          img.src = image.imageUrl;
+        }
+      });
+    }
+  }, [gallery]);
 
   const handleImageClick = (image) => {
-    console.log('Image clicked:', image);
-    if (!image?.imageUrl) return;
-    setSelectedImage(image);
+    if (!image?.imageUrl) {
+      console.log('No image URL found');
+      return;
+    }
+    setSelectedImage({
+      ...image,
+      url: image.imageUrl
+    });
     setViewerOpen(true);
   };
   
@@ -47,14 +61,14 @@ const GalleryDetailPage = () => {
   
   const handlePrevImage = () => {
     if (!gallery?.images?.length) return;
-    const currentIndex = gallery.images.findIndex(img => img.imageId === selectedImage?.imageId);
+    const currentIndex = gallery.images.findIndex(img => img._id === selectedImage?._id);
     const prevIndex = currentIndex > 0 ? currentIndex - 1 : gallery.images.length - 1;
     setSelectedImage(gallery.images[prevIndex]);
   };
   
   const handleNextImage = () => {
     if (!gallery?.images?.length) return;
-    const currentIndex = gallery.images.findIndex(img => img.imageId === selectedImage?.imageId);
+    const currentIndex = gallery.images.findIndex(img => img._id === selectedImage?._id);
     const nextIndex = currentIndex < gallery.images.length - 1 ? currentIndex + 1 : 0;
     setSelectedImage(gallery.images[nextIndex]);
   };
@@ -76,7 +90,6 @@ const GalleryDetailPage = () => {
                 <div className="h-4 bg-gray-200 rounded w-32" />
               </div>
             </div>
-            
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {[...Array(8)].map((_, i) => (
                 <div key={i} className={`rounded-lg overflow-hidden ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
@@ -127,7 +140,7 @@ const GalleryDetailPage = () => {
       </div>
     );
   }
-  
+
   if (!gallery) {
     return (
       <div className={`container mx-auto px-4 py-8 ${isDarkMode ? 'bg-gray-800' : 'bg-yellow-50'} rounded-lg shadow-md`}>
@@ -144,7 +157,7 @@ const GalleryDetailPage = () => {
             </p>
             <button 
               onClick={handleGoBack}
-              className={`inline-flex items-center px-4 py-2 rounded-md ${
+              className={`px-4 py-2 rounded-md transition-colors ${
                 isDarkMode 
                   ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' 
                   : 'bg-yellow-100 hover:bg-yellow-200 text-yellow-700'
@@ -202,56 +215,31 @@ const GalleryDetailPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {gallery.images.map((image, index) => (
               <div 
-                key={image.imageId}
+                key={image._id}
                 onClick={() => handleImageClick(image)}
                 className={`rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer group transform hover:-translate-y-1 ${
                   isDarkMode ? 'bg-gray-800' : 'bg-white'
                 }`}
               >
                 <div className="relative aspect-[4/3] bg-gray-200 overflow-hidden">
-                  <img 
-                    src={image.imageUrl}
-                    alt={`Image ${index + 1} in ${gallery.name}`}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 opacity-0"
-                    loading="lazy"
-                    onError={(e) => {
-                      console.error('Image failed to load:', image.imageUrl);
-                      e.target.src = '/assets/images/placeholder.jpg';
-                    }}
-                    onLoad={(e) => {
-                      console.log('Image loaded successfully:', image.imageUrl);
-                      e.target.classList.remove('opacity-0');
-                      e.target.classList.add('opacity-100');
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="absolute bottom-0 left-0 right-0 p-4 text-white transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                    <p className="text-sm font-medium truncate">Image {index + 1}</p>
-                  </div>
-                  {/* Loading placeholder */}
-                  <div className="absolute inset-0 bg-gray-200 animate-pulse" 
-                       style={{ display: 'none' }} 
-                       onLoad={(e) => e.target.parentElement.querySelector('img').complete && (e.target.style.display = 'none')} />
+                  {image.imageUrl ? (
+                    <img 
+                      src={image.imageUrl}
+                      alt={`Image ${index + 1} in ${gallery.name}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
+                      loading="lazy"
+                      onError={(e) => {
+                        console.error('Image failed to load:', image.imageUrl);
+                        e.target.src = '/assets/images/placeholder.jpg';
+                        e.target.onerror = null;
+                      }}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center w-full h-full">
+                      <span className="text-gray-400">Image not available</span>
+                    </div>
+                  )}
                 </div>
-                {/* <div className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className={`text-xs font-medium ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>
-                      {index + 1} of {gallery.images.length}
-                    </p>
-                    <p className={`text-xs ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                    }`}>
-                      {new Date(image.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                    <div className={`text-xs ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`}>
-                    Click to view full size
-                  </div>
-                </div> */}
               </div>
             ))}
           </div>
@@ -270,31 +258,20 @@ const GalleryDetailPage = () => {
       
       {viewerOpen && selectedImage && gallery?.images && (
         <ImageViewer
-          image={selectedImage}
           imageData={{
             url: selectedImage.imageUrl,
             title: `Image in ${gallery.name}`,
-            metadata: {
-              addedOn: new Date(selectedImage.createdAt).toLocaleDateString(),
-              id: selectedImage.imageId
-            }
+            metadata: selectedImage.metadata || {},
+            addedOn: new Date(selectedImage.uploadedAt || selectedImage.createdAt).toLocaleDateString(),
+            id: selectedImage._id
           }}
           onClose={handleCloseViewer}
           onPrevious={gallery.images.length > 1 ? handlePrevImage : undefined}
           onNext={gallery.images.length > 1 ? handleNextImage : undefined}
           totalImages={gallery.images.length}
-          currentIndex={gallery.images.findIndex(img => img.imageId === selectedImage.imageId)}
+          currentIndex={gallery.images.findIndex(img => img._id === selectedImage._id)}
           isDarkMode={isDarkMode}
-        >
-          {/* <div className="absolute bottom-16 left-0 right-0 p-4 text-center bg-black bg-opacity-50 backdrop-blur-sm">
-            <p className="text-white text-sm font-medium">
-              Image {gallery.images.findIndex(img => img.imageId === selectedImage.imageId) + 1} of {gallery.images.length}
-            </p>
-            <p className="text-gray-400 text-xs mt-1">
-              Added {new Date(selectedImage.createdAt).toLocaleDateString()}
-            </p>
-          </div> */}
-        </ImageViewer>
+        />
       )}
     </div>
   );

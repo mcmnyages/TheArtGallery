@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useMessage } from '../../hooks/useMessage';
 import { useTheme } from '../../contexts/ThemeContext';
 import { validateEmail } from '../../utils/validators';
+import { authService } from '../../services/authService';
 import { 
   HiExclamationTriangle, 
   HiEye, 
@@ -29,6 +30,8 @@ interface LoginResponse {
     role?: string;
     email?: string;
   };
+  token?: string;
+  refreshToken?: string;
   error?: string;
 }
 
@@ -136,33 +139,70 @@ const InputField: React.FC<InputFieldProps> = ({
   </div>
 );
 
-export const LoginForm: React.FC = () => {  const [email, setEmail] = useState(() => {
-    // Try to get saved email from localStorage
-    return localStorage.getItem('rememberedEmail') || '';
-  });
+export const LoginForm: React.FC = () => {
+  const [email, setEmail] = useState(() => localStorage.getItem('rememberedEmail') || '');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authState, setAuthState] = useState<'idle' | 'authenticating' | 'verifying' | 'redirecting'>('idle');
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState('');
-  const [rememberMe, setRememberMe] = useState(() => {
-    // Check if user was previously remembered
-    return !!localStorage.getItem('rememberedEmail');
-  });
+  const [rememberMe, setRememberMe] = useState(() => !!localStorage.getItem('rememberedEmail'));
   
   const { login } = useAuth();
-  const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const { addMessage } = useMessage();
 
-  // Load saved credentials on component mount
-  useEffect(() => {
-    const savedEmail = localStorage.getItem('rememberedEmail');
-    if (savedEmail) {
-      setEmail(savedEmail);
-      setRememberMe(true);
-    }
-  }, []);
+  const getRedirectPathAndMessage = (resources: Array<{ name: string; status: string }>, firstName?: string) => {
+    // Filter successful resources first
+    const successfulResources = resources.filter(r => r.status === 'success');
+    
+    console.log('Successful resources for redirection:', successfulResources);
+    
+    if (successfulResources.length === 0) {
+      return {
+        path: '/galleries',
+        message: `Welcome${firstName ? ', ' + firstName : ''}! Redirecting to galleries.`
+      };
+    }    
+    
+    // Define resource priorities and their corresponding paths
+    const resourceConfig = {
+      'Admin_dashboard': {
+        priority: 3,
+        path: '/admin/dashboard',
+        suffix: 'admin dashboard'
+      },
+      'Artwork': {
+        priority: 2,
+        path: '/artist/dashboard',
+        suffix: 'artist dashboard'
+      },
+      'Consumer_content': {
+        priority: 1,
+        path: '/galleries',
+        suffix: 'galleries'
+      }
+    };    
+
+    // Find the resource with highest priority
+    let highestPriorityResource = successfulResources.reduce((highest, current) => {
+      const currentPriority = resourceConfig[current.name]?.priority || 0;
+      const highestPriority = resourceConfig[highest?.name]?.priority || 0;
+      return currentPriority > highestPriority ? current : highest;
+    }, successfulResources[0]);
+
+    console.log('Highest priority resource:', highestPriorityResource);
+
+    // Get the configuration for the highest priority resource
+    const config = resourceConfig[highestPriorityResource.name] || resourceConfig['Consumer_content'];
+
+    console.log('Selected redirect config:', config);
+    
+    return {
+      path: config.path,
+    };
+  };
 
   const validate = (): boolean => {
     const formErrors: FormErrors = {};
@@ -183,7 +223,6 @@ export const LoginForm: React.FC = () => {  const [email, setEmail] = useState((
     setErrors(formErrors);
     return Object.keys(formErrors).length === 0;
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -192,53 +231,70 @@ export const LoginForm: React.FC = () => {  const [email, setEmail] = useState((
     }
     
     setIsSubmitting(true);
-    addMessage({ type: 'info', text: 'Signing in...', duration: 2000 });
+    setAuthState('authenticating');
+    addMessage({ type: 'info', text: 'Authenticating...', duration: 2000 });
     
     try {
-      const result = await login(email, password);
-      if (result.success && result.user) {
-        // Handle remember me
-        if (rememberMe) {
-          localStorage.setItem('rememberedEmail', email);
-        } else {
-          localStorage.removeItem('rememberedEmail');
-        }        // Show success message and redirect immediately
-        addMessage({
-          type: 'success',
-          text: `Welcome back${result.user.firstName ? ', ' + result.user.firstName : ''}!`,
-          duration: 4000
-        });
-
-        // Redirect based on role immediately
-        const redirectPath = result.user.role === 'artist' ? '/artist/dashboard' : '/galleries';
-        navigate(redirectPath);
+      // Handle remember me
+      if (rememberMe) {
+        localStorage.setItem('rememberedEmail', email);
       } else {
+        localStorage.removeItem('rememberedEmail');
+      }
+
+      const result = await login(email, password);
+
+      if (!result.success || !result.user) {
         addMessage({
           type: 'error',
           text: result.error || 'Invalid email or password',
           duration: 5000
         });
-        setPassword('');
+        setAuthState('idle');
+        return;
       }
-    } catch (error: any) {
+
+      try {
+        setAuthState('verifying');
+        
+
+        const resources = result.user.userResources || [];
+        const { path: redirectPath, message: welcomeMessage } = getRedirectPathAndMessage(
+          resources,
+          result.user.firstName
+        );
+
+        setAuthState('redirecting');
+        addMessage({
+          type: 'success',
+          text: 'Logged in successfully',
+          icon: HiCheckCircle,
+          duration: 4000
+        });
+
+        // Small delay to ensure message is seen
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        navigate(redirectPath);
+
+      } catch (error) {
+        console.error('Access verification error:', error);
+        addMessage({
+          type: 'error',
+          text: 'Failed to verify access permissions. Please try again.',
+          duration: 5000
+        });
+        await authService.logout();
+        setAuthState('idle');
+      }
+
+    } catch (error) {
       console.error('Login error:', error);
-      
-      // Handle different types of errors
-      let errorMessage = 'An error occurred during login. Please try again.';
-      
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.message?.toLowerCase().includes('network')) {
-        errorMessage = 'Network error. Please check your internet connection.';
-      }
-      
       addMessage({
         type: 'error',
-        text: errorMessage,
+        text: error.message || 'An unexpected error occurred',
         duration: 5000
       });
-      
-      setPassword('');
+      setAuthState('idle');
     } finally {
       setIsSubmitting(false);
     }
@@ -275,7 +331,26 @@ export const LoginForm: React.FC = () => {  const [email, setEmail] = useState((
     }
   };
 
+  // Update the submit button to show different loading states
+  const getSubmitButtonText = () => {
+    switch(authState) {
+      case 'authenticating':
+        return 'Authenticating...';
+      case 'verifying':
+        return 'Verifying access...';
+      case 'redirecting':
+        return 'Redirecting...';
+      default:
+        return 'Sign in';
+    }
+  };
 
+  const getSubmitButtonIcon = () => {
+    if (authState !== 'idle') {
+      return <HiArrowPath className="h-5 w-5 animate-spin" />;
+    }
+    return <HiArrowRightOnRectangle className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-12 px-4 sm:px-6 lg:px-8">
@@ -393,23 +468,14 @@ export const LoginForm: React.FC = () => {  const [email, setEmail] = useState((
                 rounded-xl text-sm font-semibold text-white shadow-lg
                 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
                 transition-all duration-200 transform
-                ${isSubmitting 
+                ${authState !== 'idle'
                   ? 'bg-gray-400 cursor-not-allowed' 
                   : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
                 }
               `}
             >
-              {isSubmitting ? (
-                <>
-                  <HiArrowPath className="h-5 w-5 animate-spin" />
-                  <span>Signing in...</span>
-                </>
-              ) : (
-                <>
-                  <HiArrowRightOnRectangle className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
-                  <span>Sign in</span>
-                </>
-              )}
+              {getSubmitButtonIcon()}
+              <span>{getSubmitButtonText()}</span>
             </button>
           </form>
         </div>

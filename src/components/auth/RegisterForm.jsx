@@ -16,6 +16,7 @@ import {
   HiCheckCircle,
   HiUser
 } from 'react-icons/hi2';
+import OTPVerification from './OTPVerification'; // Adjust the import based on your file structure
 
 const InputField = ({ 
   id, 
@@ -144,6 +145,9 @@ const RegisterForm = () => {
   const [focusedField, setFocusedField] = useState('');
   const [registrationError, setRegistrationError] = useState('');
   const [registrationSuccess, setRegistrationSuccess] = useState('');
+  const [registeredUserId, setRegisteredUserId] = useState('');
+  const [showOTPVerification, setShowOTPVerification] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
   const { isDarkMode } = useTheme();
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -212,8 +216,10 @@ const RegisterForm = () => {
 
     return !error; // Return true if valid, false if there's an error
   };
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setRegistrationError('');
     
     // Validate all fields
     const isFirstNameValid = validateField('firstName', formData.firstName);
@@ -233,19 +239,12 @@ const RegisterForm = () => {
     
     try {
       const { confirmPassword, ...userData } = formData;
-      // Send data directly without nesting it in email
-      const result = await register({
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        email: userData.email,
-        password: userData.password
-      });
+      const result = await register(userData);
       
-      if (result.success) {
-        setRegistrationSuccess('Registration successful! Redirecting to login...');
-        setTimeout(() => {
-          navigate('/login');
-        }, 1500);
+      if (result.success && result.user) {
+        setRegisteredEmail(userData.email);
+        setRegisteredUserId(result.user.id);
+        setShowOTPVerification(true);
       } else {
         const errorMessage = result.error || 'Registration failed. Please try again.';
         if (errorMessage.toLowerCase().includes('email')) {
@@ -263,6 +262,31 @@ const RegisterForm = () => {
       setIsSubmitting(false);
     }
   };
+
+  if (showOTPVerification) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md mx-auto">
+          <div className="text-center mb-8">
+            <div className="mx-auto h-16 w-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg mb-6">
+              <HiSparkles className="h-8 w-8 text-white" />
+            </div>
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+              Verify Your Account
+            </h2>
+          </div>
+          
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg shadow-2xl rounded-3xl p-8 border border-gray-200/50 dark:border-gray-700/50">
+            <OTPVerification
+              userId={registeredUserId}
+              email={registeredEmail}
+              onBack={() => setShowOTPVerification(false)}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-12 px-4 sm:px-6 lg:px-8">
