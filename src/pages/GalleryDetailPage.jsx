@@ -1,23 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useGallery } from '../hooks/useGallery';
 import { useTheme } from '../contexts/ThemeContext';
-import { useSubscription } from '../hooks/useSubscription';
 import ImageViewer from '../components/gallery/ImageViewer';
-import SubscriptionManager from '../components/subscription/SubscriptionManager';
-import { Lock } from 'lucide-react';
 
 const GalleryDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const { isDarkMode } = useTheme();
   const { currentGallery: gallery, loading, error, fetchGalleryById } = useGallery();
-  const { hasGalleryAccess } = useSubscription();
   const [selectedImage, setSelectedImage] = useState(null);
   const [viewerOpen, setViewerOpen] = useState(false);
-
-  const hasAccess = gallery && hasGalleryAccess(gallery._id);
 
   useEffect(() => {
     if (id) {
@@ -49,23 +42,7 @@ const GalleryDetailPage = () => {
     }
   }, [gallery]);
 
-  useEffect(() => {
-    // Track gallery views
-    if (gallery) {
-      console.log('Viewing gallery:', {
-        id: gallery._id,
-        name: gallery.name,
-        imageCount: gallery?.images?.length,
-        imageUrls: gallery?.images?.map(img => img.imageUrl)
-      });
-    }
-  }, [gallery, loading, error]);
   const handleImageClick = (image) => {
-    console.log('Image clicked:', image);
-    if (!hasAccess) {
-      console.log('Access denied');
-      return;
-    }
     if (!image?.imageUrl) {
       console.log('No image URL found');
       return;
@@ -235,60 +212,37 @@ const GalleryDetailPage = () => {
       
       <div className="mt-8">
         {gallery?.images?.length > 0 ? (
-          <>
-            {!hasAccess && (
-              <div className="mb-8">
-                <SubscriptionManager gallery={gallery} />
-              </div>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {gallery.images.map((image, index) => {
-                console.log('Rendering image:', image);
-                return (
-                  <div 
-                    key={image._id}
-                    onClick={() => handleImageClick(image)}
-                    className={`rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer group transform hover:-translate-y-1 ${
-                      isDarkMode ? 'bg-gray-800' : 'bg-white'
-                    } ${!hasAccess ? 'pointer-events-none' : ''}`}
-                  >
-                    <div className="relative aspect-[4/3] bg-gray-200 overflow-hidden">
-                      {image.imageUrl ? (
-                        <img 
-                          src={image.imageUrl}
-                          alt={`Image ${index + 1} in ${gallery.name}`}
-                          className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ${
-                            !hasAccess ? 'opacity-50' : ''
-                          }`}
-                          loading="lazy"
-                          onError={(e) => {
-                            console.error('Image failed to load:', image.imageUrl);
-                            e.target.src = '/assets/images/placeholder.jpg';
-                            e.target.onerror = null; // Prevent infinite loop if placeholder also fails
-                          }}
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center w-full h-full">
-                          <span className="text-gray-400">Image not available</span>
-                        </div>
-                      )}
-                      {!hasAccess && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className={`p-3 rounded-full ${
-                            isDarkMode 
-                              ? 'bg-gray-800/80 text-white' 
-                              : 'bg-white/80 text-gray-900'
-                          }`}>
-                            <Lock className="h-6 w-6" />
-                          </div>
-                        </div>
-                      )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {gallery.images.map((image, index) => (
+              <div 
+                key={image._id}
+                onClick={() => handleImageClick(image)}
+                className={`rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer group transform hover:-translate-y-1 ${
+                  isDarkMode ? 'bg-gray-800' : 'bg-white'
+                }`}
+              >
+                <div className="relative aspect-[4/3] bg-gray-200 overflow-hidden">
+                  {image.imageUrl ? (
+                    <img 
+                      src={image.imageUrl}
+                      alt={`Image ${index + 1} in ${gallery.name}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
+                      loading="lazy"
+                      onError={(e) => {
+                        console.error('Image failed to load:', image.imageUrl);
+                        e.target.src = '/assets/images/placeholder.jpg';
+                        e.target.onerror = null;
+                      }}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center w-full h-full">
+                      <span className="text-gray-400">Image not available</span>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className={`text-center py-16 ${
             isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-50 text-gray-600'
@@ -302,7 +256,8 @@ const GalleryDetailPage = () => {
         )}
       </div>
       
-      {viewerOpen && selectedImage && gallery?.images && hasAccess && (        <ImageViewer
+      {viewerOpen && selectedImage && gallery?.images && (
+        <ImageViewer
           imageData={{
             url: selectedImage.imageUrl,
             title: `Image in ${gallery.name}`,
