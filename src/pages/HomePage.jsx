@@ -19,7 +19,7 @@ const ErrorFallback = ({ error }) => {
 const carouselImages = [
   {
     id: 1,
-    src: "https://images.unsplash.com/photo-1544967882-4d0b3f1174e0?w=1600&h=900&fit=crop",
+    src: "/assets/images/urban art.avif",
     alt: "Gallery showcase 1",
     title: "Timeless Masterpieces",
     description: "Experience the world's most renowned artworks in stunning 8K detail",
@@ -36,6 +36,14 @@ const carouselImages = [
   {
     id: 3,
     src: "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=1600&h=900&fit=crop",
+    alt: "Gallery showcase 3",
+    title: "Hidden Treasures",
+    description: "Unveil rarely-seen collections from private museums around the world",
+    cta: "Start Discovery"
+  },
+  {
+    id: 4,
+    src: "/assets/images/art-2475718_1280.jpg",
     alt: "Gallery showcase 3",
     title: "Hidden Treasures",
     description: "Unveil rarely-seen collections from private museums around the world",
