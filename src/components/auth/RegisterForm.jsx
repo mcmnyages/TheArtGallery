@@ -240,17 +240,16 @@ const RegisterForm = () => {
     try {
       const { confirmPassword, ...userData } = formData;      console.log('📤 Submitting registration data:', { ...userData, password: '***' });
       const result = await register(userData);
-      
-      if (result.success) {
+        if (result.success) {
         console.log('📝 Registration successful, storing credentials and showing OTP verification');
         console.log('🆔 User ID for OTP verification:', result.userId);
-        // Store the password temporarily for after OTP verification
         sessionStorage.setItem('tempLoginCredentials', JSON.stringify({
           email: userData.email,
           password: userData.password
         }));
         setRegisteredEmail(userData.email);
-        setRegisteredUserId(result.userId); // Use the userId from the response
+        setRegisteredUserId(result.userId);
+        setIsSubmitting(false); // Set this to false before showing OTP to prevent button staying in loading state
         setShowOTPVerification(true);
       } else {
         const errorMessage = result.error || 'Registration failed. Please try again.';

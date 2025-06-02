@@ -18,16 +18,12 @@ const OTPVerification = ({ userId, email, onBack }) => {
       console.log('📨 Login response:', { ...loginResult, user: loginResult.user ? 'exists' : 'none' });
       
       if (loginResult.success) {
-        console.log('✅ Auto-login successful, preparing to redirect');
-        setVerificationSuccess('Account verified! Logging you in...');
+        console.log('✅ Auto-login successful, preparing to redirect');        setVerificationSuccess('Account verified! Logging you in...');
         // Clear the stored credentials
         sessionStorage.removeItem('tempLoginCredentials');
         console.log('🧹 Cleared temporary login credentials');
-        // Navigate to dashboard after successful login
-        setTimeout(() => {
-          console.log('🚀 Redirecting to dashboard...');
-          navigate('/dashboard');
-        }, 1500);
+        console.log('🚀 Redirecting to dashboard...');
+        navigate('/dashboard');
       } else {
         console.log('❌ Auto-login failed:', loginResult.error);
         throw new Error(loginResult.error || 'Failed to log in');

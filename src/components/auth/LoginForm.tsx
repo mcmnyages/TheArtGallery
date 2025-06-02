@@ -262,18 +262,13 @@ export const LoginForm: React.FC = () => {
         const { path: redirectPath, message: welcomeMessage } = getRedirectPathAndMessage(
           resources,
           result.user.firstName
-        );
-
-        setAuthState('redirecting');
-        addMessage({
+        );        addMessage({
           type: 'success',
           text: 'Logged in successfully',
           icon: HiCheckCircle,
-          duration: 4000
+          duration: 3000
         });
-
-        // Small delay to ensure message is seen
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        setAuthState('redirecting');
         navigate(redirectPath);
 
       } catch (error) {
