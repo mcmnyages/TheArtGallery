@@ -52,22 +52,23 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
     setUser(null);
     setIsAuthenticated(false);
-  };
-
-  const handleRegister = async (userData) => {
+  };  const handleRegister = async (userData) => {
     try {
-      const response = await authService.register(userData);
-      
-      if (response.success && response.user) {
-        // If registration is successful, automatically log the user in
-        const loginResponse = await handleLogin(userData.email, userData.password);
-        if (loginResponse.success) {
-          return { success: true, user: loginResponse.user };
-        }
+      console.log('⌛ Attempting registration with:', { ...userData, password: '***' });
+      const response = await authService.register(userData);      console.log('📨 Registration response:', response);
+        if (response.success && response.user) {
+        const userId = response.user.id;
+        console.log('✅ Registration successful, userId:', userId);
+        return {
+          success: true,
+          user: response.user,
+          userId: userId,
+          message: response.message
+        };
       }
       
       return { 
-        success: false, 
+        success: false,
         error: response.error || 'Registration failed' 
       };
     } catch (error) {
@@ -85,30 +86,19 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(updatedUser));
       return updatedUser;
     });
-  };
-
-  const handleVerifyOTP = async (email, otp) => {
+  };  const handleVerifyOTP = async (userId, otp) => {
     try {
-      const response = await authService.verifyOTP(email, otp);
+      console.log('⌛ Attempting OTP verification for userId:', userId, 'with OTP:', otp);
+      const response = await authService.verifyOTP(userId, otp);      
+      console.log('📨 OTP verification response:', response);
       
-      if (response.success && response.user && response.token) {
-        // Set tokens first
-        tokenService.setTokens({
-          accessToken: response.token,
-          refreshToken: response.refreshToken
-        });
-
-        const userWithResources = {
-          ...response.user,
-          userResources: response.user.userResources || []
+      if (response.success) {
+        console.log('✅ OTP verification successful');
+        // Return success but don't set auth state yet - caller should handle login
+        return { 
+          success: true, 
+          message: response.message 
         };
-
-        // Store user with resources
-        localStorage.setItem('user', JSON.stringify(userWithResources));
-        setUser(userWithResources);
-        setIsAuthenticated(true);
-
-        return { success: true, user: userWithResources };
       }
       
       return { 

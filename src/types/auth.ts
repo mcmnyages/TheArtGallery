@@ -16,6 +16,9 @@ export interface AuthSuccessResponse {
   user: User;
   token: string;
   refreshToken: string;
+  message?: string;
+  error?: string;
+
 }
 
 export interface AuthErrorResponse {

@@ -19,7 +19,7 @@ const ErrorFallback = ({ error }) => {
 const carouselImages = [
   {
     id: 1,
-    src: "/assets/images/urban art.avif",
+    src: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1600&h=900&fit=crop",
     alt: "Gallery showcase 1",
     title: "Timeless Masterpieces",
     description: "Experience the world's most renowned artworks in stunning 8K detail",
@@ -27,7 +27,7 @@ const carouselImages = [
   },
   {
     id: 2,
-    src: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1600&h=900&fit=crop",
+    src: "/assets/images/urban art.avif",
     alt: "Gallery showcase 2",
     title: "Contemporary Excellence",
     description: "Discover the cutting edge of modern artistic expression from emerging artists",
@@ -46,8 +46,8 @@ const carouselImages = [
     src: "/assets/images/art-2475718_1280.jpg",
     alt: "Gallery showcase 3",
     title: "Hidden Treasures",
-    description: "Unveil rarely-seen collections from private museums around the world",
-    cta: "Start Discovery"
+    description: " Where you can find the most exquisite pieces of art",
+    cta: "Let the Art Speak"
   }
 ];
 

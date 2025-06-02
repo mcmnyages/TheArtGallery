@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { HiExclamationTriangle, HiCheckCircle } from 'react-icons/hi2';
@@ -9,36 +9,77 @@ const OTPVerification = ({ userId, email, onBack }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [verificationSuccess, setVerificationSuccess] = useState('');
-  const { verifyOTP, requestNewOTP } = useAuth();
+  const { verifyOTP, requestNewOTP, login } = useAuth();
   const navigate = useNavigate();
+  const handleLogin = async (credentials) => {
+    try {
+      console.log('🔑 Attempting auto-login after OTP verification');
+      const loginResult = await login(credentials.email, credentials.password);
+      console.log('📨 Login response:', { ...loginResult, user: loginResult.user ? 'exists' : 'none' });
+      
+      if (loginResult.success) {
+        console.log('✅ Auto-login successful, preparing to redirect');
+        setVerificationSuccess('Account verified! Logging you in...');
+        // Clear the stored credentials
+        sessionStorage.removeItem('tempLoginCredentials');
+        console.log('🧹 Cleared temporary login credentials');
+        // Navigate to dashboard after successful login
+        setTimeout(() => {
+          console.log('🚀 Redirecting to dashboard...');
+          navigate('/dashboard');
+        }, 1500);
+      } else {
+        console.log('❌ Auto-login failed:', loginResult.error);
+        throw new Error(loginResult.error || 'Failed to log in');
+      }
+    } catch (error) {
+      setError(error.message || 'Failed to log in. Please try logging in manually.');
+      setIsSubmitting(false);
+    }
+  };
 
   const validateOTP = (value) => {
     // Assuming OTP is 6 digits
     return /^\d{6}$/.test(value);
   };  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
+    e.preventDefault();    setError('');
 
-    if (!validateOTP(otp)) {
-      setError('Please enter a valid 6-digit code');
+    console.log('🔍 Validating OTP:', otp);
+    console.log('📋 Current userId:', userId);
+    
+    if (!userId) {
+      console.error('❌ No userId available for OTP verification');
+      setError('Missing user ID. Please try registering again.');
       return;
     }
 
-    setIsSubmitting(true);
+    if (!validateOTP(otp)) {
+      console.log('❌ Invalid OTP format');
+      setError('Please enter a valid 6-digit code');
+      return;
+    }    setIsSubmitting(true);
 
     try {
+      console.log('📤 Submitting OTP verification for userId:', userId, 'with OTP:', otp);
+      const storedCredentials = sessionStorage.getItem('tempLoginCredentials');
+      if (!storedCredentials) {
+        console.error('❌ No stored credentials found');
+        throw new Error('Login credentials not found. Please try registering again.');
+      }
+
+      const credentials = JSON.parse(storedCredentials);      console.log('📤 Submitting OTP verification for userId:', userId);
       const result = await verifyOTP(userId, otp);
+      
       if (result.success) {
-        setVerificationSuccess('Verification successful! Redirecting to dashboard...');
-        setTimeout(() => {
-          navigate('/dashboard'); // Redirect to dashboard after successful verification
-        }, 1500);
+        console.log('✅ OTP verification successful, proceeding to login');
+        // After successful OTP verification, attempt to log in
+        await handleLogin(credentials);
       } else {
         setError(result.error || 'Invalid OTP. Please try again.');
+        setIsSubmitting(false);
       }
     } catch (error) {
       setError(error.message || 'An unexpected error occurred');
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -61,6 +102,14 @@ const OTPVerification = ({ userId, email, onBack }) => {
       setIsResending(false);
     }
   };
+
+  // Check for stored credentials on mount
+  useEffect(() => {
+    const storedCredentials = sessionStorage.getItem('tempLoginCredentials');
+    if (!storedCredentials) {
+      setError('Login credentials not found. Please try registering again.');
+    }
+  }, []);
 
   return (
     <div className="w-full max-w-md mx-auto">

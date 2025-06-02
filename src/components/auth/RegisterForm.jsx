@@ -216,11 +216,11 @@ const RegisterForm = () => {
 
     return !error; // Return true if valid, false if there's an error
   };
-  
-  const handleSubmit = async (e) => {
+    const handleSubmit = async (e) => {
     e.preventDefault();
     setRegistrationError('');
     
+    console.log('🔍 Starting registration form validation');
     // Validate all fields
     const isFirstNameValid = validateField('firstName', formData.firstName);
     const isLastNameValid = validateField('lastName', formData.lastName);
@@ -238,12 +238,19 @@ const RegisterForm = () => {
     setRegistrationError('');
     
     try {
-      const { confirmPassword, ...userData } = formData;
+      const { confirmPassword, ...userData } = formData;      console.log('📤 Submitting registration data:', { ...userData, password: '***' });
       const result = await register(userData);
       
-      if (result.success && result.user) {
+      if (result.success) {
+        console.log('📝 Registration successful, storing credentials and showing OTP verification');
+        console.log('🆔 User ID for OTP verification:', result.userId);
+        // Store the password temporarily for after OTP verification
+        sessionStorage.setItem('tempLoginCredentials', JSON.stringify({
+          email: userData.email,
+          password: userData.password
+        }));
         setRegisteredEmail(userData.email);
-        setRegisteredUserId(result.user.id);
+        setRegisteredUserId(result.userId); // Use the userId from the response
         setShowOTPVerification(true);
       } else {
         const errorMessage = result.error || 'Registration failed. Please try again.';

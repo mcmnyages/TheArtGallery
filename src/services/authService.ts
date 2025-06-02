@@ -1,10 +1,97 @@
 import { AuthResponse, User } from '../types/auth';
 import { setTokens, getAccessToken, clearTokens, isTokenExpired, refreshAccessToken } from './tokenService';
+import { jwtDecode } from 'jwt-decode';
+
+// Interface for decoded token payload
+interface DecodedToken {
+  sub: string;          // subject (usually user ID)
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  roles?: string[];
+  exp: number;          // expiration timestamp
+  iat: number;          // issued at timestamp
+  userResources?: Array<{ name: string; status: string }>;
+
+}
 
 // Base URL for auth endpoints - removed /api/auth prefix since it's handled by the proxy
 const API_BASE = '';
 
 class AuthService {
+  /**
+   * Decodes a JWT token and returns the payload
+   * @param token Optional token to decode. If not provided, uses the current access token
+   * @returns The decoded token payload or null if invalid
+   */
+  decodeToken(token?: string): DecodedToken | null {
+    try {
+      const tokenToDecode = token || getAccessToken();
+      if (!tokenToDecode) {
+        return null;
+      }
+      
+      return jwtDecode<DecodedToken>(tokenToDecode);
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Gets the current user's details from the token
+   * @returns User details from the token or null if no valid token exists
+   */
+  getUserDetailsFromToken(): Partial<User> | null {
+    const decoded = this.decodeToken();
+    if (!decoded) {
+      return null;
+    }
+
+    return {
+      id: decoded.sub,
+      email: decoded.email,
+      firstName: decoded.firstName,
+      lastName: decoded.lastName,
+      userResources: decoded.userResources || []
+    };
+  }
+
+  /**
+   * Checks if the user has a specific role
+   * @param role The role to check for
+   * @returns true if the user has the role, false otherwise
+   */
+  hasRole(role: string): boolean {
+    const decoded = this.decodeToken();
+    return decoded?.roles?.includes(role) || false;
+  }
+
+  /**
+   * Logs the decoded token details to the console in a readable format
+   * @param token Optional token to decode. If not provided, uses the current access token
+   */
+  logTokenDetails(token?: string): void {
+    const decoded = this.decodeToken(token);
+    if (!decoded) {
+      console.log('No valid token found or token could not be decoded');
+      return;
+    }
+
+    console.group('Decoded Token Details:');
+    console.log('User ID:', decoded.sub);
+    console.log('Email:', decoded.email);
+    console.log('Name:', `${decoded.firstName || ''} ${decoded.lastName || ''}`.trim() || 'Not provided');
+    console.log('Roles:', decoded.roles?.length ? decoded.roles.join(', ') : 'No roles');
+    console.log('Resources:', decoded.userResources?.length ? 
+      decoded.userResources.map(r => `${r.name} (${r.status})`).join(', ') : 
+      'No resources'
+    );
+    console.log('Expiration:', new Date(decoded.exp * 1000).toLocaleString());
+    console.log('Issued At:', new Date(decoded.iat * 1000).toLocaleString());
+    console.groupEnd();
+  }
+
   private async handleJsonResponse(response: Response) {
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
@@ -73,9 +160,7 @@ class AuthService {
           'Accept': 'application/json',
         },
         body: JSON.stringify(userData),
-      });
-
-      const data = await this.handleJsonResponse(response);
+      });      const data = await this.handleJsonResponse(response);
       
       if (!response.ok) {
         return {
@@ -86,8 +171,9 @@ class AuthService {
 
       return {
         success: true,
+        message: data.message,
         user: {
-          id: data.id,
+          id: data.userId, // Using the userId from the registration response
           firstName: userData.firstName,
           lastName: userData.lastName,
           email: userData.email,
@@ -253,41 +339,45 @@ class AuthService {
     }
 
     return token;
-  }
-
-  async verifyOTP(email: string, otp: string): Promise<AuthResponse> {
+  }  async verifyOTP(userId: string, otp: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
+      console.log('📤 Sending OTP verification request:', { userId, otp });
       const response = await fetch(`${API_BASE}/verify-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify({ email, otp }),
+        body: JSON.stringify({ userId, otp }),
       });
 
       const data = await this.handleJsonResponse(response);
+      console.log('📨 Raw OTP verification response:', data);
       
       if (!response.ok) {
+        console.error('❌ OTP verification failed:', data.error);
         return {
           success: false,
           error: data.error || 'OTP verification failed'
         };
       }
 
-      // After successful OTP verification, return the full user data with tokens
+      // The backend returns just true for success
+      if (data === true) {
+        console.log('✅ OTP verified successfully');
+        return {
+          success: true,
+          message: '2FA verified successfully'
+        };
+      }
+
+      // If we didn't get the expected success message
+      console.error('❌ Unexpected OTP verification response:', data);
       return {
-        success: true,
-        user: {
-          id: data.id,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          email: data.email,
-          userResources: []
-        },
-        token: data.accessToken,
-        refreshToken: data.refreshToken
+        success: false,
+        error: 'Invalid verification response'
       };
+
     } catch (error) {
       console.error('OTP verification error:', error);
       return {
