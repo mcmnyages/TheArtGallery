@@ -13,6 +13,7 @@ interface DecodedToken {
   iat: number;          // issued at timestamp
   userResources?: Array<{ name: string; status: string }>;
 
+  status: string;       // user account status (active/inactive)
 }
 
 // Base URL for auth endpoints - removed /api/auth prefix since it's handled by the proxy
@@ -121,17 +122,39 @@ class AuthService {
         };
       }
 
-      // Immediately check resources after successful login
-      console.log('Checking resources with token:', data.accessToken);
+      // Decode the token to check user status
+      const decodedToken = this.decodeToken(data.accessToken);
+      if (!decodedToken) {
+        return {
+          success: false,
+          error: 'Invalid token received'
+        };
+      }
+
+      // Check user status
+      if (decodedToken.status === 'inactive') {
+        return {
+          success: false,
+          requireOTP: true,
+          userId: decodedToken.sub,
+          error: 'Email verification required'
+        };
+      }
+
+      // For active users, proceed with normal login flow
       const resources = await this.checkAccessibleResources(data.accessToken);
       
-      const user = {
-        id: data.id,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: email,
-        userResources: resources
+      const user: User = {
+        id: decodedToken.sub,
+        firstName: decodedToken.firstName || '',
+        lastName: decodedToken.lastName || '',
+        email: decodedToken.email,
+        userResources: resources,
+        status: decodedToken.status
       };
+
+      // Set tokens only for active users
+      setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
 
       return {
         success: true,
