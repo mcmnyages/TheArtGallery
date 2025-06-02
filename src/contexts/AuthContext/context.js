@@ -12,5 +12,6 @@ export const AuthContext = createContext({
   register: () => {},
   updateUser: () => {},
   verifyAccess: () => {},
-  verifyOTP: () => {}
+  verifyOTP: () => {},
+  requestNewOTP: () => {}
 });

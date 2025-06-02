@@ -79,22 +79,30 @@ const OTPVerification = ({ userId, email, onBack }) => {
       setIsSubmitting(false);
     }
   };
-
   const handleResendOTP = async () => {
+    console.log('🔄 Attempting to resend OTP');
+    console.log('📋 Using userId:', userId);
     setError('');
     setIsResending(true);
 
     try {
+      console.log('📤 Sending request to get new OTP');
       const result = await requestNewOTP(userId);
+      console.log('📨 Resend OTP response:', result);
+      
       if (result.success) {
+        console.log('✅ New OTP sent successfully');
         setOtp(''); // Clear the OTP input
         setError('A new verification code has been sent to your email.');
       } else {
+        console.error('❌ Failed to resend OTP:', result.error);
         setError(result.error || 'Failed to resend verification code.');
       }
     } catch (error) {
+      console.error('❌ Error in resend OTP:', error);
       setError(error.message || 'Failed to resend verification code.');
     } finally {
+      console.log('🏁 Resend OTP process completed');
       setIsResending(false);
     }
   };
@@ -155,22 +163,37 @@ const OTPVerification = ({ userId, email, onBack }) => {
                      transition-all duration-200 text-center tracking-widest text-lg"
             required
           />
+        </div>        {/* Resend Code Button - Appears below input */}
+        <div className="text-right">
+          <button
+            type="button"
+            onClick={handleResendOTP}
+            disabled={isResending || isSubmitting}
+            className={`inline-flex items-center text-sm font-semibold text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300
+                     ${(isResending || isSubmitting) ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {isResending ? 'Sending...' : 'Resend Code'}
+          </button>
         </div>
 
-        <div className="flex items-center justify-between space-x-4">
+        {/* Action Buttons */}
+        <div className="flex items-center justify-between space-x-4 mt-6">
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600
+            disabled={isSubmitting}
+            className={`inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600
                      text-sm font-medium rounded-xl text-gray-700 dark:text-gray-300
                      bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700
-                     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+                     ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             Back
           </button>
           <button
             type="submit"
-            disabled={isSubmitting}            className={`flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent
+            disabled={isSubmitting}
+            className={`flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent
                      text-sm font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700
                      focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
                      ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}

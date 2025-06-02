@@ -114,6 +114,25 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const handleRequestNewOTP = async (userId) => {
+    try {
+      console.log('⌛ Requesting new OTP for userId:', userId);
+      const response = await authService.requestNewOTP(userId);
+      console.log('📨 Request new OTP response:', response);
+      
+      return {
+        success: response.success,
+        error: response.error
+      };
+    } catch (error) {
+      console.error('Request new OTP error:', error);
+      return {
+        success: false,
+        error: error.message || 'An unexpected error occurred'
+      };
+    }
+  };
+
   // Check for existing authentication on mount
   useEffect(() => {
     const initAuth = async () => {
@@ -160,7 +179,8 @@ export const AuthProvider = ({ children }) => {
     login: handleLogin,
     logout: handleLogout,
     register: handleRegister,
-    verifyOTP: handleVerifyOTP
+    verifyOTP: handleVerifyOTP,
+    requestNewOTP: handleRequestNewOTP
   };
 
   return (
