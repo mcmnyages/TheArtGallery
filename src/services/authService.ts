@@ -4,7 +4,7 @@ import { jwtDecode } from 'jwt-decode';
 
 // Interface for decoded token payload
 interface DecodedToken {
-  sub: string;          // subject (usually user ID)
+  id: string;          // subject (usually user ID)
   email: string;
   firstName?: string;
   lastName?: string;
@@ -50,7 +50,7 @@ class AuthService {
     }
 
     return {
-      id: decoded.sub,
+      id: decoded.id,
       email: decoded.email,
       firstName: decoded.firstName,
       lastName: decoded.lastName,
@@ -80,7 +80,7 @@ class AuthService {
     }
 
     console.group('Decoded Token Details:');
-    console.log('User ID:', decoded.sub);
+    console.log('User ID:', decoded.id);
     console.log('Email:', decoded.email);
     console.log('Name:', `${decoded.firstName || ''} ${decoded.lastName || ''}`.trim() || 'Not provided');
     console.log('Roles:', decoded.roles?.length ? decoded.roles.join(', ') : 'No roles');
@@ -137,7 +137,7 @@ class AuthService {
         console.log('🔑 Raw decoded token:', decodedToken);
 
         // Extract user info from token or response data
-        const userId = data.userId || decodedToken?.sub;
+        const userId = data.userId || decodedToken?.id;
         const userEmail = data.email || decodedToken?.email;
         const userStatus = data.status || decodedToken?.status || 'inactive';
         const firstName = decodedToken?.firstName || data.firstName || '';
@@ -171,7 +171,7 @@ class AuthService {
         console.log('📦 User resources:', resources);
         
         const user: User = {
-          id: decodedToken.sub,
+          id: decodedToken.id,
           firstName: firstName,
           lastName: lastName,
           email: decodedToken.email,
