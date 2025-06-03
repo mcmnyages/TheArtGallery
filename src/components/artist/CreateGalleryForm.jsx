@@ -7,7 +7,7 @@ import { useMessage } from '../../hooks/useMessage';
 
 const CreateGalleryForm = () => {
   const navigate = useNavigate();
-  const addMessage = useMessage();
+  const { addMessage } = useMessage();
   const { isDarkMode } = useTheme();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -85,11 +85,11 @@ const CreateGalleryForm = () => {
         imageIds: formData.imageIds
       };
       
-      console.log('Submitting gallery creation with data:', requestData);
-      
-      const result = await galleryService.createGalleryGroup(requestData);
+      console.log('Submitting gallery creation with data:', requestData);      const result = await galleryService.createGalleryGroup(requestData);
       console.log('Gallery creation successful:', result);
-
+      
+      // Show success message from the server response and navigate
+      addMessage({ type: 'success', text: result.message || `Gallery "${result.name}" created successfully` });
       navigate('/artist/gallery');
     } catch (err) {
       console.error('Failed to create gallery:', err);

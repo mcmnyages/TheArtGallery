@@ -366,42 +366,43 @@ export class GalleryService {  async getArtistImages(): Promise<GalleryImage[]> 
       }
       throw error;
     }
-  }
-  async createGalleryGroup(data: { name: string; description: string; imageIds: string[] }): Promise<GalleryGroup> {
+  }  async createGalleryGroup(data: { name: string; description: string; imageIds: string[] }): Promise<GalleryGroup & { message?: string }> {
     try {
       console.log('Creating gallery group with data:', data);
       const headers = await this.getAuthenticatedHeaders();
       const url = `${API_URLS.GALLERY}/groups`;
       
-      const response = await axios.post<{ success: boolean; group: GalleryGroup }>(
+      const response = await axios.post<{ message: string; group: GalleryGroup }>(
         url,
         data,
         {
           headers,
-          withCredentials: true
+          withCredentials: true,
+          validateStatus: (status) => status < 500 // Will resolve for 2xx and 4xx responses
         }
       );
       
       console.log('Gallery creation response:', response.data);
 
-      if (!response.data.success || !response.data.group) {
-        throw new Error('Failed to create gallery group');
+      if (!response.data.group) {
+        throw new Error(response.data.message || 'Failed to create gallery group');
       }
 
-      return response.data.group;    } catch (error) {
+      return {
+        ...response.data.group,
+        message: response.data.message
+      };
+    } catch (error) {
       console.error('Error creating gallery group:', error);
       if (axios.isAxiosError(error)) {
-        console.error('Request details:', {
-          url: error.config?.url,
-          method: error.config?.method,
-          data: error.config?.data,
-          headers: error.config?.headers
-        });
-        console.error('Response details:', {
+        const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
+        console.error('Gallery creation failed:', {
           status: error.response?.status,
           statusText: error.response?.statusText,
-          data: error.response?.data
+          data: error.response?.data,
+          errorMessage
         });
+        throw new Error(errorMessage);
       }
       throw error;
     }
