@@ -26,10 +26,14 @@ interface FormErrors {
 interface LoginResponse {
   success: boolean;
   user?: {
+    id?: string;
     firstName?: string;
     role?: string;
     email?: string;
+    status?: 'active' | 'inactive';
   };
+  requireOTP?: boolean;
+  userId?: string;
   token?: string;
   refreshToken?: string;
   error?: string;
@@ -235,6 +239,7 @@ export const LoginForm: React.FC = () => {
     addMessage({ type: 'info', text: 'Authenticating...', duration: 2000 });
     
     try {
+      console.log('🚀 Starting login process...');
       // Handle remember me
       if (rememberMe) {
         localStorage.setItem('rememberedEmail', email);
@@ -242,9 +247,46 @@ export const LoginForm: React.FC = () => {
         localStorage.removeItem('rememberedEmail');
       }
 
+      console.log('📤 Sending login request...');
       const result = await login(email, password);
+      console.log('📥 Login result:', result);
 
+      // First check if the user needs OTP verification
+      if (result.error?.includes('verification required') || result.error?.includes('Email verification required')) {
+        console.log('📝 OTP verification required');
+        try {
+          // Store credentials for after verification
+          sessionStorage.setItem('tempLoginCredentials', JSON.stringify({ email, password }));
+          
+          setAuthState('redirecting');
+          addMessage({
+            type: 'info',
+            text: 'Please verify your email address to continue',
+            duration: 4000
+          });
+
+          // Use email as identifier if no userId is provided
+          const verificationId = result.userId || email;
+          
+          console.log('🚦 Redirecting to OTP verification:', { verificationId, email });
+          navigate('/otp-verification', { 
+            state: { 
+              userId: verificationId,
+              email: email,
+              isLoginFlow: true 
+            },
+            replace: true
+          });
+          return;
+        } catch (err) {
+          console.error('❌ Error during OTP redirection:', err);
+          throw err;
+        }
+      }
+
+      // Handle other error cases
       if (!result.success || !result.user) {
+        console.log('❌ Login failed:', result.error);
         addMessage({
           type: 'error',
           text: result.error || 'Invalid email or password',
@@ -254,17 +296,19 @@ export const LoginForm: React.FC = () => {
         return;
       }
 
+      // Handle successful login
+      console.log('✅ Login successful, proceeding with normal flow');
       try {
         setAuthState('verifying');
-        
-
         const resources = result.user.userResources || [];
         const { path: redirectPath, message: welcomeMessage } = getRedirectPathAndMessage(
           resources,
           result.user.firstName
-        );        addMessage({
+        );
+        
+        addMessage({
           type: 'success',
-          text: 'Logged in successfully',
+          text: welcomeMessage,
           icon: HiCheckCircle,
           duration: 3000
         });

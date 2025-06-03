@@ -13,19 +13,32 @@ const OTPVerification = ({ userId, email, onBack }) => {
   const navigate = useNavigate();
   const handleLogin = async (credentials) => {
     try {
-      console.log('🔑 Attempting auto-login after OTP verification');
+      console.log('🔑 Attempting auto-login after OTP verification', { email: credentials.email });
       const loginResult = await login(credentials.email, credentials.password);
-      console.log('📨 Login response:', { ...loginResult, user: loginResult.user ? 'exists' : 'none' });
+      console.log('📥 Login response:', { 
+        success: loginResult.success, 
+        hasUser: !!loginResult.user,
+        resources: loginResult.user?.userResources 
+      });
       
       if (loginResult.success) {
-        console.log('✅ Auto-login successful, preparing to redirect');        setVerificationSuccess('Account verified! Logging you in...');
-        // Clear the stored credentials
+        console.log('✅ Login successful after OTP verification');
+        setVerificationSuccess('Account verified! Logging you in...');
         sessionStorage.removeItem('tempLoginCredentials');
-        console.log('🧹 Cleared temporary login credentials');
-        console.log('🚀 Redirecting to dashboard...');
-        navigate('/dashboard');
+        
+        // Determine where to navigate based on user's role/resources
+        const defaultPath = '/galleries';
+        const resources = loginResult.user?.userResources || [];
+        const artistAccess = resources.some(r => r.name === 'Artwork' && r.status === 'success');
+        const adminAccess = resources.some(r => r.name === 'Admin_dashboard' && r.status === 'success');
+        
+        setTimeout(() => {
+          let redirectPath = defaultPath;
+          if (adminAccess) redirectPath = '/admin/dashboard';
+          else if (artistAccess) redirectPath = '/artist/dashboard';
+          navigate(redirectPath);
+        }, 1500); // Brief delay to show success message
       } else {
-        console.log('❌ Auto-login failed:', loginResult.error);
         throw new Error(loginResult.error || 'Failed to log in');
       }
     } catch (error) {
@@ -35,74 +48,72 @@ const OTPVerification = ({ userId, email, onBack }) => {
   };
 
   const validateOTP = (value) => {
-    // Assuming OTP is 6 digits
     return /^\d{6}$/.test(value);
-  };  const handleSubmit = async (e) => {
-    e.preventDefault();    setError('');
+  };
 
-    console.log('🔍 Validating OTP:', otp);
-    console.log('📋 Current userId:', userId);
-    
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
     if (!userId) {
-      console.error('❌ No userId available for OTP verification');
       setError('Missing user ID. Please try registering again.');
       return;
     }
 
     if (!validateOTP(otp)) {
-      console.log('❌ Invalid OTP format');
       setError('Please enter a valid 6-digit code');
       return;
-    }    setIsSubmitting(true);
+    }
 
+    setIsSubmitting(true);
+    
     try {
-      console.log('📤 Submitting OTP verification for userId:', userId, 'with OTP:', otp);
+      console.log('🔍 Checking stored credentials and submitting OTP');
       const storedCredentials = sessionStorage.getItem('tempLoginCredentials');
       if (!storedCredentials) {
-        console.error('❌ No stored credentials found');
+        console.error('❌ No stored credentials found in session storage');
         throw new Error('Login credentials not found. Please try registering again.');
       }
 
-      const credentials = JSON.parse(storedCredentials);      console.log('📤 Submitting OTP verification for userId:', userId);
+      console.log('📤 Submitting OTP verification request', { userId, otpLength: otp.length });
       const result = await verifyOTP(userId, otp);
+      console.log('📥 OTP verification response:', { success: result.success, error: result.error });
       
       if (result.success) {
-        console.log('✅ OTP verification successful, proceeding to login');
+        console.log('✅ OTP verified successfully, proceeding to login');
+        setVerificationSuccess('Verification successful! Logging you in...');
         // After successful OTP verification, attempt to log in
-        await handleLogin(credentials);
+        await handleLogin(JSON.parse(storedCredentials));
       } else {
+        console.error('❌ OTP verification failed:', result.error);
         setError(result.error || 'Invalid OTP. Please try again.');
         setIsSubmitting(false);
       }
     } catch (error) {
+      console.error('❌ OTP verification error:', error);
       setError(error.message || 'An unexpected error occurred');
       setIsSubmitting(false);
     }
   };
-  const handleResendOTP = async () => {
-    console.log('🔄 Attempting to resend OTP');
-    console.log('📋 Using userId:', userId);
-    setError('');
-    setIsResending(true);
 
-    try {
-      console.log('📤 Sending request to get new OTP');
+  const handleResendOTP = async () => {
+    setError('');
+    setIsResending(true);    try {
+      console.log('📤 Requesting new OTP for user:', userId);
       const result = await requestNewOTP(userId);
-      console.log('📨 Resend OTP response:', result);
+      console.log('📥 Resend OTP response:', { success: result.success, error: result.error });
       
       if (result.success) {
         console.log('✅ New OTP sent successfully');
-        setOtp(''); // Clear the OTP input
+        setOtp('');
         setError('A new verification code has been sent to your email.');
       } else {
         console.error('❌ Failed to resend OTP:', result.error);
         setError(result.error || 'Failed to resend verification code.');
       }
     } catch (error) {
-      console.error('❌ Error in resend OTP:', error);
       setError(error.message || 'Failed to resend verification code.');
     } finally {
-      console.log('🏁 Resend OTP process completed');
       setIsResending(false);
     }
   };
@@ -146,31 +157,26 @@ const OTPVerification = ({ userId, email, onBack }) => {
           </label>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Please enter the verification code sent to {email}
-          </p>          <input
+          </p>
+          <input
             type="text"
             id="otp"
             name="otp"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            placeholder="Enter 6-digit code"
-            maxLength={6}
-            pattern="\d{6}"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            className="block w-full px-4 py-3 rounded-xl border-2 bg-white dark:bg-gray-800 
-                     text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500
-                     border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-0
-                     transition-all duration-200 text-center tracking-widest text-lg"
+            maxLength="6"
             required
+            value={otp}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+            className="appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-800 dark:text-white"
+            placeholder="Enter 6-digit code"
           />
-        </div>        {/* Resend Code Button - Appears below input */}
-        <div className="text-right">
+        </div>
+
+        <div className="flex justify-center">
           <button
             type="button"
             onClick={handleResendOTP}
             disabled={isResending || isSubmitting}
-            className={`inline-flex items-center text-sm font-semibold text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300
-                     ${(isResending || isSubmitting) ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className="inline-flex items-center text-sm font-semibold text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
           >
             {isResending ? 'Sending...' : 'Resend Code'}
           </button>
@@ -182,21 +188,19 @@ const OTPVerification = ({ userId, email, onBack }) => {
             type="button"
             onClick={onBack}
             disabled={isSubmitting}
-            className={`inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600
+            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600
                      text-sm font-medium rounded-xl text-gray-700 dark:text-gray-300
                      bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700
-                     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
-                     ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Back
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent
+            className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent
                      text-sm font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700
-                     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
-                     ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             {isSubmitting ? 'Verifying...' : 'Verify Code'}
           </button>
