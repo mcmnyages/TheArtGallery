@@ -204,17 +204,6 @@ const ManageGalleryPage = () => {
               <Plus className="h-5 w-5" />
               Create Gallery
             </button>
-            <button
-              onClick={() => navigate('/artist/upload')}
-              className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg transition-all duration-200 border-2 ${
-                isDarkMode 
-                  ? 'border-gray-600 text-gray-300 hover:border-gray-500 hover:bg-gray-800' 
-                  : 'border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
-              }`}
-            >
-              <Camera className="h-5 w-5" />
-              Upload Art
-            </button>
           </div>
         </div>
 
@@ -364,6 +353,7 @@ const ManageGalleryPage = () => {
                 filteredGalleryContent.map(gallery => (
                   <div 
                     key={gallery._id}
+                    onClick={() => navigate(`/gallery/${gallery._id}`)}
                     className={`rounded-lg overflow-hidden transform hover:scale-[1.02] transition-all duration-500 ease-out ${
                       isDarkMode 
                         ? 'bg-gray-800/50 hover:bg-gray-800/70' 
