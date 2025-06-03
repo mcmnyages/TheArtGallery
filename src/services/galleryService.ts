@@ -366,7 +366,8 @@ export class GalleryService {  async getArtistImages(): Promise<GalleryImage[]> 
       }
       throw error;
     }
-  }  async createGalleryGroup(data: { name: string; description: string; imageIds: string[] }): Promise<GalleryGroup & { message?: string }> {
+  }
+    async createGalleryGroup(data: { name: string; description: string; imageIds: string[] }): Promise<GalleryGroup & { message?: string }> {
     try {
       console.log('Creating gallery group with data:', data);
       const headers = await this.getAuthenticatedHeaders();
@@ -402,6 +403,88 @@ export class GalleryService {  async getArtistImages(): Promise<GalleryImage[]> 
           data: error.response?.data,
           errorMessage
         });
+        throw new Error(errorMessage);
+      }
+      throw error;
+    }
+  }
+  async addImagesToGalleryGroup(galleryId: string, imageIds: string[]): Promise<GalleryGroup> {
+    try {
+      console.log('Adding images to gallery group:', { galleryId, imageIds });
+      const headers = await this.getAuthenticatedHeaders();
+      const url = `${API_URLS.GALLERY}/groups/${galleryId}`;
+      
+      const requestData = {
+        imageIds,
+        action: 'add'
+      };
+      console.log('Request payload:', JSON.stringify(requestData, null, 2));
+      
+      const response = await axios.put<{ message: string; group: GalleryGroup }>(
+        url,
+        {
+          imageIds,
+          action: 'add'
+        },
+        {
+          headers,
+          withCredentials: true,
+          validateStatus: (status) => status < 500
+        }
+      );
+      
+      console.log('Request payload:', JSON.stringify(requestData, null, 2),'Add images response:', response.data);
+
+      if (!response.data.group) {
+        throw new Error(response.data.message || 'Failed to add images to gallery group');
+      }
+
+      return response.data.group;
+    } catch (error) {
+      console.error('Error adding images to gallery group:', error);
+      if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
+        throw new Error(errorMessage);
+      }
+      throw error;
+    }
+  }
+  async removeImagesFromGalleryGroup(galleryId: string, imageIds: string[]): Promise<GalleryGroup> {
+    try {
+      console.log('Removing images from gallery group:', { galleryId, imageIds });
+      const headers = await this.getAuthenticatedHeaders();
+      const url = `${API_URLS.GALLERY}/groups/${galleryId}`;
+      
+      const requestData = {
+        imageIds,
+        action: 'remove'
+      };
+      console.log('Request payload:', JSON.stringify(requestData, null, 2));
+      
+      const response = await axios.put<{ message: string; group: GalleryGroup }>(
+        url,
+        {
+          imageIds,
+          action: 'remove'
+        },
+        {
+          headers,
+          withCredentials: true,
+          validateStatus: (status) => status < 500
+        }
+      );
+      
+      console.log('Remove images response:', response.data);
+
+      if (!response.data.group) {
+        throw new Error(response.data.message || 'Failed to remove images from gallery group');
+      }
+
+      return response.data.group;
+    } catch (error) {
+      console.error('Error removing images from gallery group:', error);
+      if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
         throw new Error(errorMessage);
       }
       throw error;

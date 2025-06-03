@@ -35,20 +35,16 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
           addMessage({ text: errorMsg, type: 'error' });
           onClose();
           return;
-        }
-
-        setGallery(fetchedGallery);
-        setOriginalImageIds(new Set(fetchedGallery.images.map(img => img.imageId)));
-        setSelectedImages(new Set(fetchedGallery.images.map(img => img.imageId)));
+        }        setGallery(fetchedGallery);
+        setOriginalImageIds(new Set(fetchedGallery.images.map(img => img._id)));
+        setSelectedImages(new Set(fetchedGallery.images.map(img => img._id)));
 
         if (!images || images.length === 0) {
           addMessage({ text: 'No images available to add to gallery', type: 'warning' });
-        }
-
-        const availableImgs = images.map(img => ({
-          id: img.imageId,
+        }        const availableImgs = images.map(img => ({
+          id: img._id,
           url: img.imageUrl,
-          title: img.imageId || 'Untitled Image',
+          title: img._id || 'Untitled Image',
           category: 'Art'
         }));
         setAvailableImages(availableImgs);
@@ -70,13 +66,13 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
     image.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const toggleImageSelection = (imageId) => {
+  const toggleImageSelection = (_id ) => {
     setSelectedImages(prev => {
       const next = new Set(prev);
-      if (next.has(imageId)) {
-        next.delete(imageId);
+      if (next.has(_id)) {
+        next.delete(_id);
       } else {
-        next.add(imageId);
+        next.add(_id);
       }
       return next;
     });
