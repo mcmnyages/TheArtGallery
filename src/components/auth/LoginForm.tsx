@@ -260,7 +260,7 @@ export const LoginForm: React.FC = () => {
         console.error('❌ No userId found in response');
         addMessage({
           type: 'error',
-          text: 'Server error: User ID not provided',
+          text: 'Wrong email or password!',
           duration: 4000
         });
         setAuthState('idle');
