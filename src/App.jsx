@@ -23,6 +23,7 @@ import CreateGalleryPage from './pages/artist/CreateGalleryPage';
 import ArtistRoute from './components/auth/ArtistRoute';
 import { useAuth } from './hooks/useAuth';
 import PictureManagementPage from './pages/artist/PictureManagementPage';
+import OTPVerificationPage from './pages/OTPVerificationPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -73,6 +74,7 @@ function AppContent() {
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/otp-verification" element={<OTPVerificationPage />} />
             
             {/* Public Routes */}
             <Route path="/galleries" element={

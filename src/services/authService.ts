@@ -103,6 +103,8 @@ class AuthService {
 
   async login(email: string, password: string): Promise<AuthResponse> {
     try {
+      console.log('🔐 Starting login process for:', email);
+      
       const response = await fetch(`${API_BASE}/login`, {
         method: 'POST',
         credentials: 'include',
@@ -114,56 +116,89 @@ class AuthService {
       });
 
       const data = await this.handleJsonResponse(response);
+      console.log('📥 Login response received:', { 
+        status: response.status,
+        ok: response.ok,
+        hasAccessToken: !!data.accessToken
+      });
       
       if (!response.ok || !data.accessToken) {
+        console.error('❌ Login failed:', data.error || 'Invalid credentials');
         return {
           success: false,
           error: data.error || 'Invalid credentials'
         };
       }
 
-      // Decode the token to check user status
-      const decodedToken = this.decodeToken(data.accessToken);
-      if (!decodedToken) {
+      // Try to decode the token and extract user info
+      try {
+        console.log('🔍 Attempting to decode token...');
+        const decodedToken = this.decodeToken(data.accessToken);
+        console.log('🔑 Raw decoded token:', decodedToken);
+
+        // Extract user info from token or response data
+        const userId = data.userId || decodedToken?.sub;
+        const userEmail = data.email || decodedToken?.email;
+        const userStatus = data.status || decodedToken?.status || 'inactive';
+        const firstName = decodedToken?.firstName || data.firstName || '';
+        const lastName = decodedToken?.lastName || data.lastName || '';
+
+        console.log('👤 User info:', { userId, email: userEmail, status: userStatus });
+
+        // If we have no valid token or user is inactive, require OTP
+        if (!decodedToken || userStatus === 'inactive') {
+          console.log('⚠️ OTP verification required');
+          // For inactive users, don't set tokens but return user info
+          return {
+            success: false,
+            requireOTP: true,
+            userId: userId,
+            error: 'Email verification required',
+            user: {
+              id: userId,
+              email: userEmail,
+              firstName,
+              lastName,
+              userResources: [],
+              status: userStatus
+            }
+          };
+        }
+
+        // For active users, proceed with normal login flow
+        console.log('✅ User is active, proceeding with login');
+        const resources = await this.checkAccessibleResources(data.accessToken);
+        console.log('📦 User resources:', resources);
+        
+        const user: User = {
+          id: decodedToken.sub,
+          firstName: firstName,
+          lastName: lastName,
+          email: decodedToken.email,
+          userResources: resources,
+          status: userStatus
+        };
+
+        // Set tokens only for active users
+        setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+        console.log('🎉 Login successful - tokens set');
+
+        return {
+          success: true,
+          user,
+          token: data.accessToken,
+          refreshToken: data.refreshToken
+        };
+
+      } catch (error) {
+        console.error('🔥 Token decode or user info extraction error:', error);
         return {
           success: false,
-          error: 'Invalid token received'
+          error: 'Failed to process login response'
         };
       }
-
-      // Check user status
-      if (decodedToken.status === 'inactive') {
-        return {
-          success: false,
-          requireOTP: true,
-          userId: decodedToken.sub,
-          error: 'Email verification required'
-        };
-      }
-
-      // For active users, proceed with normal login flow
-      const resources = await this.checkAccessibleResources(data.accessToken);
-      
-      const user: User = {
-        id: decodedToken.sub,
-        firstName: decodedToken.firstName || '',
-        lastName: decodedToken.lastName || '',
-        email: decodedToken.email,
-        userResources: resources,
-        status: decodedToken.status
-      };
-
-      // Set tokens only for active users
-      setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
-
-      return {
-        success: true,
-        user,
-        token: data.accessToken,
-        refreshToken: data.refreshToken
-      };
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('🔥 Login error:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'An unexpected error occurred'
@@ -364,7 +399,7 @@ class AuthService {
     return token;
   }  async verifyOTP(userId: string, otp: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
-      console.log('📤 Sending OTP verification request:', { userId, otp });
+      console.log('📤 Starting OTP verification for user:', userId);
       const response = await fetch(`${API_BASE}/verify-otp`, {
         method: 'POST',
         headers: {
@@ -375,7 +410,11 @@ class AuthService {
       });
 
       const data = await this.handleJsonResponse(response);
-      console.log('📨 Raw OTP verification response:', data);
+      console.log('📥 OTP verification response:', {
+        status: response.status,
+        ok: response.ok,
+        data
+      });
       
       if (!response.ok) {
         console.error('❌ OTP verification failed:', data.error);
@@ -402,7 +441,7 @@ class AuthService {
       };
 
     } catch (error) {
-      console.error('OTP verification error:', error);
+      console.error('🔥 OTP verification error:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'An unexpected error occurred'
