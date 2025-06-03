@@ -4,10 +4,12 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { FaEdit, FaTrash, FaEye, FaCheck } from 'react-icons/fa';
 import ImageViewer from '../gallery/ImageViewer';
 import { galleryService } from '../../services/galleryService';
+import { useMessage } from '../../hooks/useMessage';
 
 const ArtistPictureManager = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
+  const { addMessage } = useMessage();
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,33 +32,36 @@ const ArtistPictureManager = () => {
       const fetchedImages = await galleryService.getArtistImages();
       console.log('Fetched artist images:', fetchedImages);
       setImages(fetchedImages);
-      setError(null);
-    } catch (err) {
+      setError(null);    } catch (err) {
       console.error('Failed to fetch images:', err);
-      setError(err.response?.data?.message || 'Failed to load images');
+      const errorMsg = err.response?.data?.message || 'Failed to load images';
+      setError(errorMsg);
+      addMessage({ text: errorMsg, type: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteImage = async (imageId) => {
-    if (window.confirm('Are you sure you want to delete this image?')) {
-      try {
+    if (window.confirm('Are you sure you want to delete this image?')) {      try {
         await galleryService.deleteArtistImage(imageId);
         await fetchArtistImages();
+        addMessage({ text: 'Image deleted successfully', type: 'success' });
       } catch (err) {
         console.error('Failed to delete image:', err);
-        alert(err.response?.data?.message || 'Failed to delete image');
+        const errorMsg = err.response?.data?.message || 'Failed to delete image';
+        addMessage({ text: errorMsg, type: 'error' });
       }
     }
-  };
-  const toggleImageSelection = (imageId) => {
+  };  const toggleImageSelection = (imageId) => {
     setSelectedImages(prev => {
       const next = new Set(prev);
       if (next.has(imageId)) {
         next.delete(imageId);
+        addMessage({ text: 'Image deselected', type: 'info' });
       } else {
         next.add(imageId);
+        addMessage({ text: 'Image selected', type: 'info' });
       }
       return next;
     });
@@ -72,25 +77,29 @@ const ArtistPictureManager = () => {
       try {
         const deletePromises = Array.from(selectedImages).map(imageId =>
           galleryService.deleteArtistImage(imageId)
-        );
-        await Promise.all(deletePromises);
+        );        await Promise.all(deletePromises);
         setSelectedImages(new Set()); // Clear selection
         await fetchArtistImages(); // Refresh the image list
+        addMessage({ text: 'Selected images deleted successfully', type: 'success' });
       } catch (err) {
         console.error('Failed to delete images:', err);
-        setError(err.response?.data?.message || 'Failed to delete images');
+        const errorMsg = err.response?.data?.message || 'Failed to delete images';
+        setError(errorMsg);
+        addMessage({ text: errorMsg, type: 'error' });
       } finally {
         setLoading(false);
       }
     }
   };
-
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
-    if (files.length === 0) return;
-
-    setUploading(true);
-    const newUploadProgress = {};    try {
+    if (files.length === 0) {
+      addMessage({ text: 'Please select at least one image to upload', type: 'warning' });
+      return;
+    }    setUploading(true);
+    const newUploadProgress = {};    
+    addMessage({ text: `Starting upload of ${files.length} image(s)...`, type: 'info' });
+    try {
       const uploadPromises = files.map(file => {
         const formData = new FormData();
         formData.append('images', file);  // Changed from 'images' to 'image' to match backend
@@ -107,17 +116,18 @@ const ArtistPictureManager = () => {
             setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
           }
         });
-      });
-
-      await Promise.all(uploadPromises);
+      });      await Promise.all(uploadPromises);
       setUploadProgress({}); // Clear progress
       await fetchArtistImages(); // Refresh the image list
       if (fileInputRef.current) {
         fileInputRef.current.value = ''; // Reset file input
       }
+      addMessage({ text: 'Images uploaded successfully', type: 'success' });
     } catch (err) {
       console.error('Failed to upload images:', err);
-      setError(err.message || 'Failed to upload images');
+      const errorMsg = err.message || 'Failed to upload images';
+      setError(errorMsg);
+      addMessage({ text: errorMsg, type: 'error' });
     } finally {
       setUploading(false);
     }
