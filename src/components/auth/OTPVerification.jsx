@@ -102,17 +102,19 @@ const OTPVerification = ({ userId, email, onBack }) => {
       console.log('📤 Requesting new OTP for user:', userId);
       const result = await requestNewOTP(userId);
       console.log('📥 Resend OTP response:', { success: result.success, error: result.error });
-      
-      if (result.success) {
+        if (result.success) {
         console.log('✅ New OTP sent successfully');
         setOtp('');
-        setError('A new verification code has been sent to your email.');
+        setVerificationSuccess('A new verification code has been sent to your email.');
+        setError(''); // Clear any existing errors
       } else {
         console.error('❌ Failed to resend OTP:', result.error);
         setError(result.error || 'Failed to resend verification code.');
+        setVerificationSuccess(''); // Clear any existing success message
       }
     } catch (error) {
       setError(error.message || 'Failed to resend verification code.');
+      setVerificationSuccess(''); // Clear any existing success message
     } finally {
       setIsResending(false);
     }

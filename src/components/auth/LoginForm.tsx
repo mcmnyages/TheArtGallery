@@ -253,7 +253,7 @@ export const LoginForm: React.FC = () => {
       console.log('📥 Full login result:', JSON.stringify(result, null, 2));
 
       // Extract userId based on whether it's a success or error response
-      const userId = !result.success ? result.userId : result.user.id;
+      const userId = result.success ? result.user.id : result.userId;
       console.log('🆔 Extracted User ID:', userId);
 
       if (!userId) {
@@ -265,17 +265,48 @@ export const LoginForm: React.FC = () => {
         });
         setAuthState('idle');
         return;
-      }
+      }      if (result.success) {
+        // If login is successful, proceed with the normal flow
+        console.log('✅ Login successful - Processing response');
+        console.log('👤 User info:', {
+          userId: result.user.id,
+          email: result.user.email,
+          status: result.user.status
+        });
 
-      // First handle verification requirement
-      if (result.error?.includes('verification required') || result.error?.includes('Email verification required')) {
+        // Store the user info
+        const userInfo = {
+          userId: result.user.id,
+          email: result.user.email,
+          status: result.user.status || 'inactive'
+        };
+        sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
+
+        // Process redirect based on user resources
+        setAuthState('verifying');
+        const resources = result.user.userResources || [];
+        const { path: redirectPath, message: welcomeMessage } = getRedirectPathAndMessage(
+          resources,
+          result.user.firstName
+        );
+        
+        addMessage({
+          type: 'success',
+          text: welcomeMessage || 'Welcome! Login successful.',
+          icon: HiCheckCircle,
+          duration: 3000
+        });
+        setAuthState('redirecting');
+        navigate(redirectPath);
+      } else if (result.error?.includes('verification required') || result.error?.includes('Email verification required')) {
+        // Handle verification requirement
         console.log('📝 OTP verification required - Email not yet verified');
         try {
           // Store credentials and user info for after verification
           const tempCredentials = {
             email,
             password,
-            userId // Store the actual userId
+            userId
           };
           
           console.log('💾 Storing temporary credentials:', { email, userId });
@@ -297,70 +328,18 @@ export const LoginForm: React.FC = () => {
             },
             replace: true
           });
-          return;
         } catch (err) {
           console.error('❌ Error during OTP redirection:', err);
           throw err;
         }
-      }
-
-      // If we get here, then verification is not required, so we should have user info
-      if (result.success && result.token) {
-        // Log the successful login data
-        console.log('✅ Login successful - Email already verified');
-        console.log('🔑 Token received:', result.token);
-        console.log('👤 User info:', {
-          userId: result.user?.id || result.userId,
-          email: result.user?.email || email,
-          status: result.user?.status
-        });
-
-        // Store the user info
-        const userInfo = {
-          userId: result.user?.id || result.userId,
-          email: result.user?.email || email,
-          status: result.user?.status || 'inactive'
-        };
-        sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
-      } else if (!result.error?.includes('verification required')) {
-        // Handle other error cases (invalid credentials, server error, etc.)
+      } else {
+        // Handle login failure
         console.log('❌ Login failed:', result.error);
         addMessage({
           type: 'error',
           text: result.error || 'Invalid email or password',
           duration: 5000
         });
-        setAuthState('idle');
-        return;
-      }
-
-      // Continue with the rest of the login flow for verified users
-      console.log('✅ Login successful, proceeding with normal flow');
-      try {
-        setAuthState('verifying');
-        const resources = result.user.userResources || [];
-        const { path: redirectPath, message: welcomeMessage } = getRedirectPathAndMessage(
-          resources,
-          result.user.firstName
-        );
-        
-        addMessage({
-          type: 'success',
-          text: welcomeMessage,
-          icon: HiCheckCircle,
-          duration: 3000
-        });
-        setAuthState('redirecting');
-        navigate(redirectPath);
-
-      } catch (error) {
-        console.error('Access verification error:', error);
-        addMessage({
-          type: 'error',
-          text: 'Failed to verify access permissions. Please try again.',
-          duration: 5000
-        });
-        await authService.logout();
         setAuthState('idle');
       }
 
