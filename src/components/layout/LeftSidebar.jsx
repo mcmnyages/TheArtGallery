@@ -36,11 +36,6 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
       icon: <HiChartBar className="h-6 w-6" />
     },
     {
-      name: 'Upload Artwork',
-      path: '/artist/upload',
-      icon: <HiUpload className="h-6 w-6" />
-    },
-    {
       name: 'Picture Management',
       path: '/artist/pictures',
       icon: <HiPicture className="h-6 w-6" />
