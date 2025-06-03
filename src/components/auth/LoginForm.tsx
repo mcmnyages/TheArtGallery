@@ -26,14 +26,15 @@ interface FormErrors {
 interface LoginResponse {
   success: boolean;
   user?: {
-    id?: string;
+    id: string;  // Make id required
     firstName?: string;
     role?: string;
-    email?: string;
+    email: string;  // Make email required
     status?: 'active' | 'inactive';
+    userResources?: Array<{ name: string; status: string }>;
   };
   requireOTP?: boolean;
-  userId?: string;
+  userId: string;  // Make userId required
   token?: string;
   refreshToken?: string;
   error?: string;
@@ -249,29 +250,48 @@ export const LoginForm: React.FC = () => {
 
       console.log('📤 Sending login request...');
       const result = await login(email, password);
-      console.log('📥 Login result:', result);
+      console.log('📥 Full login result:', JSON.stringify(result, null, 2));
 
-      // First check if the user needs OTP verification
+      // Extract userId based on whether it's a success or error response
+      const userId = !result.success ? result.userId : result.user.id;
+      console.log('🆔 Extracted User ID:', userId);
+
+      if (!userId) {
+        console.error('❌ No userId found in response');
+        addMessage({
+          type: 'error',
+          text: 'Server error: User ID not provided',
+          duration: 4000
+        });
+        setAuthState('idle');
+        return;
+      }
+
+      // First handle verification requirement
       if (result.error?.includes('verification required') || result.error?.includes('Email verification required')) {
-        console.log('📝 OTP verification required');
+        console.log('📝 OTP verification required - Email not yet verified');
         try {
-          // Store credentials for after verification
-          sessionStorage.setItem('tempLoginCredentials', JSON.stringify({ email, password }));
+          // Store credentials and user info for after verification
+          const tempCredentials = {
+            email,
+            password,
+            userId // Store the actual userId
+          };
+          
+          console.log('💾 Storing temporary credentials:', { email, userId });
+          sessionStorage.setItem('tempLoginCredentials', JSON.stringify(tempCredentials));
           
           setAuthState('redirecting');
           addMessage({
             type: 'info',
-            text: 'Please verify your email address to continue',
+            text: 'Please verify your email address to continue.',
             duration: 4000
           });
 
-          // Use email as identifier if no userId is provided
-          const verificationId = result.userId || email;
-          
-          console.log('🚦 Redirecting to OTP verification:', { verificationId, email });
+          console.log('🚦 Redirecting to OTP verification:', { userId, email });
           navigate('/otp-verification', { 
             state: { 
-              userId: verificationId,
+              userId: userId,
               email: email,
               isLoginFlow: true 
             },
@@ -284,8 +304,26 @@ export const LoginForm: React.FC = () => {
         }
       }
 
-      // Handle other error cases
-      if (!result.success || !result.user) {
+      // If we get here, then verification is not required, so we should have user info
+      if (result.success && result.token) {
+        // Log the successful login data
+        console.log('✅ Login successful - Email already verified');
+        console.log('🔑 Token received:', result.token);
+        console.log('👤 User info:', {
+          userId: result.user?.id || result.userId,
+          email: result.user?.email || email,
+          status: result.user?.status
+        });
+
+        // Store the user info
+        const userInfo = {
+          userId: result.user?.id || result.userId,
+          email: result.user?.email || email,
+          status: result.user?.status || 'inactive'
+        };
+        sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
+      } else if (!result.error?.includes('verification required')) {
+        // Handle other error cases (invalid credentials, server error, etc.)
         console.log('❌ Login failed:', result.error);
         addMessage({
           type: 'error',
@@ -296,7 +334,7 @@ export const LoginForm: React.FC = () => {
         return;
       }
 
-      // Handle successful login
+      // Continue with the rest of the login flow for verified users
       console.log('✅ Login successful, proceeding with normal flow');
       try {
         setAuthState('verifying');

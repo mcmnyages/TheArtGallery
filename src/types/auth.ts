@@ -23,9 +23,9 @@ export interface AuthSuccessResponse {
 export interface AuthErrorResponse {
   success: false;
   error: string;
-  userId?: string;
+  userId: string;  // Make userId required
   requireOTP?: boolean;
-  user?: User;  // Adding optional user property for OTP verification
+  user?: User;  // Keep user property optional but include all user info when available
 }
 
 export type AuthResponse = AuthSuccessResponse | AuthErrorResponse;

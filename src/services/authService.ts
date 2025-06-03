@@ -122,86 +122,82 @@ class AuthService {
         hasAccessToken: !!data.accessToken
       });
       
-      if (!response.ok || !data.accessToken) {
-        console.error('❌ Login failed:', data.error || 'Invalid credentials');
+      // Try to decode the token if it exists
+      const decodedToken = data.accessToken ? this.decodeToken(data.accessToken) : null;
+      console.log('🔑 Raw decoded token:', decodedToken);
+
+      // Extract user info from token or response data
+      const userId = data.userId || decodedToken?.id;
+      const userEmail = data.email || decodedToken?.email || email;
+      const userStatus = data.status || decodedToken?.status || 'inactive';
+      const firstName = decodedToken?.firstName || data.firstName || '';
+      const lastName = decodedToken?.lastName || data.lastName || '';
+
+      console.log('👤 User info:', { userId, email: userEmail, status: userStatus });
+
+      // Ensure we have a userId
+      if (!userId) {
+        console.error('❌ No userId found in response');
+        // Return error response with empty userId as required by type
         return {
           success: false,
-          error: data.error || 'Invalid credentials'
+          error: 'Server error: User ID not provided',
+          userId: ''
         };
       }
 
-      // Try to decode the token and extract user info
-      try {
-        console.log('🔍 Attempting to decode token...');
-        const decodedToken = this.decodeToken(data.accessToken);
-        console.log('🔑 Raw decoded token:', decodedToken);
+      // Create base user object
+      const userInfo: User = {
+        id: userId,
+        email: userEmail,
+        firstName,
+        lastName,
+        status: userStatus,
+        userResources: []
+      };
 
-        // Extract user info from token or response data
-        const userId = data.userId || decodedToken?.id;
-        const userEmail = data.email || decodedToken?.email;
-        const userStatus = data.status || decodedToken?.status || 'inactive';
-        const firstName = decodedToken?.firstName || data.firstName || '';
-        const lastName = decodedToken?.lastName || data.lastName || '';
-
-        console.log('👤 User info:', { userId, email: userEmail, status: userStatus });
-
-        // If we have no valid token or user is inactive, require OTP
-        if (!decodedToken || userStatus === 'inactive') {
-          console.log('⚠️ OTP verification required');
-          // For inactive users, don't set tokens but return user info
-          return {
-            success: false,
-            requireOTP: true,
-            userId: userId,
-            error: 'Email verification required',
-            user: {
-              id: userId,
-              email: userEmail,
-              firstName,
-              lastName,
-              userResources: [],
-              status: userStatus
-            }
-          };
-        }
-
-        // For active users, proceed with normal login flow
-        console.log('✅ User is active, proceeding with login');
-        const resources = await this.checkAccessibleResources(data.accessToken);
-        console.log('📦 User resources:', resources);
-        
-        const user: User = {
-          id: decodedToken.id,
-          firstName: firstName,
-          lastName: lastName,
-          email: decodedToken.email,
-          userResources: resources,
-          status: userStatus
-        };
-
-        // Set tokens only for active users
-        setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
-        console.log('🎉 Login successful - tokens set');
-
-        return {
-          success: true,
-          user,
-          token: data.accessToken,
-          refreshToken: data.refreshToken
-        };
-
-      } catch (error) {
-        console.error('🔥 Token decode or user info extraction error:', error);
-        return {
+      // Handle verification required case
+      if (!response.ok || !data.accessToken || userStatus === 'inactive') {
+        console.log('⚠️ OTP verification required or login unsuccessful');
+        const errorResponse: AuthResponse = {
           success: false,
-          error: 'Failed to process login response'
+          requireOTP: userStatus === 'inactive',
+          userId: userId,
+          error: data.error || 'Email verification required',
+          user: userInfo
         };
+        console.log('📤 Sending error response:', errorResponse);
+        return errorResponse;
       }
+
+      // For active users with valid tokens, proceed with normal login flow
+      console.log('✅ User is active, proceeding with login');
+      const resources = await this.checkAccessibleResources(data.accessToken);
+      console.log('📦 User resources:', resources);
+      
+      userInfo.userResources = resources;
+
+      // Set tokens only for active users
+      setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+      console.log('🎉 Login successful - tokens set');
+
+      // Return success response without userId field
+      const successResponse: AuthResponse = {
+        success: true,
+        user: userInfo,
+        token: data.accessToken,
+        refreshToken: data.refreshToken
+      };
+      console.log('📤 Sending success response:', successResponse);
+      return successResponse;
+
     } catch (error) {
       console.error('🔥 Login error:', error);
+      // Return error response with empty userId as required by type
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'An unexpected error occurred'
+        error: error instanceof Error ? error.message : 'An unexpected error occurred',
+        userId: ''
       };
     }
   }    async register(userData: { 
@@ -218,12 +214,23 @@ class AuthService {
           'Accept': 'application/json',
         },
         body: JSON.stringify(userData),
-      });      const data = await this.handleJsonResponse(response);
+      });
+      
+      const data = await this.handleJsonResponse(response);
       
       if (!response.ok) {
         return {
           success: false,
-          error: data.error || 'Registration failed'
+          error: data.error || 'Registration failed',
+          userId: data.userId || '', // Include userId in error response
+        };
+      }
+
+      if (!data.userId) {
+        return {
+          success: false,
+          error: 'Server error: User ID not provided',
+          userId: '',
         };
       }
 
@@ -231,7 +238,7 @@ class AuthService {
         success: true,
         message: data.message,
         user: {
-          id: data.userId, // Using the userId from the registration response
+          id: data.userId,
           firstName: userData.firstName,
           lastName: userData.lastName,
           email: userData.email,
@@ -244,7 +251,8 @@ class AuthService {
       console.error('Registration error:', error);
       return {
         success: false,
-        error: error.message || 'An unexpected error occurred'
+        error: error instanceof Error ? error.message : 'An unexpected error occurred',
+        userId: '',
       };
     }
   }

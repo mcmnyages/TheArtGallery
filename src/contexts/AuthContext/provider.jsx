@@ -12,6 +12,7 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('Attempting login with:', email);
       const response = await authService.login(email, password);
+      console.log('Auth service response:', response);
       
       if (response.success && response.user && response.token) {
         // Set tokens first
@@ -29,20 +30,20 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('user', JSON.stringify(userWithResources));
         setUser(userWithResources);
         setIsAuthenticated(true);
-
+        
         console.log('Login successful, user resources:', userWithResources.userResources);
         return { success: true, user: userWithResources };
       }
       
-      return { 
-        success: false, 
-        error: response.error || 'Login failed' 
-      };
+      // Make sure we pass through all properties for error cases
+      console.log('Login unsuccessful, passing through response:', response);
+      return response;
     } catch (error) {
       console.error('Login error:', error);
       return { 
         success: false, 
-        error: error.message || 'An unexpected error occurred' 
+        error: error.message || 'An unexpected error occurred',
+        userId: ''  // Include empty userId for type safety
       };
     }
   };
