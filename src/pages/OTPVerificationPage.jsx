@@ -1,11 +1,40 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import OTPVerification from '../components/auth/OTPVerification';
+import { useAuth } from '../hooks/useAuth';
 
 const OTPVerificationPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { userId, email, isLoginFlow } = location.state || {};
+  const { isAuthenticated, user } = useAuth();
+
+  useEffect(() => {
+    // If user is already authenticated, redirect to appropriate dashboard
+    if (isAuthenticated && user) {
+      const resources = user.userResources || [];
+      const artistAccess = resources.some(r => r.name === 'Artwork' && r.status === 'success');
+      const adminAccess = resources.some(r => r.name === 'Admin_dashboard' && r.status === 'success');
+      
+      let redirectPath = '/galleries';
+      if (adminAccess) redirectPath = '/admin/dashboard';
+      else if (artistAccess) redirectPath = '/artist/dashboard';
+      
+      // Remove any stored credentials
+      sessionStorage.removeItem('tempLoginCredentials');
+      
+      // Redirect to appropriate dashboard
+      navigate(redirectPath, { replace: true });
+      return;
+    }
+
+    // If no userId or email in state, and not authenticated, redirect to login
+    if (!userId || !email) {
+      sessionStorage.removeItem('tempLoginCredentials');
+      navigate('/login', { replace: true });
+      return;
+    }
+  }, [isAuthenticated, user, userId, email, navigate]);
 
   const handleBack = () => {
     if (isLoginFlow) {
@@ -14,24 +43,17 @@ const OTPVerificationPage = () => {
     } else {
       navigate('/register');
     }
-};
+  };
 
-if (!userId || !email) {
+  // If the effect is handling the redirect, show a loading state
+  if (isAuthenticated || !userId || !email) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8 text-center">
-          <h2 className="text-3xl font-extrabold text-gray-900 dark:text-gray-100">
-            Invalid Access
-          </h2>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Please initiate the process from the login or registration page.
+            Redirecting...
           </p>
-          <button
-            onClick={() => navigate('/login')}
-            className="mt-4 w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            Go to Login
-          </button>
         </div>
       </div>
     );
@@ -59,7 +81,8 @@ if (!userId || !email) {
           isSignupFlow={!isLoginFlow}
         />
       </div>
-    </div>  );
+    </div>
+  );
 };
 
 export default OTPVerificationPage;
