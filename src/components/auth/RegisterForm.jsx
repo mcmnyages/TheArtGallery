@@ -287,6 +287,7 @@ const RegisterForm = () => {
               userId={registeredUserId}
               email={registeredEmail}
               onBack={() => setShowOTPVerification(false)}
+              isSignupFlow={true}
             />
           </div>
         </div>

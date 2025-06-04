@@ -3,14 +3,34 @@ import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { HiExclamationTriangle, HiCheckCircle } from 'react-icons/hi2';
 
-const OTPVerification = ({ userId, email, onBack }) => {
+const OTPVerification = ({ userId, email, onBack, isSignupFlow }) => {
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [verificationSuccess, setVerificationSuccess] = useState('');
+  const [cooldownTime, setCooldownTime] = useState(isSignupFlow ? 300 : 0);
   const { verifyOTP, requestNewOTP, login } = useAuth();
   const navigate = useNavigate();
+
+  // Timer effect for cooldown
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (cooldownTime > 0) {
+        setCooldownTime(time => time - 1);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [cooldownTime]);
+
+  // Format remaining time
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
   const handleLogin = async (credentials) => {
     try {
       console.log('🔑 Attempting auto-login after OTP verification', { email: credentials.email });
@@ -98,15 +118,19 @@ const OTPVerification = ({ userId, email, onBack }) => {
 
   const handleResendOTP = async () => {
     setError('');
-    setIsResending(true);    try {
+    setIsResending(true);
+    
+    try {
       console.log('📤 Requesting new OTP for user:', userId);
       const result = await requestNewOTP(userId);
       console.log('📥 Resend OTP response:', { success: result.success, error: result.error });
-        if (result.success) {
+      
+      if (result.success) {
         console.log('✅ New OTP sent successfully');
         setOtp('');
         setVerificationSuccess('A new verification code has been sent to your email.');
         setError(''); // Clear any existing errors
+        setCooldownTime(300); // Set 5-minute cooldown (300 seconds)
       } else {
         console.error('❌ Failed to resend OTP:', result.error);
         setError(result.error || 'Failed to resend verification code.');
@@ -157,8 +181,11 @@ const OTPVerification = ({ userId, email, onBack }) => {
           <label htmlFor="otp" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Enter Verification Code
           </label>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
             Please enter the verification code sent to {email}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Note: The verification code will expire after 30 minutes.
           </p>
           <input
             type="text"
@@ -173,15 +200,24 @@ const OTPVerification = ({ userId, email, onBack }) => {
           />
         </div>
 
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center space-y-2">
           <button
             type="button"
             onClick={handleResendOTP}
-            disabled={isResending || isSubmitting}
-            className="inline-flex items-center text-sm font-semibold text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+            disabled={isResending || isSubmitting || cooldownTime > 0}
+            className={`inline-flex items-center text-sm font-semibold ${
+              cooldownTime > 0 || isResending || isSubmitting
+                ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                : 'text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300'
+            }`}
           >
             {isResending ? 'Sending...' : 'Resend Code'}
           </button>
+          {cooldownTime > 0 && (
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              Available in {formatTime(cooldownTime)}
+            </span>
+          )}
         </div>
 
         {/* Action Buttons */}

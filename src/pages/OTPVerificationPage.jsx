@@ -56,6 +56,7 @@ if (!userId || !email) {
           userId={userId}
           email={email}
           onBack={handleBack}
+          isSignupFlow={!isLoginFlow}
         />
       </div>
     </div>  );
