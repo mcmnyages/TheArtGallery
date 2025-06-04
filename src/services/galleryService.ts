@@ -489,6 +489,36 @@ export class GalleryService {  async getArtistImages(): Promise<GalleryImage[]> 
       }
       throw error;
     }
+  }  async getSignedUrls(): Promise<Array<{ imageId: string; signedUrl: string }>> {
+    try {
+      console.log('Fetching signed URLs');
+      const headers = await this.getAuthenticatedHeaders();
+      const url = `${API_URLS.GALLERY}/signed-urls`;
+      
+      const response = await axios.get<{ success: boolean; urls: Array<{ imageId: string; signedUrl: string }> }>(
+        url,
+        {
+          headers,
+          withCredentials: true,
+          validateStatus: (status) => status < 500
+        }
+      );
+      
+      console.log('Signed URLs response:', response.data);
+
+      if (!response.data.success || !response.data.urls) {
+        throw new Error('Failed to get signed URLs');
+      }
+
+      return response.data.urls;
+    } catch (error) {
+      console.error('Error getting signed URLs:', error);
+      if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
+        throw new Error(errorMessage);
+      }
+      throw error;
+    }
   }
 }
 

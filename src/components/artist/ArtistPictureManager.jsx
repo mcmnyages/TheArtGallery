@@ -29,7 +29,7 @@ const ArtistPictureManager = () => {
   const fetchArtistImages = async () => {
     try {
       setLoading(true);
-      const fetchedImages = await galleryService.getArtistImages();
+      const fetchedImages = await galleryService.getSignedUrls();
       console.log('Fetched artist images:', fetchedImages);
       setImages(fetchedImages);
       setError(null);    } catch (err) {
@@ -268,23 +268,21 @@ const ArtistPictureManager = () => {
         )}
       </div>
 
-      {/* Images Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {/* Images Grid */}      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {sortedAndFilteredImages?.map((image) => {
           console.log('Rendering image:', image);
           return (
           <div
-            key={image._id}
+            key={image.imageId}
             className={`group relative rounded-lg overflow-hidden shadow-lg ${
               isDarkMode ? 'bg-gray-800' : 'bg-white'
-            } ${selectedImages.has(image._id) ? 'ring-2 ring-blue-500' : ''}`}
+            } ${selectedImages.has(image.imageId) ? 'ring-2 ring-blue-500' : ''}`}
           >
             {/* Selection Checkbox */}
-            <div className="absolute top-2 left-2 z-10">
-              <button
-                onClick={() => toggleImageSelection(image._id)}
-                className={`p-2 rounded-full transition-colors ${
-                  selectedImages.has(image._id)
+            <div className="absolute top-2 left-2 z-10">                <button
+                  onClick={() => toggleImageSelection(image.imageId)}
+                  className={`p-2 rounded-full transition-colors ${
+                    selectedImages.has(image.imageId)
                     ? 'bg-blue-500 text-white'
                     : 'bg-white/75 hover:bg-white text-gray-700'
                 }`}
@@ -293,18 +291,17 @@ const ArtistPictureManager = () => {
               </button>
             </div>
 
-            {/* Image */}
-            <div className="relative aspect-square">
+            {/* Image */}            <div className="relative aspect-square">
               <img
-                src={image.imageUrl}
-                alt={image.title || 'Artwork'}
+                src={image.signedUrl}
+                alt="Artwork"
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  console.error('Failed to load image:', image.imageUrl);
+                  console.error('Failed to load image:', image.signedUrl);
                   e.target.onerror = null; // Prevent infinite error loop
                   e.target.src = '/assets/images/placeholder.jpg';
                 }}
-                onLoad={() => console.log('Successfully loaded image:', image.imageUrl)}
+                onLoad={() => console.log('Successfully loaded image:', image.signedUrl)}
               />
               {/* Overlay with actions */}
               <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
@@ -334,11 +331,10 @@ const ArtistPictureManager = () => {
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>
                 
-              </p>
-              <p className={`text-xs mt-1 ${
+              </p>              <p className={`text-xs mt-1 ${
                 isDarkMode ? 'text-gray-500' : 'text-gray-400'
               }`}>
-                Added {new Date(image.createdAt).toLocaleDateString()}
+                Image ID: {image.imageId}
               </p>
             </div>
           </div>
@@ -363,13 +359,12 @@ const ArtistPictureManager = () => {
         </div>
       )}
 
-      {/* Image Viewer Modal */}
-      {viewerOpen && selectedImage && (
+      {/* Image Viewer Modal */}      {viewerOpen && selectedImage && (
         <ImageViewer
           image={{
-            url: selectedImage.imageUrl,
-            title: selectedImage.title || 'Untitled',
-            imageId: selectedImage._id
+            url: selectedImage.signedUrl,
+            title: 'Artwork',
+            imageId: selectedImage.imageId
           }}
           onClose={() => {
             setViewerOpen(false);
