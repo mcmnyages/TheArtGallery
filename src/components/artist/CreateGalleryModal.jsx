@@ -10,19 +10,23 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
   const { isDarkMode } = useTheme();
   const addMessage = useMessage();
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [loadingImages, setLoadingImages] = useState(true);
+  const [loading, setLoading] = useState(false);  const [loadingImages, setLoadingImages] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [availableImages, setAvailableImages] = useState([]);
+  
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    imageIds: []
+    imageIds: [],
+    basePrice: '',
+    baseCurrency: 'USD'
   });
+  
   const [formValidation, setFormValidation] = useState({
     name: { valid: true, message: '' },
     description: { valid: true, message: '' },
-    images: { valid: true, message: '' }
+    images: { valid: true, message: '' },
+    basePrice: { valid: true, message: '' }
   });
 
   // Reset form when modal is closed
@@ -32,12 +36,15 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
       setFormData({
         name: '',
         description: '',
-        imageIds: []
+        imageIds: [],
+        basePrice: '',
+        baseCurrency: 'USD'
       });
       setFormValidation({
         name: { valid: true, message: '' },
         description: { valid: true, message: '' },
-        images: { valid: true, message: '' }
+        images: { valid: true, message: '' },
+        basePrice: { valid: true, message: '' }
       });
       setSearchTerm('');
     }
@@ -83,12 +90,13 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
       }));
     }
   }, [formData.imageIds]);
-
+  
   const validateForm = () => {
     const newValidation = {
       name: { valid: true, message: '' },
       description: { valid: true, message: '' },
-      images: { valid: true, message: '' }
+      images: { valid: true, message: '' },
+      basePrice: { valid: true, message: '' }
     };
     
     // Name validation
@@ -100,14 +108,23 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
 
     // Description validation
     if (!formData.description.trim()) {
-      newValidation.description = { valid: false, message: 'Gallery description is required' };
-    } else if (formData.description.trim().length < 10) {
+      newValidation.description = { valid: false, message: 'Gallery description is required' };    } else if (formData.description.trim().length < 10) {
       newValidation.description = { valid: false, message: 'Description must be at least 10 characters' };
     }
-
+    
     // Images validation
     if (formData.imageIds.length === 0) {
       newValidation.images = { valid: false, message: 'Please select at least one image' };
+    }
+
+    // Price validation
+    if (formData.basePrice !== '') {
+      const price = parseFloat(formData.basePrice);
+      if (isNaN(price) || price < 0) {
+        newValidation.basePrice = { valid: false, message: 'Price must be a valid positive number' };
+      } else if (price > 10000) {
+        newValidation.basePrice = { valid: false, message: 'Price cannot exceed 10,000' };
+      }
     }
 
     setFormValidation(newValidation);
@@ -148,9 +165,8 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
       };
     });
   };
-
   const filteredImages = availableImages.filter(image =>
-    image.title.toLowerCase().includes(searchTerm.toLowerCase())
+    (image.title || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSubmit = async (e) => {
@@ -161,26 +177,28 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
     }
 
     try {
-      setLoading(true);
-      setError('');
+      setLoading(true);      setError('');
       
       const requestData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
-        imageIds: formData.imageIds
+        imageIds: formData.imageIds,
+        basePrice: formData.basePrice !== '' ? parseFloat(formData.basePrice) : null,
+        baseCurrency: formData.baseCurrency
       };
       
       console.log('Submitting gallery creation with:', requestData);
       const result = await galleryService.createGalleryGroup(requestData);
       console.log('Gallery created successfully:', result);
-      
-      addMessage({ text: result.name ? `Gallery "${result.name}" created successfully!` : 'Gallery created successfully!', type: 'success' });
+        addMessage({ text: result.name ? `Gallery "${result.name}" created successfully!` : 'Gallery created successfully!', type: 'success' });
       
       // Clear form and close modal
       setFormData({
         name: '',
         description: '',
-        imageIds: []
+        imageIds: [],
+        basePrice: '',
+        baseCurrency: 'USD'
       });
       
       onSuccess?.(); // Refresh galleries list
@@ -195,35 +213,59 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
     }
   };
 
-  if (!isOpen) return null;
+  // Early return if modal is not open
+  return !isOpen ? null : (
+    <div className="fixed inset-0 overflow-y-auto bg-black/40 backdrop-blur-md z-50">
+      <div className="min-h-screen px-4 text-center">
+        {/* This element is to trick the browser into centering the modal contents. */}
+        <span className="inline-block h-screen align-middle" aria-hidden="true">&#8203;</span>
+        
+        <div className={`inline-block w-full max-w-4xl text-left align-middle transition-all transform ${isDarkMode ? 'bg-gray-800/95' : 'bg-white/95'} backdrop-blur-xl p-8 rounded-2xl shadow-2xl relative`}>
+          {/* Glass effect border */}
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500/10 via-transparent to-blue-500/10 pointer-events-none"></div>
+          
+          {/* Close button with animation */}
+          <button
+            onClick={onClose}
+            className={`absolute -top-4 -right-4 p-2 rounded-xl transition-all duration-300 transform hover:scale-110 ${
+              isDarkMode 
+                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white shadow-lg shadow-purple-900/20' 
+                : 'bg-white text-gray-600 hover:text-gray-900 shadow-lg shadow-purple-200/50'
+            }`}
+          >
+            <X className="h-5 w-5" />
+          </button>
 
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center overflow-y-auto">
-      <div className={`relative max-w-4xl w-full m-4 p-8 rounded-xl shadow-2xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className={`absolute top-4 right-4 p-2 rounded-lg transition-colors ${
-            isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          <X className="h-5 w-5" />
-        </button>
-
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
-              <ImageIcon className="w-6 h-6 text-white" />
+          <form onSubmit={handleSubmit} className="space-y-8 relative">
+            {/* Header with animated gradient */}
+            <div className="relative">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="p-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl shadow-lg transform -rotate-3 transition-transform duration-300 hover:rotate-0">
+                  <ImageIcon className="w-7 h-7 text-white" />
+                </div>
+                <h1 className={`text-4xl font-bold ${
+                  isDarkMode 
+                    ? 'text-white' 
+                    : 'text-gray-900'
+                }`}>
+                  Create New Gallery
+                </h1>
+              </div>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Create New Gallery
-            </h1>
-          </div>
 
-          {error && (
-            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 p-4 rounded-lg flex items-center gap-2">
-              <X className="h-5 w-5 flex-shrink-0" />
-              <span>{error}</span>
+            {error && (
+            <div className={`p-4 rounded-xl border-2 backdrop-blur-sm flex items-center gap-3 animate-fadeIn ${
+              isDarkMode 
+                ? 'bg-red-900/20 border-red-800/50 text-red-400' 
+                : 'bg-red-50/80 border-red-200 text-red-700'
+            }`}>
+              <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-red-900/30' : 'bg-red-100'}`}>
+                <X className="h-5 w-5 flex-shrink-0" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">Error</p>
+                <p className="text-sm opacity-90">{error}</p>
+              </div>
             </div>
           )}
 
@@ -231,47 +273,158 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
             {/* Gallery Details */}
             <div className="space-y-4">
               <div>
-                <label htmlFor="gallery-name" className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Gallery Name *
+                <label htmlFor="gallery-name" className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  Gallery Name <span className="text-purple-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  id="gallery-name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className={`mt-1 w-full px-4 py-3 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-all duration-200 ${
-                    !formValidation.name.valid 
-                      ? 'border-red-500 dark:border-red-500' 
-                      : 'border-gray-300 dark:border-gray-600'
-                  }`}
-                  placeholder="Enter gallery name"
-                />
-                {!formValidation.name.valid && (
-                  <p className="mt-1 text-sm text-red-500">{formValidation.name.message}</p>
-                )}
+                <div className="relative">
+                  <input
+                    type="text"
+                    id="gallery-name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-3 border-2 rounded-xl bg-transparent backdrop-blur-sm ${
+                      isDarkMode 
+                        ? 'text-white placeholder-gray-400' 
+                        : 'text-gray-900 placeholder-gray-500'
+                    } ${
+                      !formValidation.name.valid
+                        ? 'border-red-500 dark:border-red-500' 
+                        : `border-gray-200 dark:border-gray-600 focus:border-purple-500 ${
+                            isDarkMode 
+                              ? 'bg-gray-700/30 focus:bg-gray-700/50' 
+                              : 'bg-white/50 focus:bg-white/80'
+                          }`
+                    } transition-all duration-300 focus:ring-4 ${
+                      isDarkMode 
+                        ? 'focus:ring-purple-500/20' 
+                        : 'focus:ring-purple-500/20'
+                    } outline-none`}
+                    placeholder="Enter gallery name"
+                  />
+                  {!formValidation.name.valid && (
+                    <p className="mt-2 text-sm text-red-500 flex items-center gap-1.5">
+                      <span className="inline-block w-1 h-1 rounded-full bg-red-500"></span>
+                      {formValidation.name.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              <div>
+                <label htmlFor="gallery-description" className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  Description <span className="text-purple-500">*</span>
+                </label>
+                <div className="relative">
+                  <textarea
+                    id="gallery-description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-3 border-2 rounded-xl bg-transparent backdrop-blur-sm ${
+                      isDarkMode 
+                        ? 'text-white placeholder-gray-400' 
+                        : 'text-gray-900 placeholder-gray-500'
+                    } ${
+                      !formValidation.description.valid
+                        ? 'border-red-500 dark:border-red-500' 
+                        : `border-gray-200 dark:border-gray-600 focus:border-purple-500 ${
+                            isDarkMode 
+                              ? 'bg-gray-700/30 focus:bg-gray-700/50' 
+                              : 'bg-white/50 focus:bg-white/80'
+                          }`
+                    } transition-all duration-300 focus:ring-4 ${
+                      isDarkMode 
+                        ? 'focus:ring-purple-500/20' 
+                        : 'focus:ring-purple-500/20'
+                    } outline-none resize-none`}
+                    rows="4"
+                    placeholder="Describe your gallery..."
+                  />
+                  {!formValidation.description.valid && (
+                    <p className="mt-2 text-sm text-red-500 flex items-center gap-1.5">
+                      <span className="inline-block w-1 h-1 rounded-full bg-red-500"></span>
+                      {formValidation.description.message}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <div>
-                <label htmlFor="gallery-description" className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Description *
-                </label>
-                <textarea
-                  id="gallery-description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  className={`mt-1 w-full px-4 py-3 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-all duration-200 ${
-                    !formValidation.description.valid 
-                      ? 'border-red-500 dark:border-red-500' 
-                      : 'border-gray-300 dark:border-gray-600'
-                  }`}
-                  rows="4"
-                  placeholder="Describe your gallery..."
-                />
-                {!formValidation.description.valid && (
-                  <p className="mt-1 text-sm text-red-500">{formValidation.description.message}</p>
-                )}
+              {/* Price Info */}
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="basePrice" className={`block text-sm font-medium mb-2 ${
+                    isDarkMode ? 'text-gray-200' : 'text-gray-700'
+                  }`}>
+                    Base Price
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>$</span>
+                    </div>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      id="basePrice"
+                      name="basePrice"
+                      value={formData.basePrice}
+                      onChange={handleChange}
+                      className={`w-full pl-8 pr-4 py-3 border-2 rounded-xl bg-transparent backdrop-blur-sm ${
+                        isDarkMode 
+                          ? 'text-white placeholder-gray-400' 
+                          : 'text-gray-900 placeholder-gray-500'
+                      } ${
+                        !formValidation.basePrice?.valid
+                          ? 'border-red-500 dark:border-red-500' 
+                          : `border-gray-200 dark:border-gray-600 focus:border-purple-500 ${
+                              isDarkMode 
+                                ? 'bg-gray-700/30 focus:bg-gray-700/50' 
+                                : 'bg-white/50 focus:bg-white/80'
+                            }`
+                      } transition-all duration-300 focus:ring-4 ${
+                        isDarkMode 
+                          ? 'focus:ring-purple-500/20' 
+                          : 'focus:ring-purple-500/20'
+                      } outline-none`}
+                      placeholder="0.00"
+                    />
+                    {!formValidation.basePrice?.valid && (
+                      <p className="mt-2 text-sm text-red-500 flex items-center gap-1.5">
+                        <span className="inline-block w-1 h-1 rounded-full bg-red-500"></span>
+                        {formValidation.basePrice.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="baseCurrency" className={`block text-sm font-medium mb-2 ${
+                    isDarkMode ? 'text-gray-200' : 'text-gray-700'
+                  }`}>
+                    Currency
+                  </label>
+                  <select
+                    id="baseCurrency"
+                    name="baseCurrency"
+                    value={formData.baseCurrency}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-3 border-2 rounded-xl bg-transparent backdrop-blur-sm ${
+                      isDarkMode 
+                        ? 'text-white bg-gray-700/30 border-gray-600 focus:bg-gray-700/50' 
+                        : 'text-gray-900 bg-white/50 border-gray-200 focus:bg-white/80'
+                    } transition-all duration-300 focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 outline-none appearance-none`}
+                  >
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="JPY">JPY</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -288,20 +441,20 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
                     placeholder="Search images..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`pl-10 pr-4 py-2 w-full border rounded-lg transition-colors ${
+                    className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl bg-transparent backdrop-blur-sm ${
                       isDarkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                    } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                        ? 'text-white placeholder-gray-400 bg-gray-700/30 border-gray-600 focus:bg-gray-700/50' 
+                        : 'text-gray-900 placeholder-gray-500 bg-white/50 border-gray-200 focus:bg-white/80'
+                    } transition-all duration-300 focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 outline-none`}
                   />
                 </div>
               </div>
 
-              <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+              <div className={`flex items-center gap-2 px-6 py-3 rounded-xl ${
                 formData.imageIds.length === 0
-                  ? 'bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800'
-                  : 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800'
-              }`}>
+                  ? 'bg-yellow-50/80 dark:bg-yellow-900/20 border-2 border-yellow-200/50 dark:border-yellow-800/50'
+                  : 'bg-green-50/80 dark:bg-green-900/20 border-2 border-green-200/50 dark:border-green-800/50'
+              } backdrop-blur-sm transition-all duration-300`}>
                 <div className={`text-sm font-medium ${
                   formData.imageIds.length === 0
                     ? 'text-yellow-800 dark:text-yellow-400'
@@ -321,8 +474,11 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
               <div className="max-h-[50vh] overflow-y-auto p-1">
                 {loadingImages ? (
                   <div className="flex flex-col items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent mb-4"></div>
-                    <p className="text-gray-600 dark:text-gray-400 text-center">
+                    <div className="relative">
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-200/30 dark:border-purple-900/30"></div>
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent absolute top-0 left-0"></div>
+                    </div>
+                    <p className={`mt-4 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       Loading your images...
                       <br />
                       <span className="text-sm opacity-75">This may take a moment</span>
@@ -408,7 +564,7 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
             <button
               type="submit"
               disabled={loading || formData.imageIds.length === 0}
-              className={`flex-1 px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold transition-all duration-300 ${
+              className={`flex-1 px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold transition-all duration-300 ${
                 loading || formData.imageIds.length === 0
                   ? 'opacity-50 cursor-not-allowed' 
                   : 'hover:from-blue-700 hover:to-purple-700 transform hover:scale-105'
@@ -432,7 +588,7 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
               type="button"
               onClick={onClose}
               disabled={loading}
-              className={`px-8 py-3 rounded-lg font-semibold transition-all duration-300 ${
+              className={`px-8 py-3 rounded-xl font-semibold transition-all duration-300 ${
                 loading
                   ? 'opacity-50 cursor-not-allowed'
                   : `${
@@ -448,7 +604,9 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
         </form>
       </div>
     </div>
+  </div>
   );
 };
+
 
 export default CreateGalleryModal;

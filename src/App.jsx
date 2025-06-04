@@ -119,11 +119,6 @@ function AppContent() {
                 <ManageGalleryPage />
               </ArtistRoute>
             } />
-            <Route path="/artist/gallery/create" element={
-              <ArtistRoute>
-                <CreateGalleryPage />
-              </ArtistRoute>
-            } />
             <Route path="/artist/gallery/edit/:id" element={
               <ArtistRoute>
                 <CreateGalleryPage />
