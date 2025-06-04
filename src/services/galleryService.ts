@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosProgressEvent } from 'axios';
 import * as tokenService from './tokenService';
 
 // Base URL for gallery API endpoints
@@ -6,12 +6,25 @@ const API_URLS = {
   GALLERY: '/gallery'  // Base path for all gallery-related endpoints
 };
 
+export interface CreateGalleryGroupRequest {
+  name: string;
+  description: string;
+  imageIds: string[];
+  basePrice?: number;
+  baseCurrency?: string;
+}
+
+export interface GalleryGroupResponse {
+  message: string;
+  group: GalleryGroup;
+}
+
 export interface GalleryImage {
   imageId: string;
-  imageUrl: string;
   _id: string;
-  createdAt: string;
-  sharedWith: string[];
+  signedUrl?: string;
+  createdAt?: string;
+  sharedWith?: string[];
 }
 
 export interface GalleryGroup {
@@ -22,6 +35,8 @@ export interface GalleryGroup {
   images: GalleryImage[];
   sharedWith: string[];
   createdAt: string;
+  basePrice?: number;
+  baseCurrency?: string;
   __v: number;
 }
 
@@ -30,86 +45,7 @@ export interface GalleryGroupsResponse {
   groups: GalleryGroup[];
 }
 
-export class GalleryService {  async getArtistImages(): Promise<GalleryImage[]> {
-    try {
-      const headers = await this.getAuthenticatedHeaders();
-      console.log('Making request to fetch artist images...');
-      const response = await axios.get<{ message: string, images: GalleryImage[] }>(`${API_URLS.GALLERY}/images`, { 
-        headers,
-        withCredentials: true 
-      });
-      console.log('Raw API Response status:', response.status);
-      console.log('Raw API Response data:', JSON.stringify(response.data, null, 2));
-
-      if (!response.data.images) {
-        console.error('No images found in response:', response.data);
-        return [];
-      }
-
-      // Extract images from the response
-      const images: GalleryImage[] = response.data.images;
-
-      console.log('Transformed images:', images);
-      return images;
-    } catch (error) {
-      console.error('Error fetching artist images:', error);
-      throw error;
-    }
-  }  async deleteArtistImage(imageId: string): Promise<void> {
-    try {
-      console.log('Attempting to delete image with ID:', imageId);
-      const headers = await this.getAuthenticatedHeaders();
-      const url = `${API_URLS.GALLERY}/delete/${imageId}`;
-      console.log('Making delete request to:', url);
-      
-      const response = await axios.delete(url, { 
-        headers,
-        withCredentials: true,
-        validateStatus: (status) => status < 500
-      });
-      
-      console.log('Delete response status:', response.status);
-      console.log('Delete response data:', response.data);
-    } catch (error) {
-      console.error('Error deleting artist image:', error);
-      if (axios.isAxiosError(error)) {
-        console.error('Request details:', {
-          url: error.config?.url,
-          method: error.config?.method,
-          headers: error.config?.headers
-        });
-        console.error('Response details:', {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data
-        });
-        if (error.response?.status === 401) {
-          throw new Error('Please login to access this content');
-        }
-      }
-      throw error;
-    }
-  }
-  async updateArtistImage(imageId: string, updates: Partial<GalleryImage>): Promise<GalleryImage> {
-    try {
-      const headers = await this.getAuthenticatedHeaders();
-      const response = await axios.patch<{ image: GalleryImage }>(
-        `${API_URLS.GALLERY}/images/${imageId}`, 
-        updates, 
-        { 
-          headers,
-          withCredentials: true 
-        }
-      );
-      return response.data.image;    } catch (error) {
-      console.error('Error updating artist image:', error);
-      if (axios.isAxiosError(error) && error.response?.status === 401) {
-        throw new Error('Please login to access this content');
-      }
-      throw error;
-    }
-  }
-
+export class GalleryService {
   private async getAuthenticatedHeaders(): Promise<Record<string, string>> {
     const token = tokenService.getAccessToken();
     console.log('Current access token:', token);
@@ -129,7 +65,7 @@ export class GalleryService {  async getArtistImages(): Promise<GalleryImage[]> 
     }
 
     // Always include the ngrok-skip-browser-warning header
-    const headers = {
+    const headers: Record<string, string> = {
       'Authorization': `Bearer ${tokenService.getAccessToken()}`,
       'Accept': 'application/json',
       'Content-Type': 'application/json',
@@ -138,385 +74,398 @@ export class GalleryService {  async getArtistImages(): Promise<GalleryImage[]> 
     
     console.log('Using headers:', headers);
     return headers;
-  }  // Fetch all galleries (public + private)
-  async fetchAllGalleryGroups(): Promise<GalleryGroup[]> {
+  }
+
+  private async getSignedUrls(): Promise<Array<{ imageId: string; signedUrl: string }>> {
     try {
-      console.log('Fetching all gallery groups...');
+      console.log('Fetching signed URLs');
       const headers = await this.getAuthenticatedHeaders();
-      const url = `${API_URLS.GALLERY}/groups/all`;
-      console.log('Making request to:', url);
-      
-      const response = await axios.get<GalleryGroupsResponse>(url, { 
-        headers,
-        withCredentials: true
-      });
-      
-      console.log('All galleries response:', response.data);
-      return response.data.groups || [];
+      const url = `${API_URLS.GALLERY}/signed-urls`;
+      const response = await axios.get<{ success: boolean; urls: Array<{ imageId: string; signedUrl: string }> }>(
+        url,
+        {
+          headers,
+          withCredentials: true
+        }
+      );
+
+      console.log('Signed URLs response:', response.data);
+      if (!response.data.success || !response.data.urls) {
+        throw new Error('Failed to fetch signed URLs');
+      }
+
+      return response.data.urls;
     } catch (error) {
-      console.error('Error fetching all gallery groups:', error);
+      console.error('Error fetching signed URLs:', error);
       throw error;
     }
   }
 
-  // Fetch only artist's galleries
-  async fetchGalleryGroups(): Promise<GalleryGroup[]> {
+  public async fetchAllGalleryGroups(): Promise<GalleryGroup[]> {
     try {
-      console.log('Fetching artist gallery groups...');
       const headers = await this.getAuthenticatedHeaders();
-      const url = `${API_URLS.GALLERY}/groups`;
-      console.log('Making request to:', url);
-      
-      const response = await axios.get<GalleryGroupsResponse>(url, { 
+      const response = await axios.get<GalleryGroupsResponse>(`${API_URLS.GALLERY}/groups`, {
         headers,
         withCredentials: true
       });
-      
-      console.log('Gallery response data:', response.data);
-      return response.data.groups || [];
+
+      if (!response.data.groups) {
+        return [];
+      }
+
+      // Get signed URLs for all images
+      const signedUrlsResponse = await this.getSignedUrls();
+      const signedUrlMap = new Map(signedUrlsResponse.map(({ imageId, signedUrl }) => [imageId, signedUrl]));
+
+      // Update each gallery's images with signed URLs
+      const galleriesWithSignedUrls = response.data.groups.map(gallery => ({
+        ...gallery,
+        images: gallery.images.map(image => ({
+          ...image,
+          signedUrl: signedUrlMap.get(image.imageId) || ''
+        }))
+      }));
+
+      console.log('Fetched gallery groups with signed URLs:', galleriesWithSignedUrls);
+      return galleriesWithSignedUrls;
     } catch (error) {
       console.error('Error fetching gallery groups:', error);
-      throw error;
-    }
-  }
-
-  async fetchGalleryGroupById(id: string): Promise<GalleryGroup | null> {
-    try {
-      console.log('Fetching gallery group by ID:', id);
-      
-      // First try to get all galleries
-      const allGalleries = await this.fetchAllGalleryGroups();
-      
-      // Find the specific gallery
-      const gallery = allGalleries.find(g => g._id === id);
-      
-      if (!gallery) {
-        console.warn('No gallery group found with ID:', id);
-        return null;
-      }
-
-      // Ensure all image URLs are properly formatted
-      if (gallery.images) {
-        gallery.images = gallery.images.map(image => ({
-          ...image,
-          imageUrl: image.imageUrl || ''
-        }));
-      }
-
-      console.log('Found gallery:', gallery);
-      return gallery;
-    } catch (error) {
-      console.error('Error fetching gallery group:', error);
-      if (axios.isAxiosError(error)) {
-        console.error('Response details:', {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data
-        });
-        if (error.response?.status === 401) {
-          throw new Error('Please login to access this content');
-        }
-      }
-      throw error;
-    }
-  }
-
-  async deleteGalleryGroup(groupId: string): Promise<void> {
-    try {
-      console.log('Deleting gallery group:', groupId);
-      const headers = await this.getAuthenticatedHeaders();
-      const url = `${API_URLS.GALLERY}/groups/${groupId}`;
-      
-      await axios.delete(url, { 
-        headers,
-        withCredentials: true,
-        validateStatus: (status) => status < 500
-      });
-    } catch (error) {
-      console.error('Error deleting gallery group:', error);
       if (axios.isAxiosError(error) && error.response?.status === 401) {
         throw new Error('Please login to access this content');
       }
       throw error;
     }
   }
-  async uploadArtistImage(formData: FormData, onProgress?: (progressEvent: any) => void): Promise<GalleryImage> {
+
+  public async fetchGalleryGroups(): Promise<GalleryGroup[]> {
+    try {
+      console.log('Fetching artist gallery groups...');
+      const headers = await this.getAuthenticatedHeaders();
+      const url = `${API_URLS.GALLERY}/groups`;
+      
+      // Get gallery groups
+      const response = await axios.get<GalleryGroupsResponse>(url, { 
+        headers,
+        withCredentials: true
+      });
+
+      if (!response.data.groups) {
+        return [];
+      }
+
+      // Get signed URLs for all images
+      const allImageIds = response.data.groups
+        .flatMap(group => group.images.map(img => img.imageId))
+        .filter((id): id is string => !!id);
+
+      if (allImageIds.length > 0) {
+        const signedUrlsResponse = await this.getSignedUrls();
+        const signedUrlMap = new Map(signedUrlsResponse.map(({ imageId, signedUrl }) => [imageId, signedUrl]));
+
+        // Add signed URLs to images in gallery groups
+        const groupsWithSignedUrls = response.data.groups.map(group => ({
+          ...group,
+          images: group.images.map(image => ({
+            ...image,
+            signedUrl: signedUrlMap.get(image.imageId) || ''
+          }))
+        }));
+
+        return groupsWithSignedUrls;
+      }
+      
+      return response.data.groups;
+    } catch (error) {
+      console.error('Error fetching gallery groups:', error);
+      throw error;
+    }
+  }
+
+  public async fetchGalleryGroupById(id: string): Promise<GalleryGroup | null> {
+    try {
+      console.log('Fetching gallery group by ID:', id);
+      
+      // First try to get all galleries
+      const allGalleries = await this.fetchAllGalleryGroups();
+      const gallery = allGalleries.find(g => g._id === id);
+
+      if (!gallery) {
+        console.warn('No gallery group found with ID:', id);
+        return null;
+      }
+
+      if (gallery.images?.length > 0) {
+        const signedUrlsResponse = await this.getSignedUrls();
+        const signedUrlMap = new Map(signedUrlsResponse.map(({ imageId, signedUrl }) => [imageId, signedUrl]));
+
+        gallery.images = gallery.images.map(image => ({
+          ...image,
+          signedUrl: signedUrlMap.get(image.imageId) || ''
+        }));
+      }
+
+      console.log('Found gallery with signed URLs:', gallery);
+      return gallery;
+    } catch (error) {
+      console.error('Error fetching gallery group by ID:', error);
+      throw error;
+    }
+  }
+
+  public async deleteGalleryGroup(groupId: string): Promise<void> {
+    try {
+      console.log('Deleting gallery group:', groupId);
+      const headers = await this.getAuthenticatedHeaders();
+      const url = `${API_URLS.GALLERY}/groups/${groupId}`;
+      await axios.delete(url, {
+        headers,
+        withCredentials: true
+      });
+    } catch (error) {
+      console.error('Error deleting gallery group:', error);
+      throw error;
+    }
+  }
+
+  public async uploadArtistImage(formData: FormData, onProgress?: (progressEvent: AxiosProgressEvent) => void): Promise<GalleryImage> {
     try {
       const headers = await this.getAuthenticatedHeaders();
-        // Add ngrok-skip-browser-warning header and ensure proper content type handling
       headers['ngrok-skip-browser-warning'] = 'true';
       delete headers['Content-Type']; // Let browser set this for FormData
 
-      // Create a new FormData to ensure proper structure
       const uploadFormData = new FormData();
-      
-      // Get the file from the original FormData and append with the correct field name
       const file = formData.get('images');
       if (!file) {
         throw new Error('No file provided');
       }
+
       uploadFormData.append('images', file as Blob);
-      
-      // Add any additional metadata
       const type = formData.get('type');
       if (type) {
         uploadFormData.append('type', type as string);
       }
 
       const response = await axios.post<{
-        message: string;
-        images: Array<{ url: string }>;
+        success: boolean;
+        images: GalleryImage[];
       }>(`${API_URLS.GALLERY}/upload`, uploadFormData, {
         headers,
         withCredentials: true,
-        validateStatus: (status) => status < 500,
         onUploadProgress: onProgress
       });
 
-      
       console.log('Upload response:', response.data);
-
       if (!response.data.images || !response.data.images.length) {
-        throw new Error('No images received from server');
+        throw new Error('No images were uploaded');
       }
 
-      const uploadedImage = response.data.images[0];      // Return the new image object
-      return {
-        imageId: `img-${Date.now()}`,
-        imageUrl: uploadedImage.url,
-        _id: `img-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        sharedWith: []
-      };
+      const uploadedImage = response.data.images[0];
+      return uploadedImage;
     } catch (error) {
-      
-      console.error('Error uploading image:', error);
-      if (axios.isAxiosError(error)) {
-        const errorMessage = error.response?.data?.message 
-          || error.response?.data?.error 
-          || error.message 
-          || 'Failed to upload image';
-        throw new Error(errorMessage);
-      }
+      console.error('Error uploading artist image:', error);
       throw error;
     }
   }
 
-  async fetchUserGalleries(userId: string): Promise<GalleryGroup[]> {
-    try {
-      console.log('Starting fetchUserGalleries for user:', userId);
-      const headers = await this.getAuthenticatedHeaders();
-      const url = `${API_URLS.GALLERY}/groups/user/${userId}`;
-      console.log('Making request to:', url);
-      
-      const response = await axios.get<GalleryGroupsResponse>(url, { 
-        headers,
-        withCredentials: true,
-        validateStatus: (status) => status < 500
-      });
-      
-      console.log('User galleries raw response:', response);
-      console.log('User galleries response data:', response.data);
-
-      if (!response.data || !response.data.groups) {
-        console.warn('Unexpected response format:', response.data);
-        return [];
-      }
-
-      return response.data.groups;
-    } catch (error) {
-      console.error('Error in fetchUserGalleries:', error);
-      if (axios.isAxiosError(error)) {
-        console.error('Response data:', error.response?.data);
-        console.error('Response status:', error.response?.status);
-      }
-      throw error;
-    }
-  }
-
-  async uploadImage(file: File): Promise<GalleryImage> {
+  public async uploadImage(file: File): Promise<GalleryImage> {
     try {
       console.log('Uploading image...');
       const headers = await this.getAuthenticatedHeaders();
-      
-      // Create FormData
       const formData = new FormData();
       formData.append('image', file);
-      
-      // Override Content-Type since we're sending FormData
       delete headers['Content-Type'];
-      
+
       const response = await axios.post<{
-        message: string;
+        success: boolean;
         image: GalleryImage;
-      }>(`${API_URLS.GALLERY}/upload`, formData, { 
+      }>(`${API_URLS.GALLERY}/upload`, formData, {
         headers,
-        withCredentials: true,
+        withCredentials: true
       });
-      
+
       console.log('Upload response:', response.data);
       return response.data.image;
     } catch (error) {
       console.error('Error uploading image:', error);
-      if (axios.isAxiosError(error)) {
-        if (error.response?.status === 401) {
-          throw new Error('Please login to upload images');
-        }
-        throw new Error(error.response?.data?.message || 'Failed to upload image');
-      }
       throw error;
     }
   }
-    async createGalleryGroup(data: { name: string; description: string; imageIds: string[] }): Promise<GalleryGroup & { message?: string }> {
+  public async createGalleryGroup(data: CreateGalleryGroupRequest): Promise<GalleryGroup & { message?: string }> {
     try {
       console.log('Creating gallery group with data:', data);
+        // Validate request data
+      if (!data.name || typeof data.name !== 'string' || data.name.trim().length === 0) {
+        throw new Error('Name is required and must be a string');
+      }
+      if (!data.description || typeof data.description !== 'string' || data.description.trim().length === 0) {
+        throw new Error('Description is required and must be a string');
+      }
+      if (!Array.isArray(data.imageIds) || data.imageIds.length === 0) {
+        throw new Error('At least one image is required');
+      }
+      // Validate each imageId is a non-empty string
+      if (data.imageIds.some(id => typeof id !== 'string' || id.trim().length === 0)) {
+        throw new Error('All image IDs must be valid strings');
+      }
+
+      // Prepare request data with optional price info
+      const requestData: CreateGalleryGroupRequest = {
+        name: data.name.trim(),
+        description: data.description.trim(),
+        imageIds: data.imageIds,
+      };
+
+      // Only add price info if both price and currency are provided
+      if (data.basePrice !== undefined && data.basePrice !== null) {
+        const price = Number(data.basePrice);
+        if (isNaN(price) || price < 0) {
+          throw new Error('Base price must be a positive number');
+        }
+        requestData.basePrice = price;
+        
+        if (!data.baseCurrency || typeof data.baseCurrency !== 'string' || data.baseCurrency.trim().length === 0) {
+          throw new Error('Base currency is required when price is provided');
+        }
+        requestData.baseCurrency = data.baseCurrency.trim();
+      }
+
       const headers = await this.getAuthenticatedHeaders();
-      const url = `${API_URLS.GALLERY}/groups`;
-      
-      const response = await axios.post<{ message: string; group: GalleryGroup }>(
+      const url = `${API_URLS.GALLERY}/groups`;      const response = await axios.post<GalleryGroupResponse>(
         url,
-        data,
+        requestData,
         {
           headers,
-          withCredentials: true,
-          validateStatus: (status) => status < 500 // Will resolve for 2xx and 4xx responses
+          withCredentials: true
         }
       );
-      
-      console.log('Gallery creation response:', response.data);
 
+      console.log('Gallery creation response:', response.data);
       if (!response.data.group) {
         throw new Error(response.data.message || 'Failed to create gallery group');
       }
 
+      let group = response.data.group;
+      if (group.images?.length > 0) {
+        const signedUrlsResponse = await this.getSignedUrls();
+        const signedUrlMap = new Map(signedUrlsResponse.map(({ imageId, signedUrl }) => [imageId, signedUrl]));
+
+        group = {
+          ...group,
+          images: group.images.map(image => ({
+            ...image,
+            signedUrl: signedUrlMap.get(image.imageId) || ''
+          }))
+        };
+      }
+
       return {
-        ...response.data.group,
+        ...group,
         message: response.data.message
       };
     } catch (error) {
+      console.log('You tried with this data:',data, 'and got formarted to this:');
       console.error('Error creating gallery group:', error);
-      if (axios.isAxiosError(error)) {
-        const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
-        console.error('Gallery creation failed:', {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data,
-          errorMessage
-        });
-        throw new Error(errorMessage);
-      }
       throw error;
     }
   }
-  async addImagesToGalleryGroup(galleryId: string, imageIds: string[]): Promise<GalleryGroup> {
+
+  public async addImagesToGalleryGroup(galleryId: string, imageIds: string[]): Promise<GalleryGroup> {
     try {
       console.log('Adding images to gallery group:', { galleryId, imageIds });
       const headers = await this.getAuthenticatedHeaders();
       const url = `${API_URLS.GALLERY}/groups/${galleryId}`;
-      
+
       const requestData = {
         imageIds,
-        action: 'add'
+        action: 'add' as const
       };
+
       console.log('Request payload:', JSON.stringify(requestData, null, 2));
-      
       const response = await axios.put<{ message: string; group: GalleryGroup }>(
         url,
-        {
-          imageIds,
-          action: 'add'
-        },
+        requestData,
         {
           headers,
-          withCredentials: true,
-          validateStatus: (status) => status < 500
+          withCredentials: true
         }
       );
-      
-      console.log('Request payload:', JSON.stringify(requestData, null, 2),'Add images response:', response.data);
 
+      console.log('Add images response:', response.data);
       if (!response.data.group) {
         throw new Error(response.data.message || 'Failed to add images to gallery group');
       }
-
       return response.data.group;
     } catch (error) {
       console.error('Error adding images to gallery group:', error);
-      if (axios.isAxiosError(error)) {
-        const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
-        throw new Error(errorMessage);
-      }
       throw error;
     }
   }
-  async removeImagesFromGalleryGroup(galleryId: string, imageIds: string[]): Promise<GalleryGroup> {
+
+  public async removeImagesFromGalleryGroup(galleryId: string, imageIds: string[]): Promise<GalleryGroup> {
     try {
       console.log('Removing images from gallery group:', { galleryId, imageIds });
       const headers = await this.getAuthenticatedHeaders();
       const url = `${API_URLS.GALLERY}/groups/${galleryId}`;
-      
+
       const requestData = {
         imageIds,
-        action: 'remove'
+        action: 'remove' as const
       };
+
       console.log('Request payload:', JSON.stringify(requestData, null, 2));
-      
       const response = await axios.put<{ message: string; group: GalleryGroup }>(
         url,
-        {
-          imageIds,
-          action: 'remove'
-        },
+        requestData,
         {
           headers,
-          withCredentials: true,
-          validateStatus: (status) => status < 500
+          withCredentials: true
         }
       );
-      
-      console.log('Remove images response:', response.data);
 
+      console.log('Remove images response:', response.data);
       if (!response.data.group) {
         throw new Error(response.data.message || 'Failed to remove images from gallery group');
       }
-
       return response.data.group;
     } catch (error) {
       console.error('Error removing images from gallery group:', error);
-      if (axios.isAxiosError(error)) {
-        const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
-        throw new Error(errorMessage);
-      }
       throw error;
     }
-  }  async getSignedUrls(): Promise<Array<{ imageId: string; signedUrl: string }>> {
+  }
+
+  public async getArtistImages(): Promise<GalleryImage[]> {
     try {
-      console.log('Fetching signed URLs');
       const headers = await this.getAuthenticatedHeaders();
-      const url = `${API_URLS.GALLERY}/signed-urls`;
+      console.log('Making request to fetch artist images...');
       
-      const response = await axios.get<{ success: boolean; urls: Array<{ imageId: string; signedUrl: string }> }>(
-        url,
-        {
+      // Get image metadata from /images endpoint
+      const imagesResponse = await axios.get<{ success: boolean; images: GalleryImage[] }>(
+        `${API_URLS.GALLERY}/images`, 
+        { 
           headers,
-          withCredentials: true,
-          validateStatus: (status) => status < 500
+          withCredentials: true 
         }
       );
       
-      console.log('Signed URLs response:', response.data);
-
-      if (!response.data.success || !response.data.urls) {
-        throw new Error('Failed to get signed URLs');
+      if (!imagesResponse.data.success || !imagesResponse.data.images) {
+        console.error('No images found in response:', imagesResponse.data);
+        return [];
       }
 
-      return response.data.urls;
+      // Get signed URLs from /signed-urls endpoint
+      const signedUrlsResponse = await this.getSignedUrls();
+      const signedUrlMap = new Map(signedUrlsResponse.map(({ imageId, signedUrl }) => [imageId, signedUrl]));      // Combine image metadata with signed URLs
+      const combinedImages = imagesResponse.data.images.map(image => ({
+        ...image,
+        imageUrl: signedUrlMap.get(image.imageId) || '', // Keep signed URL in imageUrl for display
+        _id: image._id, // Ensure _id is included
+        mongoId: image._id // Add an explicit mongoId field to make it clear this is the ID we want to use
+      }));
+
+      console.log('Combined images with signed URLs:', combinedImages);
+      return combinedImages;
     } catch (error) {
-      console.error('Error getting signed URLs:', error);
-      if (axios.isAxiosError(error)) {
-        const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
-        throw new Error(errorMessage);
-      }
+      console.error('Error fetching artist images:', error);
       throw error;
     }
   }

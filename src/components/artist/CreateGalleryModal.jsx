@@ -5,12 +5,12 @@ import { galleryService } from '../../services/galleryService';
 import { Search, Plus, X, ImageIcon } from 'lucide-react';
 import { useMessage } from '../../hooks/useMessage';
 
-const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
-  const navigate = useNavigate();
+const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {  const navigate = useNavigate();
   const { isDarkMode } = useTheme();
-  const addMessage = useMessage();
+  const { addMessage } = useMessage();
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);  const [loadingImages, setLoadingImages] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [loadingImages, setLoadingImages] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [availableImages, setAvailableImages] = useState([]);
   
@@ -55,16 +55,15 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
     const fetchImages = async () => {
       try {
         setLoadingImages(true);
-        setError('');
-        const images = await galleryService.getArtistImages();
+        setError('');        const images = await galleryService.getArtistImages();
         if (!images || images.length === 0) {
           setError('No images available. Please upload some images first.');
           return;
-        }
-        setAvailableImages(images.map(img => ({
-          id: img.imageId,
-          url: img.imageUrl,
-          title: img.imageId, // Using imageId as title since we don't have a title field
+        }        setAvailableImages(images.map(img => ({
+          id: img._id, // Use MongoDB _id for image selection
+          url: img.imageUrl || img.signedUrl || '', // Use either imageUrl or signedUrl for display
+          title: img.imageId, // Keep imageId as title for display purposes
+          mongoId: img._id, // Store the MongoDB _id explicitly
           category: 'Art' // Default category since we don't have categories yet
         })));
       } catch (err) {
@@ -178,13 +177,14 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
 
     try {
       setLoading(true);      setError('');
-      
-      const requestData = {
+        const requestData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
         imageIds: formData.imageIds,
-        basePrice: formData.basePrice !== '' ? parseFloat(formData.basePrice) : null,
-        baseCurrency: formData.baseCurrency
+        ...(formData.basePrice !== '' && {
+          basePrice: parseFloat(formData.basePrice),
+          baseCurrency: formData.baseCurrency
+        })
       };
       
       console.log('Submitting gallery creation with:', requestData);

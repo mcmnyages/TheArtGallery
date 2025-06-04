@@ -475,11 +475,16 @@ const ManageGalleryPage = () => {
                               >
                                 <div className="relative w-full h-full rounded-lg overflow-hidden shadow-lg">
                                   <img
-                                    src={image.imageUrl}
-                                    alt={image.title || 'Gallery Image'}
+                                    src={image.signedUrl || image.imageUrl}
+                                    alt={image.title || image.name || 'Gallery Image'}
                                     className="w-full h-full object-cover transform transition-transform duration-700 group-hover:scale-110"
                                     loading="lazy"
                                   />
+                                  {image.title && (
+                                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1 text-white text-xs truncate">
+                                      {image.title}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             ))}
