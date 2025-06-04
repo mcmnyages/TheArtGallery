@@ -55,7 +55,6 @@ const OTPVerification = ({ userId, email, onBack, isSignupFlow }) => {
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
-
   const handleLogin = async (credentials) => {
     try {
       setVerificationStatus('redirecting');
@@ -69,22 +68,25 @@ const OTPVerification = ({ userId, email, onBack, isSignupFlow }) => {
       
       if (loginResult.success) {
         console.log('✅ Login successful after OTP verification');
-        const actionText = isSignupFlow ? 'Registration completed!' : 'Login successful!';
-        setVerificationSuccess(`${actionText} Redirecting to your dashboard...`);
+        // Clean up credentials immediately
         sessionStorage.removeItem('tempLoginCredentials');
         
-        // Determine where to navigate based on user's role/resources
+        // Determine redirect path immediately
         const defaultPath = '/galleries';
         const resources = loginResult.user?.userResources || [];
         const artistAccess = resources.some(r => r.name === 'Artwork' && r.status === 'success');
         const adminAccess = resources.some(r => r.name === 'Admin_dashboard' && r.status === 'success');
         
-        setTimeout(() => {
-          let redirectPath = defaultPath;
-          if (adminAccess) redirectPath = '/admin/dashboard';
-          else if (artistAccess) redirectPath = '/artist/dashboard';
-          navigate(redirectPath);
-        }, 1500);
+        let redirectPath = defaultPath;
+        if (adminAccess) redirectPath = '/admin/dashboard';
+        else if (artistAccess) redirectPath = '/artist/dashboard';
+
+        // Set brief success message and redirect immediately
+        const actionText = isSignupFlow ? 'Registration completed!' : 'Login successful!';
+        setVerificationSuccess(actionText);
+        
+        // Immediate redirect with replace to prevent back navigation
+        navigate(redirectPath, { replace: true });
       } else {
         throw new Error(loginResult.error || 'Failed to log in');
       }
@@ -129,12 +131,10 @@ const OTPVerification = ({ userId, email, onBack, isSignupFlow }) => {
       console.log('📤 Submitting OTP verification request', { userId, otpLength: otp.length });
       const result = await verifyOTP(userId, otp);
       console.log('📥 OTP verification response:', { success: result.success, error: result.error });
-      
-      if (result.success) {
+        if (result.success) {
         console.log('✅ OTP verified successfully, proceeding to login');
         setVerificationStatus('success');
-        setVerificationSuccess('Code verified successfully!');
-        // After successful OTP verification, attempt to log in
+        // Immediately proceed to login without showing intermediate success message
         await handleLogin(JSON.parse(storedCredentials));
       } else {
         console.error('❌ OTP verification failed:', result.error);
