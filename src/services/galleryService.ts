@@ -35,14 +35,21 @@ export interface GalleryGroup {
   images: GalleryImage[];
   sharedWith: string[];
   createdAt: string;
-  basePrice?: number;
-  baseCurrency?: string;
+  basePrice: number;
+  baseCurrency: string;
+  paymentRequired: boolean;
   __v: number;
 }
 
 export interface GalleryGroupsResponse {
   message: string;
   groups: GalleryGroup[];
+}
+
+export interface PaymentStatus {
+  hasAccess: boolean;
+  orderId?: string;
+  expiresAt?: string;
 }
 
 export class GalleryService {
@@ -550,6 +557,46 @@ export class GalleryService {
       console.log('Image deleted successfully:', response.data);
     } catch (error) {
       console.error('Error deleting artist image:', error);
+      throw error;
+    }
+  }
+
+  public async checkGalleryAccess(galleryId: string): Promise<PaymentStatus> {
+    try {
+      const headers = await this.getAuthenticatedHeaders();
+      const response = await axios.get<PaymentStatus>(
+        `${API_URLS.GALLERY}/access/${galleryId}`,
+        {
+          headers,
+          withCredentials: true
+        }
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error checking gallery access:', error);
+      throw error;
+    }
+  }
+
+  public async verifyPayment(galleryId: string, orderId: string): Promise<PaymentStatus> {
+    try {
+      const headers = await this.getAuthenticatedHeaders();
+      const response = await axios.post<PaymentStatus>(
+        `${API_URLS.GALLERY}/verify-payment`,
+        {
+          galleryId,
+          orderId
+        },
+        {
+          headers,
+          withCredentials: true
+        }
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error verifying payment:', error);
       throw error;
     }
   }
