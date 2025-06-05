@@ -27,11 +27,13 @@ const GalleryPaymentModal: React.FC<GalleryPaymentModalProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
 
   if (!isOpen) return null;
-
   const handlePaymentSuccess = async (orderId: string) => {
     try {
       setIsProcessing(true);
       setError(null);
+      
+      // Add a small delay to ensure PayPal's systems have processed the payment
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Verify the payment with our backend
       const paymentStatus = await galleryService.verifyPayment(galleryId, orderId);
@@ -40,11 +42,16 @@ const GalleryPaymentModal: React.FC<GalleryPaymentModalProps> = ({
         onPaymentSuccess();
         onClose();
       } else {
-        throw new Error('Payment verification failed');
+        throw new Error('Payment verification failed. If the amount was charged, please contact support.');
       }
     } catch (error) {
       console.error('Payment verification error:', error);
-      setError('There was a problem verifying your payment. Please contact support.');
+      
+      // Generate a support reference number for troubleshooting
+      const errorRef = `ERR-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 5)}`.toUpperCase();
+      console.error('Support reference:', errorRef);
+      
+      setError(`There was a problem verifying your payment. Please contact support with reference: ${errorRef}`);
     } finally {
       setIsProcessing(false);
     }
