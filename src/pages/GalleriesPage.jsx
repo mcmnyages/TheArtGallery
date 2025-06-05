@@ -127,14 +127,17 @@ const GalleriesPage = () => {
                             isDarkMode ? 'bg-gray-800' : 'bg-white'
                           }`}
                         >
-                          <div className="h-48 bg-gray-200 relative">
-                            {gallery.images && gallery.images[0] && (
+                          <div className="h-48 bg-gray-200 relative">                            {gallery.images && gallery.images[0] && gallery.images[0].signedUrl && (
                               <img 
-                                src={gallery.images[0].imageUrl}
+                                src={gallery.images[0].signedUrl}
                                 alt={gallery.name} 
                                 className={`w-full h-full object-cover ${
                                   isLocked ? 'opacity-50' : ''
                                 }`}
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = '/assets/images/art-2475718_1280.jpg'; // fallback image
+                                }}
                               />
                             )}
                             <div className="absolute bottom-0 right-0 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded-tl-md">
@@ -159,22 +162,65 @@ const GalleriesPage = () => {
                               }`}>
                                 {gallery.name}
                               </h3>
-                              {artistProfile && artistProfile.id === gallery.userId && (
-                                <span className={`text-xs px-2 py-1 rounded ${
-                                  isDarkMode
-                                    ? 'bg-green-700 text-green-100'
-                                    : 'bg-green-100 text-green-700'
-                                }`}>
-                                  Your Gallery
-                                </span>
-                              )}
+                              <div className="flex flex-col items-end gap-1">
+                                {artistProfile && artistProfile.id === gallery.userId && (
+                                  <span className={`text-xs px-2 py-1 rounded ${
+                                    isDarkMode
+                                      ? 'bg-green-700 text-green-100'
+                                      : 'bg-green-100 text-green-700'
+                                  }`}>
+                                    Your Gallery
+                                  </span>
+                                )}
+                                {gallery.isPublic ? (
+                                  <span className={`text-xs px-2 py-1 rounded ${
+                                    isDarkMode
+                                      ? 'bg-blue-700 text-blue-100'
+                                      : 'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    Public
+                                  </span>
+                                ) : (
+                                  <span className={`text-xs px-2 py-1 rounded ${
+                                    isDarkMode
+                                      ? 'bg-yellow-700 text-yellow-100'
+                                      : 'bg-yellow-100 text-yellow-700'
+                                  }`}>
+                                    Private
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <p className={`text-sm ${
                               isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                            }`}>
+                            } mb-3`}>
                               {gallery.description}
                             </p>
-                            <div className="mt-4 flex justify-between items-center">
+                            <div className="flex justify-between items-center border-t pt-3 mt-2">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-lg font-semibold ${
+                                  isDarkMode ? 'text-white' : 'text-gray-900'
+                                }`}>
+                                  {gallery.basePrice} {gallery.baseCurrency}
+                                </span>
+                                {gallery.isActive ? (
+                                  <span className={`text-xs px-2 py-1 rounded ${
+                                    isDarkMode
+                                      ? 'bg-green-700 text-green-100'
+                                      : 'bg-green-100 text-green-700'
+                                  }`}>
+                                    Active
+                                  </span>
+                                ) : (
+                                  <span className={`text-xs px-2 py-1 rounded ${
+                                    isDarkMode
+                                      ? 'bg-red-700 text-red-100'
+                                      : 'bg-red-100 text-red-700'
+                                  }`}>
+                                    Inactive
+                                  </span>
+                                )}
+                              </div>
                               <span className={`text-sm ${
                                 isDarkMode ? 'text-gray-400' : 'text-gray-500'
                               }`}>
