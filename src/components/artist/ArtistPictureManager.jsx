@@ -25,12 +25,10 @@ const ArtistPictureManager = () => {
 
   useEffect(() => {
     fetchArtistImages();
-  }, []);
-  const fetchArtistImages = async () => {
+  }, []);  const fetchArtistImages = async () => {
     try {
-      setLoading(true);
-      const fetchedImages = await galleryService.getSignedUrls();
-      console.log('Fetched artist images:', fetchedImages);
+      setLoading(true);      const fetchedImages = await galleryService.getArtistImages();
+      console.log('Fetched artist images with details:', fetchedImages);
       setImages(fetchedImages);
       setError(null);    } catch (err) {
       console.error('Failed to fetch images:', err);
@@ -41,10 +39,9 @@ const ArtistPictureManager = () => {
       setLoading(false);
     }
   };
-
-  const handleDeleteImage = async (imageId) => {
+  const handleDeleteImage = async (imageId, mongoId) => {
     if (window.confirm('Are you sure you want to delete this image?')) {      try {
-        await galleryService.deleteArtistImage(imageId);
+        await galleryService.deleteArtistImage(mongoId);
         await fetchArtistImages();
         addMessage({ text: 'Image deleted successfully', type: 'success' });
       } catch (err) {
@@ -53,14 +50,14 @@ const ArtistPictureManager = () => {
         addMessage({ text: errorMsg, type: 'error' });
       }
     }
-  };  const toggleImageSelection = (imageId) => {
+  };  const toggleImageSelection = (mongoId) => {
     setSelectedImages(prev => {
       const next = new Set(prev);
-      if (next.has(imageId)) {
-        next.delete(imageId);
+      if (next.has(mongoId)) {
+        next.delete(mongoId);
         addMessage({ text: 'Image deselected', type: 'info' });
       } else {
-        next.add(imageId);
+        next.add(mongoId);
         addMessage({ text: 'Image selected', type: 'info' });
       }
       return next;
@@ -73,10 +70,9 @@ const ArtistPictureManager = () => {
   };
   const handleBulkDelete = async () => {
     if (window.confirm(`Are you sure you want to delete ${selectedImages.size} images?`)) {
-      setLoading(true);
-      try {
-        const deletePromises = Array.from(selectedImages).map(imageId =>
-          galleryService.deleteArtistImage(imageId)
+      setLoading(true);      try {
+        const deletePromises = Array.from(selectedImages).map(mongoId =>
+          galleryService.deleteArtistImage(mongoId)
         );        await Promise.all(deletePromises);
         setSelectedImages(new Set()); // Clear selection
         await fetchArtistImages(); // Refresh the image list
@@ -272,17 +268,15 @@ const ArtistPictureManager = () => {
         {sortedAndFilteredImages?.map((image) => {
           console.log('Rendering image:', image);
           return (
-          <div
-            key={image.imageId}
+          <div            key={image._id}
             className={`group relative rounded-lg overflow-hidden shadow-lg ${
               isDarkMode ? 'bg-gray-800' : 'bg-white'
-            } ${selectedImages.has(image.imageId) ? 'ring-2 ring-blue-500' : ''}`}
+            } ${selectedImages.has(image._id) ? 'ring-2 ring-blue-500' : ''}`}
           >
             {/* Selection Checkbox */}
-            <div className="absolute top-2 left-2 z-10">                <button
-                  onClick={() => toggleImageSelection(image.imageId)}
+            <div className="absolute top-2 left-2 z-10">                <button                  onClick={() => toggleImageSelection(image._id)}
                   className={`p-2 rounded-full transition-colors ${
-                    selectedImages.has(image.imageId)
+                    selectedImages.has(image._id)
                     ? 'bg-blue-500 text-white'
                     : 'bg-white/75 hover:bg-white text-gray-700'
                 }`}
@@ -311,8 +305,7 @@ const ArtistPictureManager = () => {
                 >
                   <FaEye className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={() => handleDeleteImage(image.imageId)}
+                <button                  onClick={() => handleDeleteImage(image.imageId, image._id)}
                   className="p-2 bg-white rounded-full text-red-600 hover:bg-gray-100 transition-colors"
                 >
                   <FaTrash className="w-5 h-5" />
@@ -320,21 +313,26 @@ const ArtistPictureManager = () => {
               </div>
             </div>
 
-            {/* Details */}
-            <div className="p-4">
+            {/* Details */}            <div className="p-4">
               <h3 className={`font-semibold truncate ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
-                
+                {image.title || 'Untitled Artwork'}
               </h3>
               <p className={`text-sm mt-1 truncate ${
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>
-                
-              </p>              <p className={`text-xs mt-1 ${
+                {image.category ? image.category.charAt(0).toUpperCase() + image.category.slice(1) : 'Uncategorized'}
+              </p>
+              <p className={`text-xs mt-1 ${
                 isDarkMode ? 'text-gray-500' : 'text-gray-400'
               }`}>
-                Image ID: {image.imageId}
+                {image.createdAt ? new Date(image.createdAt).toLocaleDateString() : 'Date not available'}
+              </p>
+              <p className={`text-xs mt-1 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-400'
+              }`}>
+                ID: {image._id}
               </p>
             </div>
           </div>
@@ -357,14 +355,15 @@ const ArtistPictureManager = () => {
             </button>
           )}
         </div>
-      )}
-
-      {/* Image Viewer Modal */}      {viewerOpen && selectedImage && (
+      )}      {/* Image Viewer Modal */}      {viewerOpen && selectedImage && (
         <ImageViewer
           image={{
             url: selectedImage.signedUrl,
-            title: 'Artwork',
-            imageId: selectedImage.imageId
+            title: selectedImage.title || 'Artwork',
+            imageId: selectedImage.imageId,
+            mongoId: selectedImage._id,
+            createdAt: selectedImage.createdAt,
+            category: selectedImage.category
           }}
           onClose={() => {
             setViewerOpen(false);

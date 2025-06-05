@@ -75,28 +75,53 @@ export class GalleryService {
     console.log('Using headers:', headers);
     return headers;
   }
-
-  private async getSignedUrls(): Promise<Array<{ imageId: string; signedUrl: string }>> {
+  private async getSignedUrls(): Promise<GalleryImage[]> {
     try {
-      console.log('Fetching signed URLs');
+      console.log('Fetching signed URLs and image details');
       const headers = await this.getAuthenticatedHeaders();
-      const url = `${API_URLS.GALLERY}/signed-urls`;
-      const response = await axios.get<{ success: boolean; urls: Array<{ imageId: string; signedUrl: string }> }>(
-        url,
+      
+      // Fetch signed URLs
+      const signedUrlResponse = await axios.get<{ success: boolean; urls: Array<{ imageId: string; signedUrl: string }> }>(
+        `${API_URLS.GALLERY}/signed-urls`,
         {
           headers,
           withCredentials: true
         }
       );
 
-      console.log('Signed URLs response:', response.data);
-      if (!response.data.success || !response.data.urls) {
+      // Fetch image details
+      const imagesResponse = await axios.get<{ success: boolean; images: GalleryImage[] }>(
+        `${API_URLS.GALLERY}/images`,
+        {
+          headers,
+          withCredentials: true
+        }
+      );
+
+      if (!signedUrlResponse.data.success || !signedUrlResponse.data.urls) {
         throw new Error('Failed to fetch signed URLs');
       }
 
-      return response.data.urls;
+      if (!imagesResponse.data.success || !imagesResponse.data.images) {
+        throw new Error('Failed to fetch image details');
+      }
+
+      // Create a map of signed URLs
+      const signedUrlMap = new Map(
+        signedUrlResponse.data.urls.map(({ imageId, signedUrl }) => [imageId, signedUrl])
+      );
+
+      // Combine image details with signed URLs
+      const combinedImages = imagesResponse.data.images.map(image => ({
+        ...image,
+        signedUrl: signedUrlMap.get(image.imageId) || '',
+        mongoId: image._id // Add explicit mongoId field for clarity
+      }));
+
+      console.log('Combined images with signed URLs:', combinedImages);
+      return combinedImages;
     } catch (error) {
-      console.error('Error fetching signed URLs:', error);
+      console.error('Error fetching image data:', error);
       throw error;
     }
   }
@@ -431,41 +456,81 @@ export class GalleryService {
       console.error('Error removing images from gallery group:', error);
       throw error;
     }
-  }
-
-  public async getArtistImages(): Promise<GalleryImage[]> {
+  }  public async getArtistImages(): Promise<GalleryImage[]> {
     try {
       const headers = await this.getAuthenticatedHeaders();
       console.log('Making request to fetch artist images...');
       
-      // Get image metadata from /images endpoint
-      const imagesResponse = await axios.get<{ success: boolean; images: GalleryImage[] }>(
-        `${API_URLS.GALLERY}/images`, 
-        { 
-          headers,
-          withCredentials: true 
-        }
-      );
+      // Get both image details and signed URLs in parallel
+      const [imagesResponse, signedUrlResponse] = await Promise.all([
+        axios.get<{ success: boolean; images: GalleryImage[] }>(
+          `${API_URLS.GALLERY}/images`, 
+          { 
+            headers,
+            withCredentials: true 
+          }
+        ),
+        axios.get<{ success: boolean; urls: Array<{ imageId: string; signedUrl: string }> }>(
+          `${API_URLS.GALLERY}/signed-urls`,
+          {
+            headers,
+            withCredentials: true
+          }
+        )
+      ]);
       
       if (!imagesResponse.data.success || !imagesResponse.data.images) {
         console.error('No images found in response:', imagesResponse.data);
         return [];
       }
+        // Validate signed URLs response
+      if (!signedUrlResponse.data.success || !signedUrlResponse.data.urls) {
+        throw new Error('Failed to fetch signed URLs');
+      }
 
-      // Get signed URLs from /signed-urls endpoint
-      const signedUrlsResponse = await this.getSignedUrls();
-      const signedUrlMap = new Map(signedUrlsResponse.map(({ imageId, signedUrl }) => [imageId, signedUrl]));      // Combine image metadata with signed URLs
+      // Create map of signed URLs and combine with image details
+      const signedUrlMap = new Map(signedUrlResponse.data.urls.map(({ imageId, signedUrl }) => [imageId, signedUrl]));
       const combinedImages = imagesResponse.data.images.map(image => ({
         ...image,
-        imageUrl: signedUrlMap.get(image.imageId) || '', // Keep signed URL in imageUrl for display
-        _id: image._id, // Ensure _id is included
-        mongoId: image._id // Add an explicit mongoId field to make it clear this is the ID we want to use
+        imageUrl: signedUrlMap.get(image.imageId) || '', // Use imageUrl for gallery UI
+        signedUrl: signedUrlMap.get(image.imageId) || '', // Keep original signedUrl field for consistency
+        _id: image._id, // Keep MongoDB _id
+        mongoId: image._id // Add explicit mongoId field for clarity
       }));
 
-      console.log('Combined images with signed URLs:', combinedImages);
+      if (combinedImages.length > 0) {
+        console.log('Example of combined image data:', {
+          sampleImage: combinedImages[0],
+          totalImages: combinedImages.length
+        });
+      }
+
+      console.log('Successfully combined images with signed URLs');
       return combinedImages;
     } catch (error) {
       console.error('Error fetching artist images:', error);
+      throw error;
+    }
+  }
+
+  public async deleteArtistImage(mongoId: string): Promise<void> {
+    try {
+      console.log('Deleting artist image with mongoId:', mongoId);
+      const headers = await this.getAuthenticatedHeaders();
+      const url = `${API_URLS.GALLERY}/delete/${mongoId}`;
+      
+      const response = await axios.delete(url, {
+        headers,
+        withCredentials: true
+      });
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to delete image');
+      }
+
+      console.log('Image deleted successfully:', response.data);
+    } catch (error) {
+      console.error('Error deleting artist image:', error);
       throw error;
     }
   }
