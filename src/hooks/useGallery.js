@@ -44,10 +44,17 @@ export const useGallery = () => {
       console.log('Fetching all public galleries from service');
       const groups = await galleryService.fetchAllGalleryGroups();
       console.log('Received galleries:', groups);
-      setGalleries(groups || []); // Ensure we always have an array
+      
+      if (!groups || !Array.isArray(groups)) {
+        console.error('Invalid gallery data received:', groups);
+        throw new Error('Received invalid gallery data from server');
+      }
+      
+      setGalleries(groups);
     } catch (err) {
       console.error('Error fetching galleries:', err);
-      setError(err.message || 'Failed to load galleries. Please try again.');
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to load galleries. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

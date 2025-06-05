@@ -128,31 +128,50 @@ export class GalleryService {
 
   public async fetchAllGalleryGroups(): Promise<GalleryGroup[]> {
     try {
+      console.log('Starting fetchAllGalleryGroups...');
       const headers = await this.getAuthenticatedHeaders();
-      const response = await axios.get<GalleryGroupsResponse>(`${API_URLS.GALLERY}/groups`, {
+      
+      const response = await axios.get<GalleryGroupsResponse>(`${API_URLS.GALLERY}/groups/all`, {
         headers,
         withCredentials: true
       });
+      
+      console.log('Raw API response:', response.data);
 
       if (!response.data.groups) {
+        console.warn('No groups found in response data');
         return [];
       }
 
-      // Get signed URLs for all images
-      const signedUrlsResponse = await this.getSignedUrls();
-      const signedUrlMap = new Map(signedUrlsResponse.map(({ imageId, signedUrl }) => [imageId, signedUrl]));
+      console.log('Number of groups received:', response.data.groups.length);
 
-      // Update each gallery's images with signed URLs
-      const galleriesWithSignedUrls = response.data.groups.map(gallery => ({
-        ...gallery,
-        images: gallery.images.map(image => ({
-          ...image,
-          signedUrl: signedUrlMap.get(image.imageId) || ''
-        }))
-      }));
+      // No need to fetch signed URLs if there are no images
+      const galleriesWithImages = response.data.groups.filter(gallery => 
+        gallery.images && gallery.images.length > 0
+      );
 
-      console.log('Fetched gallery groups with signed URLs:', galleriesWithSignedUrls);
-      return galleriesWithSignedUrls;
+      if (galleriesWithImages.length > 0) {
+        // Only fetch signed URLs if there are galleries with images
+        const signedUrlsResponse = await this.getSignedUrls();
+        console.log('Signed URLs response:', signedUrlsResponse);
+
+        const signedUrlMap = new Map(signedUrlsResponse.map(({ imageId, signedUrl }) => [imageId, signedUrl]));
+        console.log('Created signed URL map with keys:', Array.from(signedUrlMap.keys()));
+
+        // Update each gallery's images with signed URLs
+        return response.data.groups.map(gallery => ({
+          ...gallery,
+          images: gallery.images.map(image => ({
+            ...image,
+            signedUrl: signedUrlMap.get(image.imageId) || ''
+          }))
+        }));
+      }
+
+      // Return galleries as is if no images need signed URLs
+      console.log('Returning galleries without signed URLs:', response.data.groups);
+      return response.data.groups;
+
     } catch (error) {
       console.error('Error fetching gallery groups:', error);
       if (axios.isAxiosError(error) && error.response?.status === 401) {

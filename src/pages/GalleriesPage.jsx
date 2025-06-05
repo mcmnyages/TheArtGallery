@@ -37,12 +37,15 @@ const GalleriesPage = () => {
     // By default, lock all galleries except the ones owned by the current user
     return !isOwner;
   };
-
-  // Filter galleries based on search term
+  // Filter galleries based on search term and public/private status
   const filteredGalleries = galleries.filter(gallery => {
     const matchesSearch = gallery.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          gallery.description.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    const isOwner = artistProfile?.id === gallery.userId;
+    // Show gallery if it's public OR if the current user is the owner
+    const shouldShow = gallery.isPublic || isOwner;
+    
+    return matchesSearch && shouldShow;
   });
 
   // Handle gallery click
