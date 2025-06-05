@@ -76,15 +76,14 @@ const GalleryDetailPage = () => {
       });
     }
   }, [gallery]);
-
   const handleImageClick = (image) => {
-    if (!image?.imageUrl) {
-      console.log('No image URL found');
+    if (!image?.signedUrl) {
+      console.log('No signed URL found for image');
       return;
     }
     setSelectedImage({
       ...image,
-      url: image.imageUrl
+      url: image.signedUrl
     });
     setViewerOpen(true);
   };
@@ -330,17 +329,16 @@ const GalleryDetailPage = () => {
                 className={`rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer group transform hover:-translate-y-1 ${
                   isDarkMode ? 'bg-gray-800' : 'bg-white'
                 }`}
-              >
-                <div className="relative aspect-[4/3] bg-gray-200 overflow-hidden">
-                  {image.imageUrl ? (
+              >                <div className="relative aspect-[4/3] bg-gray-200 overflow-hidden">
+                  {image.signedUrl ? (
                     <img 
-                      src={image.imageUrl}
+                      src={image.signedUrl}
                       alt={`Image ${index + 1} in ${gallery.name}`}
                       className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
                       loading="lazy"
                       onError={(e) => {
-                        console.error('Image failed to load:', image.imageUrl);
-                        e.target.src = '/assets/images/placeholder.jpg';
+                        console.error('Image failed to load:', image.signedUrl);
+                        e.target.src = '/assets/images/art-2475718_1280.jpg';
                         e.target.onerror = null;
                       }}
                     />
@@ -368,11 +366,10 @@ const GalleryDetailPage = () => {
       
       {viewerOpen && selectedImage && gallery?.images && (
         <ImageViewer
-          imageData={{
-            url: selectedImage.imageUrl,
+          imageData={{            url: selectedImage.signedUrl,
             title: `Image in ${gallery.name}`,
             metadata: selectedImage.metadata || {},
-            addedOn: new Date(selectedImage.uploadedAt || selectedImage.createdAt).toLocaleDateString(),
+            addedOn: new Date(selectedImage.createdAt).toLocaleDateString(),
             id: selectedImage._id
           }}
           onClose={handleCloseViewer}
