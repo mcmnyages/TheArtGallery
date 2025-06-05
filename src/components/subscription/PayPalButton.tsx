@@ -9,6 +9,14 @@ interface PayPalButtonProps {
   onError: (error: Error) => void;
 }
 
+interface PayPalLogger {
+  track: () => Promise<void>;
+  error: () => Promise<void>;
+  warn: () => Promise<void>;
+  info: () => Promise<void>;
+  debug: () => Promise<void>;
+}
+
 interface PayPalSDK {
   Buttons: (config: {
     style?: {
@@ -25,6 +33,7 @@ interface PayPalSDK {
     close: () => void;
     isEligible: () => boolean;
   };
+  logger?: PayPalLogger;
 }
 
 declare global {
@@ -145,12 +154,30 @@ const PayPalButton: React.FC<PayPalButtonProps> = ({
         if (script) {
           // Script exists, check if PayPal is already loaded
           if (window.paypal) {
+            // Handle blocked logger case
+            if (window.paypal.logger) {
+              window.paypal.logger.error = window.paypal.logger.error || (() => Promise.resolve());
+              window.paypal.logger.warn = window.paypal.logger.warn || (() => Promise.resolve());
+              window.paypal.logger.info = window.paypal.logger.info || (() => Promise.resolve());
+              window.paypal.logger.debug = window.paypal.logger.debug || (() => Promise.resolve());
+              window.paypal.logger.track = window.paypal.logger.track || (() => Promise.resolve());
+            }
             resolve();
             return;
           }
           
           // Script exists but PayPal not loaded, wait for it
-          script.onload = () => resolve();
+          script.onload = () => {
+            // Handle blocked logger case after load
+            if (window.paypal?.logger) {
+              window.paypal.logger.error = window.paypal.logger.error || (() => Promise.resolve());
+              window.paypal.logger.warn = window.paypal.logger.warn || (() => Promise.resolve());
+              window.paypal.logger.info = window.paypal.logger.info || (() => Promise.resolve());
+              window.paypal.logger.debug = window.paypal.logger.debug || (() => Promise.resolve());
+              window.paypal.logger.track = window.paypal.logger.track || (() => Promise.resolve());
+            }
+            resolve();
+          };
           script.onerror = () => reject(new Error('Failed to load existing PayPal script'));
           return;
         }
@@ -166,6 +193,14 @@ const PayPalButton: React.FC<PayPalButtonProps> = ({
           // Add a small delay to ensure PayPal is fully initialized
           setTimeout(() => {
             if (window.paypal) {
+              // Handle blocked logger case after initial load
+              if (window.paypal.logger) {
+                window.paypal.logger.error = window.paypal.logger.error || (() => Promise.resolve());
+                window.paypal.logger.warn = window.paypal.logger.warn || (() => Promise.resolve());
+                window.paypal.logger.info = window.paypal.logger.info || (() => Promise.resolve());
+                window.paypal.logger.debug = window.paypal.logger.debug || (() => Promise.resolve());
+                window.paypal.logger.track = window.paypal.logger.track || (() => Promise.resolve());
+              }
               resolve();
             } else {
               reject(new Error('PayPal SDK loaded but window.paypal is not available'));
@@ -190,10 +225,26 @@ const PayPalButton: React.FC<PayPalButtonProps> = ({
         setIsLoading(true);
         setLoadError(null);
 
-        await loadPayPalScript();
-        
-        if (isMountedRef.current) {
-          await initializePayPalButtons();
+        const maxRetries = 3;
+        let retryCount = 0;
+
+        while (retryCount < maxRetries) {
+          try {
+            await loadPayPalScript();
+            
+            if (isMountedRef.current) {
+              await initializePayPalButtons();
+              break; // Success, exit retry loop
+            }
+            return;
+          } catch (error) {
+            retryCount++;
+            if (retryCount === maxRetries) {
+              throw error; // Throw on final retry
+            }
+            console.warn(`PayPal initialization attempt ${retryCount} failed, retrying...`);
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
+          }
         }
       } catch (error) {
         console.error('Error loading PayPal:', error);
