@@ -25,27 +25,20 @@ const GalleriesPage = () => {
     console.log('Fetching galleries in GalleriesPage');
     fetchGalleries();
   }, [isAuthenticated, navigate, fetchGalleries]);
-
   // Function to determine if a gallery should be locked
   const isGalleryLocked = (gallery) => {
-    // Gallery is unlocked if:
-    // 1. User is the owner of the gallery
-    // 2. Gallery is marked as public (if you have such a field)
-    // 3. User has an active subscription for this gallery
-    const isOwner = artistProfile?.id === gallery.userId;
+    // Gallery is unlocked if the current user is the owner of the gallery
+    const isOwner = user?.id === gallery.userId;
     
     // By default, lock all galleries except the ones owned by the current user
     return !isOwner;
   };
-  // Filter galleries based on search term and public/private status
+
+  // Filter galleries based on search term
   const filteredGalleries = galleries.filter(gallery => {
     const matchesSearch = gallery.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          gallery.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const isOwner = artistProfile?.id === gallery.userId;
-    // Show gallery if it's public OR if the current user is the owner
-    const shouldShow = gallery.isPublic || isOwner;
-    
-    return matchesSearch && shouldShow;
+    return matchesSearch;
   });
 
   // Handle gallery click
