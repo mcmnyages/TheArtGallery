@@ -122,8 +122,8 @@ const GalleriesPage = () => {
                           className={`rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer ${
                             isDarkMode ? 'bg-gray-800' : 'bg-white'
                           }`}
-                        >
-                          <div className="h-48 bg-gray-200 relative">                            {gallery.images && gallery.images[0] && gallery.images[0].signedUrl && (
+                        >                          <div className="h-48 bg-gray-200 relative">
+                            {gallery.images && gallery.images[0] ? (
                               <img 
                                 src={gallery.images[0].signedUrl}
                                 alt={gallery.name} 
@@ -135,6 +135,10 @@ const GalleriesPage = () => {
                                   e.target.src = '/assets/images/art-2475718_1280.jpg'; // fallback image
                                 }}
                               />
+                            ) : (
+                              <div className={`w-full h-full flex items-center justify-center ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                No image available
+                              </div>
                             )}
                             <div className="absolute bottom-0 right-0 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded-tl-md">
                               {gallery.images?.length || 0} images

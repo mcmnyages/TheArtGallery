@@ -143,33 +143,81 @@ export class GalleryService {
         return [];
       }
 
-      console.log('Number of groups received:', response.data.groups.length);
-
-      // No need to fetch signed URLs if there are no images
+      console.log('Number of groups received:', response.data.groups.length);      // No need to fetch signed URLs if there are no images
       const galleriesWithImages = response.data.groups.filter(gallery => 
         gallery.images && gallery.images.length > 0
       );
+      
+      console.log('Galleries with images:', galleriesWithImages.map(g => ({
+        galleryId: g._id,
+        imageCount: g.images.length,
+        imageIds: g.images.map(img => img.imageId)
+      })));      if (galleriesWithImages.length > 0) {
+        console.log('Fetching signed URLs for galleries with images...');
+        // Get both image details and signed URLs in parallel
+        const [imagesResponse, signedUrlResponse] = await Promise.all([
+          axios.get<{ success: boolean; images: GalleryImage[] }>(
+            `${API_URLS.GALLERY}/images`,
+            {
+              headers,
+              withCredentials: true
+            }
+          ),
+          axios.get<{ success: boolean; urls: Array<{ imageId: string; signedUrl: string }> }>(
+            `${API_URLS.GALLERY}/signed-urls`,
+            {
+              headers,
+              withCredentials: true
+            }
+          )
+        ]);        if (!signedUrlResponse.data.success || !signedUrlResponse.data.urls) {
+          throw new Error('Failed to fetch signed URLs');
+        }
+        
+        if (!imagesResponse.data.success || !imagesResponse.data.images) {
+          throw new Error('Failed to fetch image details');
+        }
 
-      if (galleriesWithImages.length > 0) {
-        // Only fetch signed URLs if there are galleries with images
-        const signedUrlsResponse = await this.getSignedUrls();
-        console.log('Signed URLs response:', signedUrlsResponse);
-
-        const signedUrlMap = new Map(signedUrlsResponse.map(({ imageId, signedUrl }) => [imageId, signedUrl]));
+        // Create map of signed URLs
+        const signedUrlMap = new Map(signedUrlResponse.data.urls.map(({ imageId, signedUrl }) => [imageId, signedUrl]));
+        
+        // Create map of image details
+        const imageDetailsMap = new Map(imagesResponse.data.images.map(image => [image._id, image]));
+        
         console.log('Created signed URL map with keys:', Array.from(signedUrlMap.keys()));
+        console.log('Created image details map with keys:', Array.from(imageDetailsMap.keys()));
 
-        // Update each gallery's images with signed URLs
-        return response.data.groups.map(gallery => ({
+        // Debug: Check if we can match image IDs
+        const sampleImageId = galleriesWithImages[0]?.images[0]?.imageId;
+        if (sampleImageId) {
+          console.log('Sample image ID lookup:', {
+            imageId: sampleImageId,
+            foundUrl: signedUrlMap.get(sampleImageId)
+          });
+        }        // Update each gallery's images with signed URLs and image details
+        const updatedGroups = response.data.groups.map(gallery => ({
           ...gallery,
-          images: gallery.images.map(image => ({
-            ...image,
-            signedUrl: signedUrlMap.get(image.imageId) || ''
-          }))
+          images: gallery.images.map(image => {
+            const imageDetails = imageDetailsMap.get(image._id);
+            const signedUrl = signedUrlMap.get(imageDetails?.imageId || '') || '';
+            return {
+              ...image,
+              ...imageDetails,
+              signedUrl
+            };
+          })
         }));
+
+        console.log('First gallery after update:', {
+          galleryId: updatedGroups[0]?._id,
+          firstImage: updatedGroups[0]?.images[0]
+        });
+
+        return updatedGroups;
       }
 
       // Return galleries as is if no images need signed URLs
-      console.log('Returning galleries without signed URLs:', response.data.groups);
+      console.log('No images found in galleries, returning without signed URLs');
       return response.data.groups;
 
     } catch (error) {
