@@ -143,21 +143,23 @@ const AccountPage = () => {
   const subscription = user.subscription || { plan: 'free', status: 'inactive' };
   
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className={`max-w-3xl mx-auto ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
       <h1 className="text-2xl font-bold mb-6">Account Settings</h1>
       
       {/* Profile Summary Card */}
-      <div className={`bg-white shadow-md rounded-lg p-6 mb-8 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+      <div className={`shadow-md rounded-lg p-6 mb-8 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
         <div className="flex items-center">
           <div className="h-20 w-20 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold text-white">
             {user.firstName?.charAt(0) || user.email?.charAt(0) || 'U'}
           </div>
           <div className="ml-6">
             <h2 className="text-xl font-semibold">{user.firstName} {user.lastName}</h2>
-            <p className="text-gray-600">{user.email}</p>
+            <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{user.email}</p>
             <div className="mt-1">
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                subscription.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                subscription.status === 'active' 
+                  ? isDarkMode ? 'bg-green-900 text-green-100' : 'bg-green-100 text-green-800'
+                  : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-800'
               }`}>
                 {subscription.plan === 'free' ? 'Free Plan' : `${subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)} Plan`}
               </span>
@@ -169,25 +171,29 @@ const AccountPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2">
           {/* Profile Information Form */}
-          <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+          <div className={`shadow-md rounded-lg p-6 mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
             <h2 className="text-lg font-semibold mb-4">Profile Information</h2>
             
             <form onSubmit={handleProfileSubmit}>
               {profileError && (
-                <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4">
-                  <p className="text-sm text-red-700">{profileError}</p>
+                <div className={`mb-4 border-l-4 border-red-500 p-4 ${
+                  isDarkMode ? 'bg-red-900/50 text-red-100' : 'bg-red-50 text-red-700'
+                }`}>
+                  <p className="text-sm">{profileError}</p>
                 </div>
               )}
               
               {profileSuccess && (
-                <div className="mb-4 bg-green-50 border-l-4 border-green-500 p-4">
-                  <p className="text-sm text-green-700">Profile updated successfully!</p>
+                <div className={`mb-4 border-l-4 border-green-500 p-4 ${
+                  isDarkMode ? 'bg-green-900/50 text-green-100' : 'bg-green-50 text-green-700'
+                }`}>
+                  <p className="text-sm">Profile updated successfully!</p>
                 </div>
               )}
               
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="firstName" className={`block text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     First name
                   </label>
                   <input
@@ -197,12 +203,16 @@ const AccountPage = () => {
                     value={formState.firstName}
                     onChange={handleProfileChange}
                     required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className={`mt-1 block w-full rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+                      isDarkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="lastName" className={`block text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Last name
                   </label>
                   <input
@@ -212,13 +222,17 @@ const AccountPage = () => {
                     value={formState.lastName}
                     onChange={handleProfileChange}
                     required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className={`mt-1 block w-full rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+                      isDarkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
                   />
                 </div>
               </div>
               
               <div className="mt-6">
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="email" className={`block text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                   Email address
                 </label>
                 <input
@@ -227,9 +241,13 @@ const AccountPage = () => {
                   id="email"
                   value={formState.email}
                   disabled
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-50 cursor-not-allowed sm:text-sm"
+                  className={`mt-1 block w-full rounded-md shadow-sm py-2 px-3 cursor-not-allowed sm:text-sm ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-gray-400' 
+                      : 'bg-gray-50 border-gray-300 text-gray-500'
+                  }`}
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   Email address cannot be changed.
                 </p>
               </div>
@@ -257,25 +275,30 @@ const AccountPage = () => {
           </div>
           
           {/* Change Password Form */}
-          <div className="bg-white shadow-md rounded-lg p-6">
+          <div className={`shadow-md rounded-lg p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
             <h2 className="text-lg font-semibold mb-4">Change Password</h2>
             
             <form onSubmit={handlePasswordSubmit}>
-              {passwordError && (
-                <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4">
-                  <p className="text-sm text-red-700">{passwordError}</p>
-                </div>
-              )}
-              
-              {passwordSuccess && (
-                <div className="mb-4 bg-green-50 border-l-4 border-green-500 p-4">
-                  <p className="text-sm text-green-700">Password updated successfully!</p>
-                </div>
-              )}
-              
+              {/* Password form inputs */}
               <div className="space-y-4">
+                {passwordError && (
+                  <div className={`mb-4 border-l-4 border-red-500 p-4 ${
+                    isDarkMode ? 'bg-red-900/50 text-red-100' : 'bg-red-50 text-red-700'
+                  }`}>
+                    <p className="text-sm">{passwordError}</p>
+                  </div>
+                )}
+                
+                {passwordSuccess && (
+                  <div className={`mb-4 border-l-4 border-green-500 p-4 ${
+                    isDarkMode ? 'bg-green-900/50 text-green-100' : 'bg-green-50 text-green-700'
+                  }`}>
+                    <p className="text-sm">Password updated successfully!</p>
+                  </div>
+                )}
+
                 <div>
-                  <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="currentPassword" className={`block text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Current password
                   </label>
                   <input
@@ -285,12 +308,16 @@ const AccountPage = () => {
                     value={formState.currentPassword}
                     onChange={handlePasswordChange}
                     required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className={`mt-1 block w-full rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+                      isDarkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="newPassword" className={`block text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     New password
                   </label>
                   <input
@@ -300,12 +327,16 @@ const AccountPage = () => {
                     value={formState.newPassword}
                     onChange={handlePasswordChange}
                     required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className={`mt-1 block w-full rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+                      isDarkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="confirmPassword" className={`block text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                     Confirm new password
                   </label>
                   <input
@@ -315,7 +346,11 @@ const AccountPage = () => {
                     value={formState.confirmPassword}
                     onChange={handlePasswordChange}
                     required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className={`mt-1 block w-full rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+                      isDarkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
                   />
                 </div>
               </div>
@@ -345,7 +380,7 @@ const AccountPage = () => {
         
         {/* Sidebar for subscription info and account actions */}
         <div className="space-y-6">
-          <div className="bg-white shadow-md rounded-lg p-6">
+          <div className={`shadow-md rounded-lg p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
             <h3 className="text-base font-semibold mb-3">Subscription Details</h3>
             <div className="space-y-3">
               <div className="flex justify-between">
@@ -367,7 +402,9 @@ const AccountPage = () => {
               <div className="pt-3 border-t">
                 <a 
                   href="/subscriptions" 
-                  className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                  className={`text-sm font-medium flex items-center ${
+                    isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'
+                  }`}
                 >
                   <span>Manage Subscription</span>
                   <svg className="ml-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
@@ -378,26 +415,11 @@ const AccountPage = () => {
             </div>
           </div>
           
-          <div className="bg-white shadow-md rounded-lg p-6">
-            <h3 className="text-base font-semibold mb-3">Account Actions</h3>
-            <div className="space-y-4">
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Sign out
-              </button>
-              <button
-                type="button"
-                className="w-full flex justify-center py-2 px-4 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-              >
-                Delete Account
-              </button>
-            </div>
-          </div>
-          
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+          <div className={`rounded-lg p-4 border ${
+            isDarkMode 
+              ? 'bg-gray-800 border-gray-700' 
+              : 'bg-gray-50 border-gray-200'
+          }`}>
             <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Support</h4>
             <a href="#" className="text-sm text-blue-600 hover:text-blue-800 block mb-2">Help Center</a>
             <a href="#" className="text-sm text-blue-600 hover:text-blue-800 block mb-2">Contact Support</a>
