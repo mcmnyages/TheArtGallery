@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../hooks/useAuth';
 import PayPalButton from './PayPalButton';
 import { galleryService } from '../../services/galleryService';
 
@@ -7,6 +8,7 @@ interface GalleryPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   galleryId: string;
+  userId?: string;
   galleryName: string;
   price: number;
   currency: string;
@@ -23,33 +25,57 @@ const GalleryPaymentModal: React.FC<GalleryPaymentModalProps> = ({
   onPaymentSuccess
 }) => {
   const { isDarkMode } = useTheme();
+  const { user } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   if (!isOpen) return null;
   const handlePaymentSuccess = async (orderId: string) => {
+    console.log('🚀 Starting payment verification process:', {
+      orderId,
+      userId: user?.id,
+      galleryId,
+      price,
+      currency
+    });
+
+    if (!user?.id) {
+      console.error('❌ Payment verification failed: No user ID found');
+      setError('User authentication required. Please log in and try again.');
+      return;
+    }
+    
     try {
       setIsProcessing(true);
       setError(null);
       
-      // Add a small delay to ensure PayPal's systems have processed the payment
+      console.log('⏳ Adding delay to ensure PayPal processing...');
       await new Promise(resolve => setTimeout(resolve, 1500));
       
+      console.log('🔍 Verifying payment with backend...', {
+        galleryId,
+        orderId,
+        userId: user.id
+      });
+      
       // Verify the payment with our backend
-      const paymentStatus = await galleryService.verifyPayment(galleryId, orderId);
+      const paymentStatus = await galleryService.verifyPayment(galleryId, orderId, user.id);
+      console.log('✅ Payment verification response:', paymentStatus);
       
       if (paymentStatus.hasAccess) {
+        console.log('🎉 Payment verification successful, granting access');
         onPaymentSuccess();
         onClose();
       } else {
+        console.error('❌ Payment verified but access not granted:', paymentStatus);
         throw new Error('Payment verification failed. If the amount was charged, please contact support.');
       }
     } catch (error) {
-      console.error('Payment verification error:', error);
+      console.error('❌ Payment verification error:', error);
       
       // Generate a support reference number for troubleshooting
       const errorRef = `ERR-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 5)}`.toUpperCase();
-      console.error('Support reference:', errorRef);
+      console.error('🆔 Support reference:', errorRef);
       
       setError(`There was a problem verifying your payment. Please contact support with reference: ${errorRef}`);
     } finally {
@@ -96,20 +122,26 @@ const GalleryPaymentModal: React.FC<GalleryPaymentModalProps> = ({
               </div>
             )}
 
-            <div className={`p-4 rounded-md ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
-              {isProcessing ? (
+            <div className={`p-4 rounded-md ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>              {isProcessing ? (
                 <div className="flex items-center justify-center space-x-2">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
                   <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Processing payment...</span>
                 </div>
               ) : (
-                <PayPalButton
-                  galleryId={galleryId}
-                  amount={price}
-                  currency={currency}
-                  onSuccess={handlePaymentSuccess}
-                  onError={handlePaymentError}
-                />
+                user?.id ? (
+                  <PayPalButton
+                    galleryId={galleryId}
+                    userId={user.id}
+                    amount={price}
+                    currency={currency}
+                    onSuccess={handlePaymentSuccess}
+                    onError={handlePaymentError}
+                  />
+                ) : (
+                  <div className="text-center text-red-500">
+                    Please log in to make a purchase
+                  </div>
+                )
               )}
             </div>
           </div>

@@ -626,15 +626,15 @@ export class GalleryService {
       throw error;
     }
   }
-
-  public async verifyPayment(galleryId: string, orderId: string): Promise<PaymentStatus> {
+  public async verifyPayment(galleryId: string, orderId: string, userId: string): Promise<PaymentStatus> {
     try {
       const headers = await this.getAuthenticatedHeaders();
       const response = await axios.post<PaymentStatus>(
         `${API_URLS.GALLERY}/verify-payment`,
         {
           galleryId,
-          orderId
+          orderId,
+          userId
         },
         {
           headers,

@@ -65,12 +65,18 @@ export class PayPalService {
       console.error('Error getting PayPal access token:', error);
       throw error instanceof Error ? error : new Error('Failed to get PayPal access token');
     }
-  }
-  public async createOrder(galleryId: string, amount: number, currency: string = 'USD'): Promise<PayPalOrder> {
+  }  public async createOrder(galleryId: string, userId: string, amount: number, currency: string = 'USD'): Promise<PayPalOrder> {
     try {
-      if (!galleryId || amount <= 0) {
-        throw new Error('Invalid gallery ID or amount');
+      if (!galleryId || !userId || amount <= 0) {
+        throw new Error('Invalid gallery ID, user ID, or amount');
       }
+
+      console.log('🛍️ Creating PayPal order:', {
+        galleryId,
+        userId,
+        amount,
+        currency
+      });
 
       const accessToken = await this.getAccessToken();
       const response = await axios.post<PayPalOrder>(
@@ -84,7 +90,7 @@ export class PayPalService {
                 value: amount.toFixed(2),
               },
               description: `Gallery Access: ${galleryId}`,
-              custom_id: galleryId, // Add reference ID for verification
+              custom_id: `${galleryId}:${userId}`, // Combine gallery and user IDs for verification
             },
           ],
         },

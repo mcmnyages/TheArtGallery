@@ -3,6 +3,7 @@ import { paypalService } from '../../services/paypalService';
 
 interface PayPalButtonProps {
   galleryId: string;
+  userId: string;
   amount: number;
   currency?: string;
   onSuccess: (orderId: string) => void;
@@ -44,6 +45,7 @@ declare global {
 
 const PayPalButton: React.FC<PayPalButtonProps> = ({
   galleryId,
+  userId,
   amount,
   currency = 'USD',
   onSuccess,
@@ -101,10 +103,11 @@ const PayPalButton: React.FC<PayPalButtonProps> = ({
             shape: 'rect',
             label: 'pay',
             height: 45
-          },
-          createOrder: async () => {
+          },          createOrder: async () => {
             try {
-              const order = await paypalService.createOrder(galleryId, amount, currency);
+              console.log('🔄 Creating PayPal order with:', { galleryId, userId, amount, currency });
+              const order = await paypalService.createOrder(galleryId, userId, amount, currency);
+              console.log('📦 Order created:', order);
               return order.id;
             } catch (error) {
               console.error('Error creating order:', error);
