@@ -625,12 +625,11 @@ export class GalleryService {
       console.error('Error checking gallery access:', error);
       throw error;
     }
-  }
-  public async verifyPayment(galleryId: string, orderId: string, userId: string): Promise<PaymentStatus> {
+  }  public async verifyPayment(galleryId: string, orderId: string, userId: string): Promise<PaymentStatus> {
     try {
       const headers = await this.getAuthenticatedHeaders();
       const response = await axios.post<PaymentStatus>(
-        `${API_URLS.GALLERY}/verify-payment`,
+        `${API_URLS.GALLERY}/v0.1/verify-payment`,
         {
           galleryId,
           orderId,

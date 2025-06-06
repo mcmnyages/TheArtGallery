@@ -29,14 +29,21 @@ const GalleriesPage = () => {
     console.log('Fetching galleries in GalleriesPage');
     fetchGalleries();
   }, [isAuthenticated, navigate, fetchGalleries]);
-
   // Function to determine if a gallery should be locked
   const isGalleryLocked = (gallery) => {
     // Gallery is unlocked if the current user is the owner of the gallery
     const isOwner = user?.id === gallery.userId;
+    if (isOwner) return false;
     
-    // By default, lock all galleries except the ones owned by the current user
-    return !isOwner;
+    // Check if user has an active subscription for this gallery
+    const hasActiveSubscription = gallery.subscriptions?.some(
+      subscription => 
+        subscription.userId === user?.id && 
+        subscription.isActive && 
+        new Date(subscription.endDate) > new Date()
+    );
+
+    return !hasActiveSubscription;
   };
 
   // Filter galleries based on search term
@@ -45,20 +52,35 @@ const GalleriesPage = () => {
                          gallery.description.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
-
   // Handle gallery click
-  const handleGalleryClick = (e, gallery) => {
+  const handleGalleryClick = async (e, gallery) => {
     e.preventDefault();
     
+    if (!isAuthenticated) {
+      addMessage({ 
+        type: 'info', 
+        text: 'Please log in to access this gallery.' 
+      });
+      navigate('/login');
+      return;
+    }
+
+    // Check for active subscription
+    const hasActiveSubscription = gallery.subscriptions?.some(
+      subscription => 
+        subscription.userId === user?.id && 
+        subscription.isActive && 
+        new Date(subscription.endDate) > new Date()
+    );
+
+    if (hasActiveSubscription) {
+      // User has active subscription, allow direct access
+      navigate(`/gallery/${gallery._id}`);
+      return;
+    }
+
     if (isGalleryLocked(gallery)) {
-      if (!isAuthenticated) {
-        addMessage({ 
-          type: 'info', 
-          text: 'Please log in to access this gallery.' 
-        });
-        navigate('/login');
-        return;
-      }
+      // Show subscription/payment modal
       setSelectedGallery(gallery);
       setShowPaymentModal(true);
       return;
