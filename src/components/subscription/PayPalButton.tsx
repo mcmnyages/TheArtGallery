@@ -73,28 +73,29 @@ const PayPalButton: React.FC<PayPalButtonProps> = ({
       return;
     }    const initializePayPalButtons = async () => {
       try {
-        // Add a small delay to ensure React rendering is complete
-        await new Promise(resolve => setTimeout(resolve, 100));
-
+        // Make sure we're still mounted
         if (!isMountedRef.current) {
-          throw new Error('Component is not mounted');
+          return;
         }
 
+        // Wait for PayPal SDK
         if (!window.paypal) {
           throw new Error('PayPal SDK not loaded');
         }
 
-        if (!containerRef.current) {
-          throw new Error('Container element not found');
+        // Verify container exists and is in DOM
+        if (!containerRef.current || !document.body.contains(containerRef.current)) {
+          return; // Exit silently - we'll retry on next render
         }
 
-        // Double check the container is in DOM before proceeding
-        if (!document.body.contains(containerRef.current)) {
-          throw new Error('Container element is not in DOM');
+        // Clear any existing content and add a placeholder div
+        // This ensures we have a stable container
+        containerRef.current.innerHTML = '<div id="paypal-button-container"></div>';
+        const buttonContainer = containerRef.current.querySelector('#paypal-button-container');
+        
+        if (!buttonContainer) {
+          throw new Error('Failed to create PayPal button container');
         }
-
-        // Ensure container is empty
-        containerRef.current.innerHTML = '';
 
         // Create buttons instance
         const buttons = window.paypal.Buttons({
@@ -151,22 +152,18 @@ const PayPalButton: React.FC<PayPalButtonProps> = ({
         // Verify container is still in DOM right before render
         if (!containerRef.current || !document.body.contains(containerRef.current)) {
           throw new Error('Container element removed from DOM before render');
-        }
-
-        // Render the buttons
-        await buttons.render(containerRef.current);
-
-        // Give the buttons a moment to render before checking
-        await new Promise(resolve => setTimeout(resolve, 200));
-
-        // Verify render was successful
-        if (!containerRef.current?.querySelector('iframe')) {
-          throw new Error('PayPal buttons failed to render');
-        }
-
-        if (isMountedRef.current) {
-          setIsLoading(false);
-          isInitializedRef.current = true;
+        }        // Render the buttons into our stable container
+        if (isMountedRef.current && buttonContainer) {
+          await buttons.render(buttonContainer as HTMLElement);
+          
+          // Short delay to verify rendering
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Only update state if still mounted and render was successful
+          if (isMountedRef.current && buttonContainer.querySelector('iframe')) {
+            setIsLoading(false);
+            isInitializedRef.current = true;
+          }
         }
       } catch (error) {
         console.error('Error initializing PayPal buttons:', error);
@@ -311,8 +308,8 @@ const PayPalButton: React.FC<PayPalButtonProps> = ({
       // Set mounted flag to false first
       isMountedRef.current = false;
 
-      // Clean up in a microtask to ensure we don't interfere with potential re-renders
-      Promise.resolve().then(() => {
+      // Use RAF to ensure we don't cleanup during a render
+      requestAnimationFrame(() => {
         // Clean up PayPal buttons
         if (paypalButtonsRef.current) {
           try {
@@ -324,7 +321,7 @@ const PayPalButton: React.FC<PayPalButtonProps> = ({
         }
 
         // Clear container if it still exists
-        if (containerRef.current) {
+        if (containerRef.current && document.body.contains(containerRef.current)) {
           containerRef.current.innerHTML = '';
         }
 
