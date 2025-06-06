@@ -2,21 +2,56 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGallery } from '../hooks/useGallery';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../hooks/useAuth';
+import { galleryService } from '../services/galleryService';
 import ImageViewer from '../components/gallery/ImageViewer';
+import GalleryPaymentModal from '../components/subscription/GalleryPaymentModal';
 
 const GalleryDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isDarkMode } = useTheme();
+  const { isAuthenticated } = useAuth();
   const { currentGallery: gallery, loading, error, fetchGalleryById } = useGallery();
   const [selectedImage, setSelectedImage] = useState(null);
   const [viewerOpen, setViewerOpen] = useState(false);
+  const [accessStatus, setAccessStatus] = useState(null);
+  const [accessChecked, setAccessChecked] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   useEffect(() => {
     if (id) {
       fetchGalleryById(id);
     }
   }, [id, fetchGalleryById]);
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      if (gallery?.paymentRequired && isAuthenticated) {
+        try {
+          const status = await galleryService.checkGalleryAccess(gallery._id);
+          setAccessStatus(status);
+        } catch (error) {
+          console.error('Error checking gallery access:', error);
+        }
+      }
+      setAccessChecked(true);
+    };
+
+    if (gallery) {
+      checkAccess();
+    }
+  }, [gallery, isAuthenticated]);
+
+  const handlePaymentSuccess = async () => {
+    try {
+      const status = await galleryService.checkGalleryAccess(gallery._id);
+      setAccessStatus(status);
+      setShowPaymentModal(false);
+    } catch (error) {
+      console.error('Error updating access status:', error);
+    }
+  };
 
   useEffect(() => {
     // Track gallery views and debug image loading
@@ -76,7 +111,7 @@ const GalleryDetailPage = () => {
     navigate('/galleries');
   };
   
-  if (loading) {
+  if (loading || !accessChecked) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className={`rounded-lg p-8 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
@@ -136,6 +171,81 @@ const GalleryDetailPage = () => {
             Return to Galleries
           </button>
         </div>
+      </div>
+    );
+  }
+
+  // Check if gallery requires payment and user doesn't have access
+  if (gallery?.paymentRequired && (!accessStatus?.hasAccess || !isAuthenticated)) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className={`rounded-lg p-8 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
+          <div className="text-center mb-8">
+            <h1 className={`text-3xl font-bold mb-4 ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+              {gallery.name}
+            </h1>
+            <p className={`text-lg mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              {gallery.description}
+            </p>
+            <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'} mb-6`}>
+              <div className="flex justify-center items-center mb-4">
+                <span className={`text-2xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                  {gallery.baseCurrency}{gallery.basePrice}
+                </span>
+              </div>
+              {!isAuthenticated ? (
+                <div className="text-center">
+                  <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Please log in to access this gallery
+                  </p>
+                  <button
+                    onClick={() => navigate('/login')}
+                    className={`px-6 py-2 rounded-lg ${
+                      isDarkMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'
+                    } text-white transition-colors`}
+                  >
+                    Log In
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowPaymentModal(true)}
+                  className={`w-full px-6 py-3 rounded-lg ${
+                    isDarkMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'
+                  } text-white font-medium transition-colors`}
+                >
+                  Unlock Gallery Access
+                </button>
+              )}
+            </div>
+          </div>
+          
+          <div className="text-center">
+            <button
+              onClick={handleGoBack}
+              className={`px-4 py-2 rounded-md transition-colors ${
+                isDarkMode 
+                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' 
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+              }`}
+            >
+              <i className="fas fa-arrow-left mr-2" />
+              Return to Galleries
+            </button>
+          </div>
+        </div>
+
+        {showPaymentModal && (
+          <GalleryPaymentModal
+            isOpen={showPaymentModal}
+            onClose={() => setShowPaymentModal(false)}
+            galleryId={gallery._id}
+            galleryName={gallery.name}
+            price={gallery.basePrice}
+            currency={gallery.baseCurrency}
+            onPaymentSuccess={handlePaymentSuccess}
+          />
+        )}
       </div>
     );
   }

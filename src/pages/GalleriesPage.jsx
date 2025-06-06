@@ -6,6 +6,8 @@ import { useGallery } from '../hooks/useGallery';
 import { Lock } from 'lucide-react';
 import { useMessage } from '../hooks/useMessage';
 import { useArtist } from '../hooks/useArtistContext';
+import GalleryPaymentModal from '../components/subscription/GalleryPaymentModal';
+import { galleryService } from '../services/galleryService';
 
 const GalleriesPage = () => {
   const { isAuthenticated, user } = useAuth();
@@ -15,6 +17,8 @@ const GalleriesPage = () => {
   const { addMessage } = useMessage();
   const { artistProfile } = useArtist();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGallery, setSelectedGallery] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -25,6 +29,7 @@ const GalleriesPage = () => {
     console.log('Fetching galleries in GalleriesPage');
     fetchGalleries();
   }, [isAuthenticated, navigate, fetchGalleries]);
+
   // Function to determine if a gallery should be locked
   const isGalleryLocked = (gallery) => {
     // Gallery is unlocked if the current user is the owner of the gallery
@@ -46,16 +51,40 @@ const GalleriesPage = () => {
     e.preventDefault();
     
     if (isGalleryLocked(gallery)) {
-      addMessage({ 
-        type: 'info', 
-        text: 'This gallery requires subscription access. Contact admin for more information.' 
-      });
+      if (!isAuthenticated) {
+        addMessage({ 
+          type: 'info', 
+          text: 'Please log in to access this gallery.' 
+        });
+        navigate('/login');
+        return;
+      }
+      setSelectedGallery(gallery);
+      setShowPaymentModal(true);
       return;
     }
     
     navigate(`/gallery/${gallery._id}`);
   };
-  
+
+  const handlePaymentSuccess = async () => {
+    try {
+      if (selectedGallery) {
+        const status = await galleryService.checkGalleryAccess(selectedGallery._id);
+        if (status.hasAccess) {
+          setShowPaymentModal(false);
+          navigate(`/gallery/${selectedGallery._id}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error verifying access:', error);
+      addMessage({
+        type: 'error',
+        text: 'There was a problem verifying your access. Please try again.'
+      });
+    }
+  };
+
   return (
     <div className="min-h-full">
       <div className="p-4 md:p-6">
@@ -238,6 +267,22 @@ const GalleriesPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Add payment modal at the end of the JSX */}
+      {showPaymentModal && selectedGallery && (
+        <GalleryPaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setSelectedGallery(null);
+          }}
+          galleryId={selectedGallery._id}
+          galleryName={selectedGallery.name}
+          price={selectedGallery.basePrice}
+          currency={selectedGallery.baseCurrency}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   );
 };
