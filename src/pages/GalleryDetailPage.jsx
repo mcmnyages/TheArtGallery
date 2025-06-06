@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useGallery } from '../hooks/useGallery';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
+import { useMessage } from '../hooks/useMessage';
 import { galleryService } from '../services/galleryService';
 import ImageViewer from '../components/gallery/ImageViewer';
 import GalleryPaymentModal from '../components/subscription/GalleryPaymentModal';
@@ -11,7 +12,8 @@ const GalleryDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isDarkMode } = useTheme();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const { addMessage } = useMessage();
   const { currentGallery: gallery, loading, error, fetchGalleryById } = useGallery();
   const [selectedImage, setSelectedImage] = useState(null);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -26,11 +28,10 @@ const GalleryDetailPage = () => {
   }, [id, fetchGalleryById]);
 
   useEffect(() => {
-    const checkAccess = async () => {
-      if (gallery?.paymentRequired && isAuthenticated) {
+    const checkAccess = async () => {      if (gallery?.paymentRequired && isAuthenticated && user?.id) {
         try {
-          const status = await galleryService.checkGalleryAccess(gallery._id);
-          setAccessStatus(status);
+          const paymentStatus = await galleryService.verifyPayment(gallery._id, null, user.id);
+          setAccessStatus(paymentStatus);
         } catch (error) {
           console.error('Error checking gallery access:', error);
         }
@@ -41,13 +42,17 @@ const GalleryDetailPage = () => {
     if (gallery) {
       checkAccess();
     }
-  }, [gallery, isAuthenticated]);
-
-  const handlePaymentSuccess = async () => {
+  }, [gallery, isAuthenticated]);  const handlePaymentSuccess = async (message) => {
     try {
-      const status = await galleryService.checkGalleryAccess(gallery._id);
-      setAccessStatus(status);
-      setShowPaymentModal(false);
+      if (user?.id) {
+        const paymentStatus = await galleryService.verifyPayment(gallery._id, null, user.id);
+        setAccessStatus(paymentStatus);
+        setShowPaymentModal(false);
+        addMessage({
+          type: 'success',
+          text: message || 'Payment successful! You now have access to this gallery.'
+        });
+      }
     } catch (error) {
       console.error('Error updating access status:', error);
     }

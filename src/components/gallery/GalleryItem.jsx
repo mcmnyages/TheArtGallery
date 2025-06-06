@@ -6,18 +6,16 @@ import { galleryService } from '../../services/galleryService';
 import GalleryPaymentModal from '../subscription/GalleryPaymentModal';
 
 const GalleryItem = ({ gallery }) => {
-  const { isDarkMode } = useTheme();
-  const { isAuthenticated } = useAuth();
+  const { isDarkMode } = useTheme();  const { isAuthenticated, user } = useAuth();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [accessStatus, setAccessStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const checkAccess = async () => {
-      if (gallery.paymentRequired && isAuthenticated) {
+  useEffect(() => {    const checkAccess = async () => {
+      if (gallery.paymentRequired && isAuthenticated && user?.id) {
         try {
-          const status = await galleryService.checkGalleryAccess(gallery._id);
-          setAccessStatus(status);
+          const paymentStatus = await galleryService.verifyPayment(gallery._id, null, user.id);
+          setAccessStatus(paymentStatus);
         } catch (error) {
           console.error('Error checking gallery access:', error);
         }
@@ -27,11 +25,13 @@ const GalleryItem = ({ gallery }) => {
 
     checkAccess();
   }, [gallery._id, gallery.paymentRequired, isAuthenticated]);
-
-  const handlePaymentSuccess = async () => {
+  const handlePaymentSuccess = async (message) => {
     try {
-      const status = await galleryService.checkGalleryAccess(gallery._id);
-      setAccessStatus(status);
+      if (user?.id) {
+        const paymentStatus = await galleryService.verifyPayment(gallery._id, null, user.id);
+        setAccessStatus(paymentStatus);
+        
+      }
     } catch (error) {
       console.error('Error updating access status:', error);
     }

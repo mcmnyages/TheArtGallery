@@ -12,7 +12,7 @@ interface GalleryPaymentModalProps {
   galleryName: string;
   price: number;
   currency: string;
-  onPaymentSuccess: () => void;
+  onPaymentSuccess: (message: string) => void;
 }
 
 const GalleryPaymentModal: React.FC<GalleryPaymentModalProps> = ({
@@ -23,22 +23,14 @@ const GalleryPaymentModal: React.FC<GalleryPaymentModalProps> = ({
   price,
   currency,
   onPaymentSuccess
-}) => {
-  const { isDarkMode } = useTheme();
+}) => {  const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   if (!isOpen) return null;
   const handlePaymentSuccess = async (orderId: string) => {
-    console.log('🚀 Starting payment verification process:', {
-      orderId,
-      userId: user?.id,
-      galleryId,
-      price,
-      currency
-    });
-
     if (!user?.id) {
       console.error('❌ Payment verification failed: No user ID found');
       setError('User authentication required. Please log in and try again.');
@@ -48,27 +40,28 @@ const GalleryPaymentModal: React.FC<GalleryPaymentModalProps> = ({
     try {
       setIsProcessing(true);
       setError(null);
-      
-      console.log('⏳ Adding delay to ensure PayPal processing...');
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      console.log('🔍 Verifying payment with backend...', {
+
+      console.log('🔍 Processing payment success:', {
         galleryId,
         orderId,
         userId: user.id
       });
-      
-      // Verify the payment with our backend
+        
       const paymentStatus = await galleryService.verifyPayment(galleryId, orderId, user.id);
       console.log('✅ Payment verification response:', paymentStatus);
-      
-      if (paymentStatus.hasAccess) {
-        console.log('🎉 Payment verification successful, granting access');
-        onPaymentSuccess();
-        onClose();
+        if (paymentStatus.hasAccess || paymentStatus.subscription?.isActive) {        console.log('🎉 Access granted:', paymentStatus);
+        setError(null); // Clear any previous errors
+        const message = paymentStatus.message || 'Payment successful! You now have access to this gallery.';
+        setSuccessMessage(message);
+        setIsProcessing(false);
+          // Show success message briefly before closing
+        setTimeout(() => {
+          onPaymentSuccess(message); // Pass the success message to parent
+          onClose();
+        }, 2000); // Show success message for 2 seconds before closing
       } else {
         console.error('❌ Payment verified but access not granted:', paymentStatus);
-        throw new Error('Payment verification failed. If the amount was charged, please contact support.');
+        throw new Error(paymentStatus.message || 'Payment verification failed. If the amount was charged, please contact support.');
       }
     } catch (error) {
       console.error('❌ Payment verification error:', error);
@@ -77,7 +70,7 @@ const GalleryPaymentModal: React.FC<GalleryPaymentModalProps> = ({
       const errorRef = `ERR-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 5)}`.toUpperCase();
       console.error('🆔 Support reference:', errorRef);
       
-      setError(`There was a problem verifying your payment. Please contact support with reference: ${errorRef}`);
+      setError(`${error instanceof Error ? error.message : 'Payment verification failed'}. Support reference: ${errorRef}`);
     } finally {
       setIsProcessing(false);
     }
@@ -120,9 +113,21 @@ const GalleryPaymentModal: React.FC<GalleryPaymentModalProps> = ({
               <div className={`p-4 rounded-md ${isDarkMode ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-800'} mb-4`}>
                 {error}
               </div>
-            )}
-
-            <div className={`p-4 rounded-md ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>              {isProcessing ? (
+            )}            <div data-message-container>
+              {error && (
+                <div className={`p-4 rounded-md ${isDarkMode ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-800'} mb-4`}>
+                  {error}
+                </div>
+              )}
+              {successMessage && (
+                <div className={`p-4 rounded-md ${isDarkMode ? 'bg-green-900/30 text-green-400' : 'bg-green-50 text-green-800'} mb-4`}>
+                  {successMessage}
+                </div>
+              )}
+            </div>
+            
+            <div className={`p-4 rounded-md ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+              {isProcessing ? (
                 <div className="flex items-center justify-center space-x-2">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
                   <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Processing payment...</span>

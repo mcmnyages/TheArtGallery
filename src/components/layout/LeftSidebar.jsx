@@ -7,6 +7,7 @@ import {
   HiPhotograph, 
   HiCreditCard, 
   HiUser, 
+  HiBriefcase, 
   HiChartBar, 
   HiUpload,
   HiViewGrid,
@@ -44,6 +45,11 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
       name: 'Manage Galleries',
       path: '/artist/gallery',
       icon: <HiViewGrid className="h-6 w-6" />
+    },
+    {
+      name: 'My Account',
+      path: '/artist/account',
+      icon: <HiBriefcase className="h-6 w-6" />
     }
   ];
 

@@ -34,7 +34,6 @@ const GalleriesPage = () => {
     // Gallery is unlocked if the current user is the owner of the gallery
     const isOwner = user?.id === gallery.userId;
     if (isOwner) return false;
-    
     // Check if user has an active subscription for this gallery
     const hasActiveSubscription = gallery.subscriptions?.some(
       subscription => 
@@ -87,14 +86,16 @@ const GalleriesPage = () => {
     }
     
     navigate(`/gallery/${gallery._id}`);
-  };
-
-  const handlePaymentSuccess = async () => {
+  };  const handlePaymentSuccess = async (message) => {
     try {
-      if (selectedGallery) {
-        const status = await galleryService.checkGalleryAccess(selectedGallery._id);
-        if (status.hasAccess) {
+      if (selectedGallery && user?.id) {
+        const paymentStatus = await galleryService.verifyPayment(selectedGallery._id, null, user.id);
+        if (paymentStatus.hasAccess) {
           setShowPaymentModal(false);
+          addMessage({
+            type: 'success',
+            text: message || 'Payment successful! You now have access to this gallery.'
+          });
           navigate(`/gallery/${selectedGallery._id}`);
         }
       }

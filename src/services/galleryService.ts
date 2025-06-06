@@ -46,13 +46,28 @@ export interface GalleryGroupsResponse {
   groups: GalleryGroup[];
 }
 
+interface Subscription {
+  userId: string;
+  startDate: string;
+  endDate: string;
+  duration: number;
+  subscriptionType: string;
+  paymentReference: string;
+  isActive: boolean;
+}
+
 export interface PaymentStatus {
   hasAccess: boolean;
   orderId?: string;
   expiresAt?: string;
+  message?: string;
+  subscription?: Subscription | null;
 }
 
 export class GalleryService {
+  // Cache for successful payment verifications
+  private verifiedPayments = new Map<string, PaymentStatus>();
+
   private async getAuthenticatedHeaders(): Promise<Record<string, string>> {
     const token = tokenService.getAccessToken();
     console.log('Current access token:', token);
@@ -607,44 +622,77 @@ export class GalleryService {
       console.error('Error deleting artist image:', error);
       throw error;
     }
-  }
-
-  public async checkGalleryAccess(galleryId: string): Promise<PaymentStatus> {
+  }  public async verifyPayment(galleryId: string, orderId: string | null, userId: string): Promise<PaymentStatus> {
     try {
-      const headers = await this.getAuthenticatedHeaders();
-      const response = await axios.get<PaymentStatus>(
-        `${API_URLS.GALLERY}/access/${galleryId}`,
-        {
-          headers,
-          withCredentials: true
+      // If no orderId is provided, we're just checking access status
+      // Check the cache first in this case
+      if (!orderId) {
+        const cached = this.verifiedPayments.get(galleryId);
+        if (cached) {
+          console.log('📋 Using cached verification:', cached);
+          if (cached.subscription?.isActive && new Date(cached.subscription.endDate) > new Date()) {
+            return cached;
+          } else {
+            // Clear expired cache
+            this.verifiedPayments.delete(galleryId);
+          }
         }
-      );
+      }
+
+      console.log('🔍 Verifying payment:', { galleryId, orderId, userId });
       
-      return response.data;
-    } catch (error) {
-      console.error('Error checking gallery access:', error);
-      throw error;
-    }
-  }  public async verifyPayment(galleryId: string, orderId: string, userId: string): Promise<PaymentStatus> {
-    try {
+      // Don't include orderId if it's null (for access checks)
+      const payload = orderId ? { galleryId, orderId, userId } : { galleryId, userId };
       const headers = await this.getAuthenticatedHeaders();
+      
       const response = await axios.post<PaymentStatus>(
         `${API_URLS.GALLERY}/v0.1/verify-payment`,
-        {
-          galleryId,
-          orderId,
-          userId
-        },
+        payload,
         {
           headers,
           withCredentials: true
         }
       );
       
-      return response.data;
+      console.log('📦 Payment verification response:', response.data);
+      
+      // Check if we have a subscription and it's active
+      const subscription = response.data.subscription;
+      const hasAccess = subscription ? 
+        subscription.isActive && new Date(subscription.endDate) > new Date() : 
+        false;
+
+      console.log('🔐 Access status:', { 
+        hasSubscription: !!subscription,
+        isActive: subscription?.isActive,
+        hasAccess,
+        endDate: subscription?.endDate
+      });
+
+      const result = {
+        ...response.data,
+        hasAccess,
+        subscription
+      };
+
+      // Cache only successful payment verifications with active subscriptions
+      if (hasAccess && subscription?.isActive) {
+        this.verifiedPayments.set(galleryId, result);
+      }
+
+      return result;
     } catch (error) {
-      console.error('Error verifying payment:', error);
-      throw error;
+      console.error('❌ Error verifying payment:', error);
+      // Try using cached result if available
+      const cached = this.verifiedPayments.get(galleryId);
+      if (cached?.subscription?.isActive && new Date(cached.subscription.endDate) > new Date()) {
+        console.log('📋 Using cached verification after error:', cached);
+        return cached;
+      }
+      return {
+        hasAccess: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      };
     }
   }
 }

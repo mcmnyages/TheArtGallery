@@ -8,6 +8,7 @@ import { MessageProvider } from './contexts/MessageContext/provider';
 import TopNavBar from './components/layout/TopNavBar';
 import LeftSidebar from './components/layout/LeftSidebar';
 import BottomNavBar from './components/layout/BottomNavBar';
+import Footer from './components/layout/Footer';
 import PageContainer from './components/layout/PageContainer';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
@@ -130,6 +131,7 @@ function AppContent() {
               </ArtistRoute>
             } />
           </Routes>
+          <Footer />
         </PageContainer>
       </div>
       

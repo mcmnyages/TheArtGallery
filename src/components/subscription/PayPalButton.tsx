@@ -119,13 +119,14 @@ const PayPalButton: React.FC<PayPalButtonProps> = ({
           },
           onApprove: async (data: { orderID: string }) => {
             try {
-              await paypalService.captureOrder(data.orderID);
-              const isVerified = await paypalService.verifyPayment(data.orderID);
+              await paypalService.captureOrder(data.orderID);              const isVerified = await paypalService.verifyPayment(data.orderID);
               
+              // If the payment is verified with PayPal, pass the orderId to onSuccess
               if (isVerified) {
                 onSuccess(data.orderID);
               } else {
-                throw new Error('Payment verification failed');
+                // If PayPal verification fails, throw an error
+                throw new Error('PayPal payment verification failed');
               }
             } catch (error) {
               console.error('Error processing payment:', error);
