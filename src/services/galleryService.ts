@@ -17,6 +17,7 @@ export interface CreateGalleryGroupRequest {
 export interface GalleryGroupResponse {
   message: string;
   group: GalleryGroup;
+  groups?: GalleryGroup[];
 }
 
 export interface GalleryImage {
@@ -110,7 +111,7 @@ export class GalleryService {
           withCredentials: true
         }
       );
-
+      
       // Fetch image details
       const imagesResponse = await axios.get<{ success: boolean; images: GalleryImage[] }>(
         `${API_URLS.GALLERY}/images`,
@@ -220,11 +221,20 @@ export class GalleryService {
         const updatedGroups = response.data.groups.map(gallery => ({
           ...gallery,
           images: gallery.images.map(image => {
+            // If we have image details from /images endpoint, use them
             const imageDetails = imageDetailsMap.get(image._id);
-            const signedUrl = signedUrlMap.get(imageDetails?.imageId || '') || '';
+            if (imageDetails) {
+              const signedUrl = signedUrlMap.get(imageDetails.imageId) || '';
+              return {
+                ...image,
+                ...imageDetails,
+                signedUrl
+              };
+            }
+            // Otherwise, use the image data from groups/all and match by imageId
+            const signedUrl = signedUrlMap.get(image.imageId) || '';
             return {
               ...image,
-              ...imageDetails,
               signedUrl
             };
           })
@@ -293,25 +303,55 @@ export class GalleryService {
       console.error('Error fetching gallery groups:', error);
       throw error;
     }
-  }
-
-  public async fetchGalleryGroupById(id: string): Promise<GalleryGroup | null> {
+  }  public async fetchGalleryGroupById(id: string): Promise<GalleryGroup | null> {
     try {
       console.log('Fetching gallery group by ID:', id);
+      const headers = await this.getAuthenticatedHeaders();
       
-      // First try to get all galleries
-      const allGalleries = await this.fetchAllGalleryGroups();
-      const gallery = allGalleries.find(g => g._id === id);
+      // Get the specific gallery first
+      const response = await axios.get<GalleryGroupResponse>(
+        `${API_URLS.GALLERY}/groups/all`,
+        {
+          headers,
+          withCredentials: true
+        }
+      );
 
-      if (!gallery) {
-        console.warn('No gallery group found with ID:', id);
+      if (!response.data.groups) {
+        console.warn('No groups found in response data');
         return null;
       }
 
-      if (gallery.images?.length > 0) {
-        const signedUrlsResponse = await this.getSignedUrls();
-        const signedUrlMap = new Map(signedUrlsResponse.map(({ imageId, signedUrl }) => [imageId, signedUrl]));
+      // Find the specific gallery
+      const gallery = response.data.groups.find(g => g._id === id);
+      if (!gallery) {
+        console.warn('No gallery found with ID:', id);
+        return null;
+      }
 
+      // If gallery has images, get signed URLs
+      if (gallery.images?.length > 0) {
+        console.log('Gallery has images, fetching signed URLs...');
+        
+        // Get signed URLs
+        const signedUrlResponse = await axios.get<{ success: boolean; urls: Array<{ imageId: string; signedUrl: string }> }>(
+          `${API_URLS.GALLERY}/signed-urls`,
+          {
+            headers,
+            withCredentials: true
+          }
+        );
+
+        if (!signedUrlResponse.data.success || !signedUrlResponse.data.urls) {
+          throw new Error('Failed to fetch signed URLs');
+        }
+
+        // Create map of signed URLs
+        const signedUrlMap = new Map(
+          signedUrlResponse.data.urls.map(({ imageId, signedUrl }) => [imageId, signedUrl])
+        );
+
+        // Update gallery images with signed URLs
         gallery.images = gallery.images.map(image => ({
           ...image,
           signedUrl: signedUrlMap.get(image.imageId) || ''
