@@ -65,6 +65,11 @@ export interface PaymentStatus {
   subscription?: Subscription | null;
 }
 
+export interface ArtistApplicationResponse {
+  message: string;
+  success: boolean;
+}
+
 export class GalleryService {
   // Cache for successful payment verifications
   private verifiedPayments = new Map<string, PaymentStatus>();
@@ -733,6 +738,26 @@ export class GalleryService {
         hasAccess: false,
         message: error instanceof Error ? error.message : 'An unknown error occurred'
       };
+    }
+  }  public async submitArtistApplication(email: string): Promise<ArtistApplicationResponse> {
+    try {
+      console.log('🎨 Submitting artist application for email:', email);
+      const response = await axios.post(`${API_URLS.GALLERY}/artist/apply`, { email }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('✅ Artist application submitted successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error submitting artist application:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        details: axios.isAxiosError(error) ? error.response?.data : undefined
+      });
+      if (axios.isAxiosError(error) && error.response) {
+        throw new Error(error.response.data.message || 'Failed to submit application');
+      }
+      throw new Error('Failed to submit application');
     }
   }
 }
