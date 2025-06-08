@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { Eye, Users, Heart, Star, ChevronRight, Play, ArrowRight, Calendar, Award, Palette, Camera } from 'lucide-react';
+import { Eye, Users, Heart, Star, ChevronRight, Play, ArrowRight, Calendar, Award, Palette, Camera, Brush } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 const ErrorFallback = ({ error }) => {
   const { isDarkMode } = useTheme();
@@ -71,13 +73,14 @@ const testimonials = [
 
 const HomePage = () => {
   const { isDarkMode } = useTheme();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState({ firstName: 'Alex' });
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [featuredGalleries, setFeaturedGalleries] = useState([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [stats, setStats] = useState({ galleries: 0, artworks: 0, users: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const isArtist = user?.userResources?.includes('Artwork');
 
   useEffect(() => {
     const loadData = async () => {
@@ -207,6 +210,11 @@ const HomePage = () => {
   const handleScheduleDemo = () => {
     // Add demo scheduling logic
     console.log('Scheduling demo...');
+  };
+
+  const handleArtistUpgrade = () => {
+    // Add artist upgrade logic
+    console.log('Upgrading to artist...');
   };
 
   if (isLoading) {
@@ -452,6 +460,81 @@ const HomePage = () => {
             </button>
           </div>
         </section>
+
+        {/* Become an Artist Section - Only shown to authenticated non-artist users */}
+        {isAuthenticated && !isArtist && (
+          <section className={`py-16 ${
+            isDarkMode 
+              ? 'bg-gradient-to-r from-gray-800 to-gray-900' 
+              : 'bg-gradient-to-r from-purple-50 to-pink-50'
+          }`}>
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className={`rounded-2xl shadow-xl overflow-hidden ${
+                isDarkMode ? 'bg-gray-800' : 'bg-white'
+              }`}>
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 opacity-90"></div>
+                  <img 
+                    src="/assets/images/urban art.avif" 
+                    alt="Artist workspace" 
+                    className="w-full h-48 object-cover"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center text-white p-6">
+                      <h2 className="text-3xl font-bold mb-2">Are You an Artist?</h2>
+                      <p className="text-lg text-white/90">Share your masterpieces with our global community</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-6 md:p-8">
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <h3 className={`text-xl font-semibold ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>Why Join as an Artist?</h3>
+                      <ul className={`space-y-3 ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                      }`}>
+                        <li className="flex items-center space-x-2">
+                          <Palette className="w-5 h-5 text-purple-500" />
+                          <span>Showcase your artwork to millions</span>
+                        </li>
+                        <li className="flex items-center space-x-2">
+                          <Star className="w-5 h-5 text-purple-500" />
+                          <span>Get featured in curated collections</span>
+                        </li>
+                        <li className="flex items-center space-x-2">
+                          <Heart className="w-5 h-5 text-purple-500" />
+                          <span>Build your following</span>
+                        </li>
+                        <li className="flex items-center space-x-2">
+                          <Brush className="w-5 h-5 text-purple-500" />
+                          <span>Professional artist tools</span>
+                        </li>
+                      </ul>
+                    </div>
+                    
+                    <div className="flex flex-col justify-center space-y-4">
+                      <p className={`${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                      }`}>
+                        Ready to take your art to the next level? Join our vibrant community of artists and reach art enthusiasts worldwide.
+                      </p>
+                      <button
+                        onClick={() => navigate('/account')}
+                        className="group bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2"
+                      >
+                        <span>Request Artist Access</span>
+                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Testimonials */}
         <section className={`py-20 ${
