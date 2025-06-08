@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext/index';
 import { ArtistProvider } from './contexts/ArtistContext/provider';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
@@ -26,6 +26,8 @@ import { useAuth } from './hooks/useAuth';
 import PictureManagementPage from './pages/artist/PictureManagementPage';
 import WalletPage from './pages/artist/WalletPage';
 import OTPVerificationPage from './pages/OTPVerificationPage';
+import AdminRoute from './components/auth/AdminRoute';
+import AdminPage from './pages/admin/AdminPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -42,6 +44,8 @@ function AppContent() {
   const { isAuthenticated } = useAuth();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
 
   useEffect(() => {
     const handleResize = () => {
@@ -67,11 +71,11 @@ function AppContent() {
       <TopNavBar toggleSidebar={toggleSidebar} />
       
       <div className="flex flex-1 mt-16">
-        {isAuthenticated && (
+        {isAuthenticated && !isAdminRoute && (
           <LeftSidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} isMobile={isMobile} />
         )}
         
-        <PageContainer sidebarOpen={isSidebarOpen && isAuthenticated}>
+        <PageContainer sidebarOpen={isSidebarOpen && isAuthenticated && !isAdminRoute}>
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
@@ -134,6 +138,11 @@ function AppContent() {
               <ArtistRoute>
                 <WalletPage />
               </ArtistRoute>
+            } />            {/* Admin Routes */}
+            <Route path="/admin/*" element={
+              <AdminRoute>
+                <AdminPage />
+              </AdminRoute>
             } />
           </Routes>
           <Footer />
