@@ -1,11 +1,26 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import { HiClipboardList, HiChevronRight } from 'react-icons/hi';
+import { getArtistApplications } from '../../services/galleryService';
 
 const AdminDashboard = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
+  const [applicationsCount, setApplicationsCount] = useState(0);
+
+  useEffect(() => {
+    const fetchApplications = async () => {
+      try {
+        const applications = await getArtistApplications();
+        setApplicationsCount(applications.length);
+      } catch (error) {
+        console.error('Error fetching applications:', error);
+      }
+    };
+
+    fetchApplications();
+  }, []);
 
   return (
     <div className={`p-6 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}>
@@ -37,7 +52,7 @@ const AdminDashboard = () => {
               <HiClipboardList className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-2xl font-bold mb-2">0</p>
+          <p className="text-2xl font-bold mb-2">{applicationsCount}</p>
           <div className={`flex items-center text-sm ${
             isDarkMode ? 'text-blue-400' : 'text-blue-600'
           }`}>

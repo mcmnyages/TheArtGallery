@@ -70,6 +70,11 @@ export interface ArtistApplicationResponse {
   success: boolean;
 }
 
+export interface ArtistApplication {
+  email: string;
+  appliedAt: string;
+}
+
 export class GalleryService {
   // Cache for successful payment verifications
   private verifiedPayments = new Map<string, PaymentStatus>();
@@ -761,5 +766,17 @@ export class GalleryService {
     }
   }
 }
+
+// Admin endpoints
+export const getArtistApplications = async (): Promise<ArtistApplication[]> => {
+  const response = await axios.get(`${API_URLS.GALLERY}/artist/applications`, {
+    headers: {
+      'ngrok-skip-browser-warning': 'true'
+    }
+  });
+  console.log("Artists Applications:", response.data);
+  // Return the data directly since it's already an array
+  return response.data || [];
+};
 
 export const galleryService = new GalleryService();
