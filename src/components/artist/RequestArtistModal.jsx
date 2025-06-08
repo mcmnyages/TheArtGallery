@@ -164,7 +164,7 @@ const RequestArtistModal = ({ isOpen, onClose }) => {
                     <p className={`text-sm text-center ${
                       isDarkMode ? 'text-gray-400' : 'text-gray-500'
                     }`}>
-                      Fill out a quick form and we'll review your application
+                      {/* Fill out a quick form and we'll review your application */}
                     </p>
                   </div>
 
@@ -187,7 +187,7 @@ const RequestArtistModal = ({ isOpen, onClose }) => {
               isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'
             }`}>
               <p className={`mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                We'll send your artist application to:
+                We'll send this email:
               </p>
               <div className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 {user.email}
