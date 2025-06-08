@@ -3,7 +3,8 @@ import * as tokenService from './tokenService';
 const API_BASE_URL = {
   auth: import.meta.env.VITE_AUTH_API_URL,
   gallery: import.meta.env.VITE_GALLERY_API_URL,
-  user: import.meta.env.VITE_USER_API_URL
+  user: import.meta.env.VITE_USER_API_URL,
+  treasury: import.meta.env.VITE_TREASURY_API_URL
 };
 
 /**
@@ -69,10 +70,11 @@ const handleResponse = async (response) => {
  * @param {Object} options - Fetch options
  * @returns {Promise<any>} - Resolved response data
  */
-const apiRequest = async (endpoint, options = {}) => {
+export const apiRequest = async (endpoint, options = {}) => {
   // Determine which base URL to use based on endpoint type
   const baseUrl = endpoint.startsWith('/auth') ? API_BASE_URL.auth :
                  endpoint.startsWith('/gallery') ? API_BASE_URL.gallery :
+                 endpoint.startsWith('/treasury') ? API_BASE_URL.treasury :
                  API_BASE_URL.user;
                  
   const url = `${baseUrl}${endpoint}`;

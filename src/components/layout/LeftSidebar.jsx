@@ -47,8 +47,8 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
       icon: <HiViewGrid className="h-6 w-6" />
     },
     {
-      name: 'My Account',
-      path: '/artist/account',
+      name: 'My Wallet',
+      path: '/artist/Wallet',
       icon: <HiBriefcase className="h-6 w-6" />
     }
   ];

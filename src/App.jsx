@@ -24,6 +24,7 @@ import CreateGalleryPage from './pages/artist/CreateGalleryPage';
 import ArtistRoute from './components/auth/ArtistRoute';
 import { useAuth } from './hooks/useAuth';
 import PictureManagementPage from './pages/artist/PictureManagementPage';
+import WalletPage from './pages/artist/WalletPage';
 import OTPVerificationPage from './pages/OTPVerificationPage';
 
 // Protected Route Component
@@ -124,10 +125,14 @@ function AppContent() {
               <ArtistRoute>
                 <CreateGalleryPage />
               </ArtistRoute>
-            } />
-            <Route path="/artist/pictures" element={
+            } />            <Route path="/artist/pictures" element={
               <ArtistRoute>
                 <PictureManagementPage />
+              </ArtistRoute>
+            } />
+            <Route path="/artist/wallet" element={
+              <ArtistRoute>
+                <WalletPage />
               </ArtistRoute>
             } />
           </Routes>
