@@ -73,6 +73,12 @@ export interface ArtistApplicationResponse {
 export interface ArtistApplication {
   email: string;
   appliedAt: string;
+  status: string; // 'pending', 'approved', or 'rejected'
+}
+
+export interface ArtistActionResponse {
+  message: string;
+  success: boolean;
 }
 
 export class GalleryService {
@@ -209,9 +215,7 @@ export class GalleryService {
         
         if (!imagesResponse.data.success || !imagesResponse.data.images) {
           throw new Error('Failed to fetch image details');
-        }
-
-        // Create map of signed URLs
+        }        // Create map of signed URLs
         const signedUrlMap = new Map(signedUrlResponse.data.urls.map(({ imageId, signedUrl }) => [imageId, signedUrl]));
         
         // Create map of image details
@@ -766,6 +770,28 @@ export class GalleryService {
     }
   }
 
+  public async approveArtistApplication(email: string): Promise<ArtistActionResponse> {
+    try {
+      console.log('🎨 Approving artist application for email:', email);
+      const headers = await this.getAuthenticatedHeaders();
+      const response = await axios.post<ArtistActionResponse>(`${API_URLS.GALLERY}/artist/approve`, { email }, {
+        headers,
+        withCredentials: true
+      });
+      console.log('✅ Artist application approved successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error approving artist application:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        details: axios.isAxiosError(error) ? error.response?.data : undefined
+      });
+      if (axios.isAxiosError(error) && error.response) {
+        throw new Error(error.response.data.message || 'Failed to approve application');
+      }
+      throw new Error('Failed to approve application');
+    }
+  }
+
   public async getArtistApplications(): Promise<ArtistApplication[]> {
     try {
       const headers = await this.getAuthenticatedHeaders();
@@ -773,7 +799,7 @@ export class GalleryService {
         headers,
         withCredentials: true
       });
-      console.log("Artists Applications:", response.data);
+      console.log("Artists Applications:", response.data);  
       return response.data || [];
     } catch (error) {
       console.error('Error fetching artist applications:', error);

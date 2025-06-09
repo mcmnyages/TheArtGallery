@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import { HiClipboardList, HiChevronRight } from 'react-icons/hi';
-import { getArtistApplications } from '../../services/galleryService';
+import { galleryService } from '../../services/galleryService';
 
 const AdminDashboard = () => {
   const { isDarkMode } = useTheme();
@@ -12,7 +12,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchApplications = async () => {
       try {
-        const applications = await getArtistApplications();
+        const applications = await galleryService.getArtistApplications();
         setApplicationsCount(applications.length);
       } catch (error) {
         console.error('Error fetching applications:', error);

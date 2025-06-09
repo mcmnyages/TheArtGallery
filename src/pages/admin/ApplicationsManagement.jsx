@@ -1,31 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { HiCheck, HiX, HiClock } from 'react-icons/hi';
-import { getArtistApplications } from '../../services/galleryService';
+import { galleryService } from '../../services/galleryService';
 import { format } from 'date-fns';
+import { useMessage } from '../../hooks/useMessage';
 
 const ApplicationsManagement = () => {
   const { isDarkMode } = useTheme();
   const [applications, setApplications] = useState([]);
+  const [statusFilter, setStatusFilter] = useState('pending'); // Default filter is pending
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { addMessage } = useMessage();
 
-  useEffect(() => {    const fetchApplications = async () => {
+  // Filter applications based on selected status
+  const filteredApplications = applications.filter(app => 
+    statusFilter === 'all' ? true : app.status === statusFilter
+  );
+
+  useEffect(() => {
+    const fetchApplications = async () => {
       try {
-        const response = await getArtistApplications();
+        const response = await galleryService.getArtistApplications();
         console.log('API Response:', response); // Debug log
 
         // Ensure we have an array of applications
         if (!Array.isArray(response)) {
           throw new Error('Expected array of applications, got: ' + typeof response);
-        }
-
-        // Transform the data to match our component's needs
+        }        // Transform the data to match our component's needs
         const transformedData = response.map(app => ({
           id: app.email, // Using email as ID since we don't have a specific ID
           email: app.email,
           submittedAt: format(new Date(app.appliedAt), 'yyyy-MM-dd HH:mm'),
-          status: 'pending', // Default status
+          status: app.status || 'pending', // Use status from API or default to pending
           type: 'Artist'
         }));
 
@@ -71,9 +78,33 @@ const ApplicationsManagement = () => {
     }
   };
 
-  const handleApprove = async (id) => {
-    // TODO: Implement approval API call
-    console.log('Approving application:', id);
+  const handleApprove = async (email) => {
+    try {
+      console.log('Approving artist application for:', email);
+      const response = await galleryService.approveArtistApplication(email);
+      
+      // Update the local state to reflect the change
+      setApplications(prevApplications => 
+        prevApplications.map(app => 
+          app.email === email 
+            ? { ...app, status: 'approved' }
+            : app
+        )
+      );
+      
+      addMessage({
+        type: 'success',
+        text: response.message || 'Artist application approved successfully'
+      });
+      
+      console.log('Successfully approved artist application:', response);
+    } catch (error) {
+      console.error('Failed to approve artist application:', error);
+      addMessage({
+        type: 'error',
+        text: error.message || 'Failed to approve artist application'
+      });
+    }
   };
 
   const handleReject = async (id) => {
@@ -103,100 +134,101 @@ const ApplicationsManagement = () => {
   return (
     <div className={`p-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Applications Management</h1>
-        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-          Total: {applications.length} application(s)
+        <div className="text-xl font-semibold">
+          Artist Applications ({filteredApplications.length})
+        </div>
+        <div className="flex items-center gap-4">
+          <label htmlFor="statusFilter" className="text-sm">Filter by status:</label>
+          <select
+            id="statusFilter"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className={`px-3 py-1 rounded border ${
+              isDarkMode 
+                ? 'bg-gray-700 border-gray-600 text-white' 
+                : 'bg-white border-gray-300'
+            }`}
+          >
+            <option value="all">All</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
         </div>
       </div>
 
-      {applications.length === 0 ? (
-        <div className={`p-6 rounded-xl text-center ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
-          No applications found
+      {error && (
+        <div className="text-red-500 mb-4">
+          {error}
         </div>
+      )}
+
+      {isLoading ? (
+        <div className="text-center py-8">Loading...</div>
       ) : (
-        <div className={`rounded-xl overflow-hidden border ${
+        <div className={`overflow-x-auto rounded-lg border ${
           isDarkMode ? 'border-gray-700' : 'border-gray-200'
         }`}>
-          <div className={`overflow-x-auto ${
-            isDarkMode ? 'bg-gray-800' : 'bg-white'
-          }`}>
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className={isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'}>
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                    Applicant
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                    Submitted
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {applications.map((application) => (
-                  <tr key={application.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {application.email}
-                        </div>
+          <table className="min-w-full divide-y">
+            <thead className={isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}>
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Applied At</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {filteredApplications.map((application, index) => (
+                <tr key={index} className={isDarkMode ? 'bg-gray-900' : 'bg-white'}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {application.email}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {application.type}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                        getStatusColor(application.status)
-                      }`}>
-                        {getStatusIcon(application.status)}
-                        <span className="ml-2 capitalize">{application.status}</span>
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {application.submittedAt}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    {application.submittedAt}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      application.status === 'approved'
+                        ? 'bg-green-100 text-green-800'
+                        : application.status === 'rejected'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {application.status === 'approved' && <HiCheck className="mr-1" />}
+                      {application.status === 'rejected' && <HiX className="mr-1" />}
+                      {application.status === 'pending' && <HiClock className="mr-1" />}
+                      {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {application.status === 'pending' && (
                       <div className="flex space-x-2">
-                        {application.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleApprove(application.id)}
-                              className={`px-3 py-1 rounded-lg transition-colors duration-200 ${
-                                isDarkMode
-                                  ? 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
-                                  : 'bg-green-50 text-green-700 hover:bg-green-100'
-                              }`}
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleReject(application.id)}
-                              className={`px-3 py-1 rounded-lg transition-colors duration-200 ${
-                                isDarkMode
-                                  ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
-                                  : 'bg-red-50 text-red-700 hover:bg-red-100'
-                              }`}
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
+                        <button
+                          onClick={() => handleApprove(application.email)}
+                          className="text-green-600 hover:text-green-900"
+                          title="Approve application"
+                        >
+                          <HiCheck className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => handleReject(application.email)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Reject application"
+                        >
+                          <HiX className="h-5 w-5" />
+                        </button>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
