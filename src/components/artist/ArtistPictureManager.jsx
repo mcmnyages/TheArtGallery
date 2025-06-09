@@ -21,6 +21,8 @@ const ArtistPictureManager = () => {
   const [categories, setCategories] = useState(['all', 'portraits', 'landscapes', 'abstract', 'other']);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
+  const [dragOver, setDragOver] = useState(false);
+  const [filePreview, setFilePreview] = useState([]);
   const fileInputRef = React.useRef(null);
 
   useEffect(() => {
@@ -129,6 +131,42 @@ const ArtistPictureManager = () => {
     }
   };
 
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+    if (files.length > 0) {
+      // Create preview URLs for dropped files
+      const previews = files.map(file => ({
+        name: file.name,
+        url: URL.createObjectURL(file)
+      }));
+      setFilePreview(previews);
+      handleImageUpload({ target: { files } });
+    }
+  };
+
+  // Cleanup function for preview URLs
+  useEffect(() => {
+    return () => {
+      filePreview.forEach(preview => URL.revokeObjectURL(preview.url));
+    };
+  }, [filePreview]);
+
   // Sort and filter images
   const sortedAndFilteredImages = images
     ?.filter(image => filterCategory === 'all' || image.category === filterCategory)
@@ -210,15 +248,7 @@ const ArtistPictureManager = () => {
             className="hidden"
             ref={fileInputRef}
           />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className={`px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors ${
-              uploading ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            {uploading ? 'Uploading...' : 'Upload Images'}
-          </button>
+          
         </div>
 
         {selectedImages.size > 0 && (
@@ -233,35 +263,124 @@ const ArtistPictureManager = () => {
 
       {/* Upload Section */}
       <div className="mb-8 space-y-4">
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleImageUpload}
-          ref={fileInputRef}
-          className="hidden"
-        />
-      
+        <div
+          onDragEnter={handleDragEnter}
+          onDragOver={(e) => e.preventDefault()}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`relative border-2 border-dashed rounded-lg p-8 transition-all duration-300 ${
+            dragOver
+              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+              : isDarkMode
+              ? 'border-gray-600 hover:border-gray-500'
+              : 'border-gray-300 hover:border-gray-400'
+          }`}
+        >
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleImageUpload}
+            ref={fileInputRef}
+            className="hidden"
+          />
 
-        {/* Upload Progress */}
-        {Object.keys(uploadProgress).length > 0 && (
-          <div className="space-y-2">
-            {Object.entries(uploadProgress).map(([fileName, progress]) => (
-              <div key={fileName} className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="truncate">{fileName}</span>
-                  <span>{progress}%</span>
+          <div className="text-center">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className={`inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 ${
+                uploading ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {uploading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span>Uploading...</span>
                 </div>
-                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-600 transition-all duration-300 ease-out"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              ) : (
+                <>
+                  <svg
+                    className="w-5 h-5 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                    />
+                  </svg>
+                  Select Images
+                </>
+              )}
+            </button>
+            <p className={`mt-2 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+            }`}>
+              or drag and drop images here
+            </p>
           </div>
-        )}
+
+          {/* File Preview Grid */}
+          {filePreview.length > 0 && !uploading && (
+            <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {filePreview.map((preview) => (
+                <div
+                  key={preview.url}
+                  className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800"
+                >
+                  <img
+                    src={preview.url}
+                    alt={preview.name}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <p className="text-white text-sm px-2 text-center truncate">
+                      {preview.name}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Upload Progress */}
+          {Object.keys(uploadProgress).length > 0 && (
+            <div className="mt-6 space-y-4">
+              {Object.entries(uploadProgress).map(([fileName, progress]) => (
+                <div key={fileName} className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-medium truncate flex-1 mr-4">
+                      {fileName}
+                    </span>
+                    <span className={`text-sm font-medium ${
+                      progress === 100
+                        ? 'text-green-500'
+                        : isDarkMode
+                        ? 'text-blue-400'
+                        : 'text-blue-600'
+                    }`}>
+                      {progress}%
+                    </span>
+                  </div>
+                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ease-out rounded-full ${
+                        progress === 100
+                          ? 'bg-green-500'
+                          : 'bg-blue-600'
+                      }`}
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Images Grid */}      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
