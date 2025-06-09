@@ -187,7 +187,7 @@ const RequestArtistModal = ({ isOpen, onClose }) => {
               isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'
             }`}>
               <p className={`mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                We'll send this email:
+                We'll send this email to confirm your Artist application:
               </p>
               <div className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 {user.email}
