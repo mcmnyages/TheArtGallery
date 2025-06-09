@@ -747,10 +747,10 @@ export class GalleryService {
   }  public async submitArtistApplication(email: string): Promise<ArtistApplicationResponse> {
     try {
       console.log('🎨 Submitting artist application for email:', email);
+      const headers = await this.getAuthenticatedHeaders();
       const response = await axios.post(`${API_URLS.GALLERY}/artist/apply`, { email }, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers,
+        withCredentials: true
       });
       console.log('✅ Artist application submitted successfully:', response.data);
       return response.data;
@@ -765,18 +765,21 @@ export class GalleryService {
       throw new Error('Failed to submit application');
     }
   }
-}
 
-// Admin endpoints
-export const getArtistApplications = async (): Promise<ArtistApplication[]> => {
-  const response = await axios.get(`${API_URLS.GALLERY}/artist/applications`, {
-    headers: {
-      'ngrok-skip-browser-warning': 'true'
+  public async getArtistApplications(): Promise<ArtistApplication[]> {
+    try {
+      const headers = await this.getAuthenticatedHeaders();
+      const response = await axios.get(`${API_URLS.GALLERY}/artist/applications`, {
+        headers,
+        withCredentials: true
+      });
+      console.log("Artists Applications:", response.data);
+      return response.data || [];
+    } catch (error) {
+      console.error('Error fetching artist applications:', error);
+      throw error;
     }
-  });
-  console.log("Artists Applications:", response.data);
-  // Return the data directly since it's already an array
-  return response.data || [];
-};
+  }
+}
 
 export const galleryService = new GalleryService();
