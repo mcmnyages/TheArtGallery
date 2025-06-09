@@ -8,6 +8,7 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
   const { isDarkMode } = useTheme();
   const { addMessage } = useMessage();
   const [gallery, setGallery] = useState(null);
+  const [galleryName, setGalleryName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,7 +23,7 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
   useEffect(() => {
     const fetchGalleryAndImages = async () => {
       if (!isOpen || !galleryId) return;
-        try {
+      try {
         setLoading(true);
         const [fetchedGallery, images] = await Promise.all([
           galleryService.fetchGalleryGroupById(galleryId),
@@ -35,7 +36,10 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
           addMessage({ text: errorMsg, type: 'error' });
           onClose();
           return;
-        }        setGallery(fetchedGallery);
+        }
+        
+        setGallery(fetchedGallery);
+        setGalleryName(fetchedGallery.name); // Set initial gallery name
         setOriginalImageIds(new Set(fetchedGallery.images.map(img => img._id)));
         setSelectedImages(new Set(fetchedGallery.images.map(img => img._id)));
 
@@ -88,10 +92,19 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
       const imagesToRemove = Array.from(originalImageIds)
         .filter(id => !selectedImages.has(id));
 
-      if (imagesToAdd.length === 0 && imagesToRemove.length === 0) {
+      const hasNameChanged = galleryName !== gallery.name;
+      const hasImageChanges = imagesToAdd.length > 0 || imagesToRemove.length > 0;
+
+      if (!hasNameChanged && !hasImageChanges) {
         addMessage({ text: 'No changes to save', type: 'info' });
         onClose();
         return;
+      }
+
+      // Update gallery name if changed
+      if (hasNameChanged) {
+        await galleryService.updateGalleryGroup(galleryId, { name: galleryName });
+        addMessage({ text: 'Gallery name updated successfully', type: 'success' });
       }
 
       // Add new images if any
@@ -110,8 +123,8 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
       addMessage({ text: 'Gallery updated successfully!', type: 'success' });
       onClose();
     } catch (err) {
-      console.error('Failed to update gallery images:', err);
-      const errorMsg = err.message || 'Failed to update gallery images';
+      console.error('Failed to update gallery:', err);
+      const errorMsg = err.message || 'Failed to update gallery';
       setError(errorMsg);
       addMessage({ text: errorMsg, type: 'error' });
     } finally {
@@ -150,8 +163,21 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
         <div className="space-y-8">
           <div>
             <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
-              Edit Gallery: {gallery?.name}
+              Edit Gallery
             </h1>
+            <div className="mb-6">
+              <input
+                type="text"
+                value={galleryName}
+                onChange={(e) => setGalleryName(e.target.value)}
+                className={`w-full px-4 py-2 text-xl font-semibold rounded-lg border transition-colors ${
+                  isDarkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                    : 'bg-white border-gray-300 text-gray-900'
+                } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                placeholder="Gallery Name"
+              />
+            </div>
             <p className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               Select or deselect images to update this gallery
             </p>
