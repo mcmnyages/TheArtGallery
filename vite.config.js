@@ -98,7 +98,7 @@ export default defineConfig(({ mode }) => {
         }),
         
         // Authorization Service - handles all resource access checks
-        '^/resource/accessibleResources': createServiceProxy(SERVICE_URLS.AUTHZ_URL, {
+        '^/(resource/accessibleResources|resource/all|policy/add)': createServiceProxy(SERVICE_URLS.AUTHZ_URL, {
           rewrite: (path) => `/v0.1${path}`
         }),
 

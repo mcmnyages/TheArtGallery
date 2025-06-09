@@ -21,6 +21,46 @@ const API_BASE = '';
 
 class AuthService {
   /**
+   * Add a policy for a user to access a resource
+   * @param principal The user's email
+   * @param resource The resource name
+   * @param action The action to allow ('read', 'write', etc.)
+   * @returns Promise that resolves when the policy is added
+   */
+  async addPolicy(principal: string, resource: string, action: string): Promise<void> {
+    try {      console.log('🔒 Adding policy:', { principal, resource, action });
+      const headers = await this.getAuthHeaders();
+      
+      console.log("Sending this data to the add Policy endpoint", principal,resource,action)
+      
+      const response = await fetch('/policy/add', {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include',        body: JSON.stringify([{
+            principal,
+            resource,
+            action,
+            effect: 'allow'
+          }])
+      });
+
+      if (!response.ok) {
+        const data = await this.handleJsonResponse(response);
+        throw new Error(data.error || 'Failed to add policy');
+      }
+
+      console.log('✅ Policy added successfully');
+    } catch (error) {
+      console.error('❌ Error adding policy:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Decodes a JWT token and returns the payload
    * @param token Optional token to decode. If not provided, uses the current access token
    * @returns The decoded token payload or null if invalid
@@ -405,7 +445,7 @@ class AuthService {
     }
 
     return token;
-  }  async verifyOTP(userId: string, otp: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  }  async verifyOTP(userId: string, otp: string): Promise<{ success: boolean; error?: string; message?: string }> {
     try {
       console.log('📤 Starting OTP verification for user:', userId);
       const response = await fetch(`${API_BASE}/verify-otp`, {
@@ -484,6 +524,36 @@ class AuthService {
         success: false,
         error: error instanceof Error ? error.message : 'An unexpected error occurred'
       };
+    }
+  }
+  async getAllResources(): Promise<Array<any>> {
+    try {
+      const headers = await this.getAuthHeaders();
+      console.log('🔍 Fetching all resources...');
+      
+      const response = await fetch('/resource/all', {
+        method: 'GET',
+        credentials: 'include',
+        headers
+      });      if (!response.ok) {
+        console.error('❌ Failed to fetch resources:', response.status);
+        throw new Error('Failed to fetch resources');
+      }
+      
+      const data = await this.handleJsonResponse(response);
+      if (data && data.status === 'success' && Array.isArray(data.data)) {
+        // Filter to only show Artwork resource
+        const artworkResources = data.data.filter(resource => resource.name === 'Artwork');
+        console.log('✅ Artwork resources:', artworkResources);
+        return artworkResources;
+      }
+
+      console.error('❌ Invalid response format:', data);
+      return [];
+
+    } catch (error) {
+      console.error('🔥 Error fetching resources:', error);
+      return [];
     }
   }
 }
