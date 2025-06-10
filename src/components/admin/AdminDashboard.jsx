@@ -9,11 +9,11 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [applicationsCount, setApplicationsCount] = useState(0);
 
-  useEffect(() => {
-    const fetchApplications = async () => {
+  useEffect(() => {    const fetchApplications = async () => {
       try {
         const applications = await galleryService.getArtistApplications();
-        setApplicationsCount(applications.length);
+        const pendingApplications = applications.filter(app => app.status === 'pending');
+        setApplicationsCount(pendingApplications.length);
       } catch (error) {
         console.error('Error fetching applications:', error);
       }
