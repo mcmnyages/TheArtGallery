@@ -159,13 +159,13 @@ const GalleriesPage = () => {
   const GalleryCard = ({ gallery, isLocked }) => (
     <div 
       onClick={(e) => handleGalleryClick(e, gallery)}
-      className={`group rounded-2xl overflow-hidden border-2 transition-all duration-300 cursor-pointer ${
+      className={`group rounded-2xl overflow-hidden border-2 transition-all duration-300 cursor-pointer w-full ${
         isDarkMode 
           ? 'bg-gray-800/50 border-gray-700/50 hover:bg-gray-800/80 hover:border-gray-600' 
           : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200'
       } backdrop-blur-sm transform hover:-translate-y-2 hover:shadow-2xl`}
     >
-      <div className="relative h-64 sm:h-72 overflow-hidden">
+      <div className="relative h-72 sm:h-80 overflow-hidden">
         {gallery.images && gallery.images[0] ? (
           <img 
             src={gallery.images[0].signedUrl}
@@ -223,7 +223,7 @@ const GalleriesPage = () => {
         </div>
       </div>
 
-      <div className="p-6 space-y-6">
+      <div className="p-8 space-y-6">
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-4">
             <h3 className={`text-2xl font-bold leading-tight ${
@@ -422,8 +422,8 @@ const GalleriesPage = () => {
         ? 'bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800' 
         : 'bg-gradient-to-br from-gray-50 via-white to-gray-100'
     }`}>
-      <div className="px-4 md:px-8 lg:px-12 max-w-[1920px] mx-auto">
-        <div className="max-w-7xl mx-auto space-y-12">
+      <div className="px-6 md:px-8 lg:px-12 max-w-[1920px] mx-auto">
+        <div className="max-w-[1600px] mx-auto space-y-12">
           {/* Header Section */}
           <div className={`${
             isDarkMode ? 'bg-gray-800/30' : 'bg-white/70'
@@ -586,7 +586,7 @@ const GalleriesPage = () => {
 
                   {/* Gallery Grid/List */}
                   {viewMode === 'grid' ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-8 xl:gap-10">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-8 xl:gap-10">
                       {filteredGalleries.map(gallery => (
                         <GalleryCard 
                           key={gallery._id} 
