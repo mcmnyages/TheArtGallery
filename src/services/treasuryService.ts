@@ -11,24 +11,40 @@ export interface CreateWalletRequest {
   currency: string;
 }
 
-export interface Wallet {
-  _id: string;
-  userId: string;
-  currency: string;
-  balance: number;
+export interface WalletDetails {
+  id: string;
   createdAt: string;
   updatedAt: string;
+  walletId: string;
+  userId: string;
+  currency: string;
+  balance: string;
+  status: string;
+  default: boolean;
 }
 
 export interface WalletResponse {
-  message: string;
-  wallet: Wallet;
+  statusCode: number;
+  walletId: string;
+  message?: string;
+}
+
+export interface WalletDetailsResponse {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  walletId: string;
+  userId: string;
+  currency: string;
+  balance: string;
+  status: string;
+  default: boolean;
 }
 
 export interface WalletCheckResponse {
-  message: string;
-  hasWallet: boolean;
-  wallet?: Wallet;
+  statusCode: number;
+  walletId?: string;
+  hasWallet?: boolean;
 }
 
 export class TreasuryService {
@@ -60,9 +76,8 @@ export class TreasuryService {
     console.log('Using headers:', headers);
     return headers;
   }
-
   // Create a new wallet
-  public async createWallet(data: CreateWalletRequest): Promise<Wallet> {
+  public async createWallet(data: CreateWalletRequest): Promise<WalletResponse> {
     try {
       console.log('Creating wallet with currency:', data.currency);
       
@@ -75,7 +90,8 @@ export class TreasuryService {
         currency: data.currency.trim().toUpperCase()
       };
 
-      const headers = await this.getAuthenticatedHeaders();      const response = await axios.post<WalletResponse>(
+      const headers = await this.getAuthenticatedHeaders();
+      const response = await axios.post<WalletResponse>(
         `${API_URLS.TREASURY}/wallet`,
         requestData,
         {
@@ -85,19 +101,18 @@ export class TreasuryService {
       );
 
       console.log('Wallet creation response:', response.data);
-      if (!response.data.wallet) {
+      if (!response.data.walletId) {
         throw new Error(response.data.message || 'Failed to create wallet');
       }
 
-      return response.data.wallet;
+      return response.data;
     } catch (error) {
       console.error('Error creating wallet:', error);
       throw error;
     }
   }
-
   // Get wallet by ID
-  public async getWalletById(walletId: string): Promise<Wallet | null> {
+  public async getWalletById(walletId: string): Promise<WalletDetailsResponse | null> {
     try {
       console.log('Fetching wallet by ID:', walletId);
       
@@ -106,7 +121,7 @@ export class TreasuryService {
       }
 
       const headers = await this.getAuthenticatedHeaders();
-      const response = await axios.get<WalletResponse>(
+      const response = await axios.get<WalletDetailsResponse>(
         `${API_URLS.TREASURY}/wallet/${walletId}`,
         {
           headers,
@@ -115,38 +130,41 @@ export class TreasuryService {
       );
 
       console.log('Wallet fetch response:', response.data);
-      if (!response.data.wallet) {
+      if (!response.data.walletId) {
         console.warn('No wallet found with ID:', walletId);
         return null;
       }
 
-      return response.data.wallet;
+      return response.data;
     } catch (error) {
       console.error('Error fetching wallet:', error);
       throw error;
     }
-  }
-
-  // Check if user has a wallet
+  }  // Check if user has a wallet
   public async checkWallet(): Promise<WalletCheckResponse> {
     try {
       console.log('Checking wallet status');
       
       const headers = await this.getAuthenticatedHeaders();
-      const response = await axios.get<WalletCheckResponse>(
-        `${API_URLS.TREASURY}/wallet/check`,
-        {
-          headers,
-          withCredentials: true
+      try {
+        const response = await axios.get<WalletCheckResponse>(
+          `${API_URLS.TREASURY}/wallet/check`,
+          {
+            headers,
+            withCredentials: true
+          }
+        );
+
+        console.log('Wallet check response:', response.data);
+        // Return the response data as is, since it already matches our expected format
+        return response.data;
+      } catch (err) {
+        if (err.response?.status === 404) {
+          // The API already returns the correct format for 404
+          return err.response.data;
         }
-      );
-
-      console.log('Wallet check response:', response.data);
-      if (response.data.hasWallet && !response.data.wallet) {
-        console.warn('Inconsistent response: hasWallet is true but no wallet data provided');
+        throw err;
       }
-
-      return response.data;
     } catch (error) {
       console.error('Error checking wallet status:', error);
       throw error;
