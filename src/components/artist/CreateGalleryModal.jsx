@@ -2,8 +2,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { galleryService } from '../../services/galleryService';
-import { Search, Plus, X, ImageIcon, Check, AlertCircle, Upload, Sparkles } from 'lucide-react';
+import { Search, Plus, X, ImageIcon, Check, AlertCircle, Upload, Sparkles, Star, Zap, Settings } from 'lucide-react';
 import { useMessage } from '../../hooks/useMessage';
+
+// Add this near the top of the file, with other utility functions
+const calculateAveragePerDay = (price, duration) => {
+  if (!price || !duration) return 0;
+  return price / duration;
+};
 
 const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
   const navigate = useNavigate();
@@ -549,128 +555,289 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
 
               {/* Step 2: Subscription Options */}
               {currentStep === 2 && (
-                <div className="space-y-6 animate-in slide-in-from-right-4">
+                <div className="space-y-8 animate-in slide-in-from-right-4">
                   <div className="text-center mb-8">
-                    <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                      <span className="text-white font-bold text-xl">$</span>
+                    <div className="relative w-16 h-16 mx-auto mb-4">
+                      <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center transform rotate-3">
+                        <span className="text-white font-bold text-2xl">$</span>
+                      </div>
+                      <div className="absolute -top-2 -right-2 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
+                        <Star className="w-4 h-4 text-white" fill="white" />
+                      </div>
                     </div>
                     <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
-                      Set your pricing
+                      Set Your Gallery's Value
                     </h2>
-                    <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Configure subscription options for your gallery
+                    <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} max-w-2xl mx-auto`}>
+                      Create subscription plans that reflect your gallery's worth. You can offer multiple plans with different durations.
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      Subscription Plans
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={addSubscriptionOption}
-                      className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl hover:from-purple-600 hover:to-blue-600 transition-all duration-300 flex items-center gap-2 text-sm font-medium"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add Plan
-                    </button>
-                  </div>
+                  {/* Quick Templates */}
+                  {formData.subscriptionOptions.length === 0 && (
+                    <div className={`p-6 rounded-2xl border-2 backdrop-blur-sm ${
+                      isDarkMode 
+                        ? 'bg-gray-800/50 border-gray-700' 
+                        : 'bg-white/50 border-gray-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        Quick Start Templates
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              subscriptionOptions: [
+                                { id: 'basic', duration: 30, price: 9.99, label: 'Monthly Access', isActive: true },
+                                { id: 'standard', duration: 90, price: 24.99, label: 'Quarterly Access', isActive: true },
+                                { id: 'premium', duration: 365, price: 89.99, label: 'Annual Access', isActive: true }
+                              ]
+                            }));
+                          }}
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${
+                            isDarkMode 
+                              ? 'border-gray-700 hover:border-purple-500 bg-gray-800/30' 
+                              : 'border-gray-200 hover:border-purple-500 bg-white/30'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-purple-500 rounded-lg">
+                              <Star className="w-4 h-4 text-white" fill="white" />
+                            </div>
+                            <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                              Standard Package
+                            </span>
+                          </div>
+                          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Monthly, quarterly, and annual options
+                          </p>
+                        </button>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {formData.subscriptionOptions.map((option, index) => (
-                      <div 
-                        key={option.id || index}
-                        className={`p-6 rounded-2xl border-2 backdrop-blur-sm relative transition-all duration-300 ${
-                          isDarkMode 
-                            ? 'bg-gray-800/50 border-gray-700' 
-                            : 'bg-white/50 border-gray-200'
-                        } ${
-                          option.isActive 
-                            ? 'ring-2 ring-purple-500/50 scale-105' 
-                            : 'hover:scale-102'
-                        }`}
-                      >
-                        {formData.subscriptionOptions.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              subscriptionOptions: [
+                                { id: 'weekly', duration: 7, price: 4.99, label: 'Weekly Pass', isActive: true },
+                                { id: 'monthly', duration: 30, price: 14.99, label: 'Monthly Access', isActive: true }
+                              ]
+                            }));
+                          }}
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${
+                            isDarkMode 
+                              ? 'border-gray-700 hover:border-blue-500 bg-gray-800/30' 
+                              : 'border-gray-200 hover:border-blue-500 bg-white/30'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-blue-500 rounded-lg">
+                              <Zap className="w-4 h-4 text-white" />
+                            </div>
+                            <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                              Quick Access
+                            </span>
+                          </div>
+                          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Weekly and monthly options
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              subscriptionOptions: [
+                                { id: 'custom', duration: 30, price: 0, label: 'Custom Plan', isActive: true }
+                              ]
+                            }));
+                          }}
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${
+                            isDarkMode 
+                              ? 'border-gray-700 hover:border-green-500 bg-gray-800/30' 
+                              : 'border-gray-200 hover:border-green-500 bg-white/30'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-green-500 rounded-lg">
+                              <Settings className="w-4 h-4 text-white" />
+                            </div>
+                            <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                              Custom Plan
+                            </span>
+                          </div>
+                          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Start from scratch
+                          </p>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {formData.subscriptionOptions.length > 0 && (
+                    <>
+                      <div className="flex items-center justify-between mb-6">
+                        <div>
+                          <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            Subscription Plans
+                          </h3>
+                          <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            You can add up to 5 different subscription plans
+                          </p>
+                        </div>
+                        {formData.subscriptionOptions.length < 5 && (
                           <button
                             type="button"
-                            onClick={() => removeSubscriptionOption(index)}
-                            className="absolute -top-2 -right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg transition-all duration-300 transform hover:scale-110"
+                            onClick={addSubscriptionOption}
+                            className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl hover:from-purple-600 hover:to-blue-600 transition-all duration-300 flex items-center gap-2 text-sm font-medium"
                           >
-                            <X className="w-4 h-4" />
+                            <Plus className="w-4 h-4" />
+                            Add Plan
                           </button>
                         )}
-
-                        <div className="space-y-4">
-                          <div className="relative">
-                            <span className={`absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`}>$</span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0.99"
-                              max="999.99"
-                              value={option.price}
-                              onChange={(e) => updateSubscriptionOption(index, { 
-                                price: parseFloat(e.target.value) || 0 
-                              })}
-                              className={`w-full pl-12 pr-4 py-4 text-2xl font-bold border rounded-xl bg-transparent ${
-                                isDarkMode 
-                                  ? 'text-white border-gray-700 bg-gray-800/30' 
-                                  : 'text-gray-900 border-gray-300 bg-white/30'
-                              }`}
-                              placeholder="0.00"
-                            />
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1">
-                              <input
-                                type="number"
-                                min="1"
-                                max="365"
-                                value={option.duration}
-                                onChange={(e) => updateSubscriptionOption(index, {
-                                  duration: parseInt(e.target.value) || 1,
-                                })}
-                                className={`w-full px-4 py-3 text-lg border rounded-xl bg-transparent ${
-                                  isDarkMode 
-                                    ? 'text-white border-gray-700 bg-gray-800/30' 
-                                    : 'text-gray-900 border-gray-300 bg-white/30'
-                                }`}
-                                placeholder="Duration in days"
-                              />
-                            </div>
-                            <span className={`whitespace-nowrap text-sm ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`}>
-                              Days
-                            </span>
-                          </div>
-
-                          <div className={`text-sm font-medium ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
-                            {option.label}
-                          </div>
-
-                          <label className="flex items-center space-x-3">
-                            <input
-                              type="checkbox"
-                              checked={option.isActive}
-                              onChange={(e) => updateSubscriptionOption(index, { isActive: e.target.checked })}
-                              className="w-5 h-5 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
-                            />
-                            <span className={`font-medium ${
-                              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>
-                              Active Plan
-                            </span>
-                          </label>
-                        </div>
                       </div>
-                    ))}
-                  </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {formData.subscriptionOptions.map((option, index) => (
+                          <div 
+                            key={option.id || index}
+                            className={`group p-6 rounded-2xl border-2 backdrop-blur-sm relative transition-all duration-300 ${
+                              isDarkMode 
+                                ? 'bg-gray-800/50 border-gray-700 hover:border-gray-600' 
+                                : 'bg-white/50 border-gray-200 hover:border-gray-300'
+                            } ${
+                              option.isActive 
+                                ? 'ring-2 ring-purple-500/50' 
+                                : ''
+                            }`}
+                          >
+                            {formData.subscriptionOptions.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeSubscriptionOption(index)}
+                                className="absolute -top-2 -right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg transition-all duration-300 transform opacity-0 group-hover:opacity-100 hover:scale-110"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
+
+                            <div className="space-y-6">
+                              <div>
+                                <label className={`block text-sm font-medium mb-2 ${
+                                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                                }`}>
+                                  Price ({formData.baseCurrency})
+                                </label>
+                                <div className="relative">
+                                  <span className={`absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold ${
+                                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                                  }`}>$</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0.99"
+                                    max="999.99"
+                                    value={option.price}
+                                    onChange={(e) => updateSubscriptionOption(index, { 
+                                      price: parseFloat(e.target.value) || 0 
+                                    })}
+                                    className={`w-full pl-12 pr-4 py-4 text-2xl font-bold border rounded-xl bg-transparent ${
+                                      isDarkMode 
+                                        ? 'text-white border-gray-700 bg-gray-800/30 focus:border-purple-500' 
+                                        : 'text-gray-900 border-gray-300 bg-white/30 focus:border-purple-500'
+                                    } transition-all focus:ring-2 focus:ring-purple-500/20 outline-none`}
+                                    placeholder="0.00"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className={`block text-sm font-medium mb-2 ${
+                                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                                }`}>
+                                  Duration
+                                </label>
+                                <div className="flex items-center gap-3">
+                                  <div className="flex-1">
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      max="365"
+                                      value={option.duration}
+                                      onChange={(e) => updateSubscriptionOption(index, {
+                                        duration: parseInt(e.target.value) || 1,
+                                      })}
+                                      className={`w-full px-4 py-3 text-lg border rounded-xl bg-transparent ${
+                                        isDarkMode 
+                                          ? 'text-white border-gray-700 bg-gray-800/30 focus:border-purple-500' 
+                                          : 'text-gray-900 border-gray-300 bg-white/30 focus:border-purple-500'
+                                      } transition-all focus:ring-2 focus:ring-purple-500/20 outline-none`}
+                                      placeholder="Enter days"
+                                    />
+                                  </div>
+                                  <select
+                                    value={option.duration}
+                                    onChange={(e) => updateSubscriptionOption(index, {
+                                      duration: parseInt(e.target.value),
+                                    })}
+                                    className={`px-3 py-3 border rounded-xl bg-transparent ${
+                                      isDarkMode 
+                                        ? 'text-white border-gray-700 bg-gray-800/30' 
+                                        : 'text-gray-900 border-gray-300 bg-white/30'
+                                    }`}
+                                  >
+                                    <option value="7">Week</option>
+                                    <option value="30">Month</option>
+                                    <option value="90">Quarter</option>
+                                    <option value="180">6 Months</option>
+                                    <option value="365">Year</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              <div className={`text-sm ${
+                                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`}>
+                                Preview: <span className="font-medium">{option.label}</span>
+                              </div>
+
+                              <label className="flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer hover:bg-purple-500/10">
+                                <input
+                                  type="checkbox"
+                                  checked={option.isActive}
+                                  onChange={(e) => updateSubscriptionOption(index, { isActive: e.target.checked })}
+                                  className="w-5 h-5 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                                />
+                                <div>
+                                  <span className={`font-medium block ${
+                                    isDarkMode ? 'text-gray-200' : 'text-gray-700'
+                                  }`}>
+                                    Active Plan
+                                  </span>
+                                  <span className={`text-xs ${
+                                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                                  }`}>
+                                    This plan will be available for purchase
+                                  </span>
+                                </div>
+                              </label>
+
+                              {calculateAveragePerDay(option.price, option.duration) > 0 && (
+                                <div className={`text-xs px-3 py-2 rounded-lg ${
+                                  isDarkMode ? 'bg-gray-700/50 text-gray-300' : 'bg-gray-100 text-gray-600'
+                                }`}>
+                                  Approximately ${calculateAveragePerDay(option.price, option.duration).toFixed(2)} per day
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
