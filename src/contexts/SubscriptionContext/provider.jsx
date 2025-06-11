@@ -21,13 +21,16 @@ export const SubscriptionProvider = ({ children }) => {
   useEffect(() => {
     loadUserSubscriptions();
   }, [user]);
-
-  const subscribeToGallery = async (galleryId, price) => {
+  const subscribeToGallery = async (galleryId, subscriptionOption) => {
     if (!user) return null;
     
     try {
-      const newSubscription = await mockSubscriptionAPI.subscribeToGallery(user.id, galleryId, price);
+      // Create the subscription using galleryService
+      const newSubscription = await galleryService.createSubscription(galleryId, subscriptionOption);
+      
+      // Update local state with new subscription
       setUserSubscriptions(prev => [...prev, newSubscription]);
+      
       return newSubscription;
     } catch (error) {
       console.error('Failed to subscribe to gallery:', error);

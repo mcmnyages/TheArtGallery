@@ -70,11 +70,6 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
       icon: <HiQrcode className="h-6 w-6" />
     },
     {
-      name: 'Subscriptions',
-      path: '/subscriptions',
-      icon: <HiCreditCard className="h-6 w-6" />
-    },
-    {
       name: 'Account',
       path: '/account',
       icon: <HiUser className="h-6 w-6" />

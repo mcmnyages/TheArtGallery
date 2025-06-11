@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import * as tokenService from '../../services/tokenService';
 import { authService } from '../../services/authService';
+import { treasuryService } from '../../services/treasuryService';
 import { AuthContext } from './context';
 
 export const AuthProvider = ({ children }) => {
@@ -26,7 +27,29 @@ export const AuthProvider = ({ children }) => {
           userResources: response.user.userResources || []
         };
 
-        // Store user with resources
+        // Check if user is an artist
+        const isArtist = userWithResources.userResources.some(
+          r => r.name === 'Artwork' && r.status === 'success'
+        );
+
+        if (isArtist) {
+          try {
+            // Check if artist has a wallet
+            const walletCheck = await treasuryService.checkWallet();
+            console.log('Artist wallet check:', walletCheck);
+            
+            // Store wallet information in user data if it exists
+            if (walletCheck.hasWallet && walletCheck.wallet) {
+              userWithResources.walletId = walletCheck.wallet._id;
+              console.log('Artist wallet ID:', walletCheck.wallet._id);
+            }
+          } catch (error) {
+            console.error('Error checking artist wallet:', error);
+            // Continue with login even if wallet check fails
+          }
+        }
+
+        // Store user with resources and wallet info
         localStorage.setItem('user', JSON.stringify(userWithResources));
         setUser(userWithResources);
         setIsAuthenticated(true);

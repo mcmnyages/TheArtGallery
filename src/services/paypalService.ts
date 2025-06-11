@@ -65,7 +65,13 @@ export class PayPalService {
       console.error('Error getting PayPal access token:', error);
       throw error instanceof Error ? error : new Error('Failed to get PayPal access token');
     }
-  }  public async createOrder(galleryId: string, userId: string, amount: number, currency: string = 'USD'): Promise<PayPalOrder> {
+  }  public async createOrder(
+    galleryId: string,
+    userId: string,
+    amount: number,
+    currency: string = 'USD',
+    subscriptionOptionId?: string
+  ): Promise<PayPalOrder> {
     try {
       if (!galleryId || !userId || amount <= 0) {
         throw new Error('Invalid gallery ID, user ID, or amount');
@@ -75,7 +81,8 @@ export class PayPalService {
         galleryId,
         userId,
         amount,
-        currency
+        currency,
+        subscriptionOptionId
       });
 
       const accessToken = await this.getAccessToken();
@@ -90,7 +97,9 @@ export class PayPalService {
                 value: amount.toFixed(2),
               },
               description: `Gallery Access: ${galleryId}`,
-              custom_id: `${galleryId}:${userId}`, // Combine gallery and user IDs for verification
+              custom_id: subscriptionOptionId ? 
+                `${galleryId}:${userId}:${subscriptionOptionId}` : 
+                `${galleryId}:${userId}`, // Combine IDs for verification
             },
           ],
         },

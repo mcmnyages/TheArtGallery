@@ -2,23 +2,45 @@ import React, { useState, useEffect } from 'react';
 import WalletOverview from '../../components/artist/wallet/WalletOverview';
 import TransactionHistory from '../../components/artist/wallet/TransactionHistory';
 import WithdrawFunds from '../../components/artist/wallet/WithdrawFunds';
-import { getBalance, getTransactions, withdrawFunds } from '../../services/walletService';
+import WalletActivation from '../../components/artist/wallet/WalletActivation';
+import SuspendWalletModal from '../../components/artist/wallet/SuspendWalletModal';
+import { treasuryService } from '../../services/treasuryService';
 import { useMessage } from '../../hooks/useMessage';
 
 const WalletPage = () => {
   const [balance, setBalance] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentWalletId, setCurrentWalletId] = useState(null);
+  const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
   const { addMessage } = useMessage();
-
   const fetchWalletData = async () => {
     try {
-      setIsLoading(true);      const [balanceData, transactionsData] = await Promise.all([
-        getBalance(),
-        getTransactions(1, 10)
-      ]);
-      setBalance(balanceData);
-      setTransactions(transactionsData.transactions);
+      setIsLoading(true);
+      
+      // First check if user has a wallet
+      const walletStatus = await treasuryService.checkWallet();
+      console.log('Wallet status:', walletStatus);
+      
+      if (walletStatus.statusCode === 404) {
+        // User doesn't have a wallet
+        setBalance(null);
+        setTransactions([]);
+        return;
+      }      if (walletStatus.statusCode === 200 && walletStatus.walletId) {
+        // Get wallet details
+        const walletDetails = await treasuryService.getWalletById(walletStatus.walletId);
+        if (walletDetails) {
+          setCurrentWalletId(walletDetails.walletId);
+          setBalance({
+            available: parseFloat(walletDetails.balance),
+            pending: 0, // You can add pending balance if available from API
+            total: parseFloat(walletDetails.balance),
+            status: walletDetails.status
+          });
+          setTransactions([]); // You'll need to update this with actual transactions from your API
+        }
+      }
     } catch (error) {
       addMessage({ 
         text: 'Failed to load wallet data',
@@ -32,15 +54,13 @@ const WalletPage = () => {
 
   useEffect(() => {
     fetchWalletData();
-  }, []);
-  const handleWithdraw = async (amount, paymentMethod) => {
+  }, []);  const handleWithdraw = async (amount, paymentMethod) => {
     try {
-      await withdrawFunds(amount, paymentMethod);
+      // TODO: Implement actual withdrawal functionality with treasury service
       addMessage({
-        text: 'Withdrawal request submitted successfully',
-        type: 'success'
+        text: 'Withdrawal functionality coming soon',
+        type: 'info'
       });
-      fetchWalletData(); // Refresh wallet data
     } catch (error) {
       addMessage({
         text: 'Failed to process withdrawal',
@@ -56,9 +76,7 @@ const WalletPage = () => {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
-  }
-
-  return (
+  }  return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Wallet</h1>
@@ -67,19 +85,44 @@ const WalletPage = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          <WalletOverview balance={balance} />
-          <TransactionHistory transactions={transactions} />
+      {/* Show wallet activation if balance is null (indicating no wallet) */}
+      {balance === null ? (
+        <WalletActivation onWalletActivated={() => fetchWalletData()} />
+      ) : (        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            <WalletOverview balance={balance} />
+            <TransactionHistory transactions={transactions} />
+            
+            {/* Suspend Wallet Button */}
+            {balance?.status !== 'suspended' && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setIsSuspendModalOpen(true)}
+                  className="px-4 py-2 text-red-600 hover:text-red-800 font-medium"
+                >
+                  Suspend Wallet
+                </button>
+              </div>
+            )}
+          </div>
+          
+          <div className="lg:col-span-1">
+            <WithdrawFunds 
+              onWithdraw={handleWithdraw}
+              availableBalance={balance?.available || 0}
+              disabled={balance?.status === 'suspended'}
+            />
+          </div>
         </div>
-        
-        <div className="lg:col-span-1">
-          <WithdrawFunds 
-            onWithdraw={handleWithdraw}
-            availableBalance={balance?.available || 0}
-          />
-        </div>
-      </div>
+      )}
+
+      {/* Suspend Wallet Modal */}
+      <SuspendWalletModal
+        isOpen={isSuspendModalOpen}
+        onClose={() => setIsSuspendModalOpen(false)}
+        walletId={currentWalletId}
+        onWalletSuspended={fetchWalletData}
+      />
     </div>
   );
 };
