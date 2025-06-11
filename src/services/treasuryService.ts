@@ -3,7 +3,8 @@ import * as tokenService from './tokenService';
 
 // Base URL for treasury API endpoints
 const API_URLS = {
-  TREASURY: '/treasury' // Base path for all treasury-related endpoints
+  TREASURY: '/treasury', // Base path for proxy routing
+  BASE: '' // Empty base path since proxy handles the routing
 };
 
 export interface CreateWalletRequest {
@@ -22,6 +23,12 @@ export interface Wallet {
 export interface WalletResponse {
   message: string;
   wallet: Wallet;
+}
+
+export interface WalletCheckResponse {
+  message: string;
+  hasWallet: boolean;
+  wallet?: Wallet;
 }
 
 export class TreasuryService {
@@ -68,8 +75,7 @@ export class TreasuryService {
         currency: data.currency.trim().toUpperCase()
       };
 
-      const headers = await this.getAuthenticatedHeaders();
-      const response = await axios.post<WalletResponse>(
+      const headers = await this.getAuthenticatedHeaders();      const response = await axios.post<WalletResponse>(
         `${API_URLS.TREASURY}/wallet`,
         requestData,
         {
@@ -117,6 +123,32 @@ export class TreasuryService {
       return response.data.wallet;
     } catch (error) {
       console.error('Error fetching wallet:', error);
+      throw error;
+    }
+  }
+
+  // Check if user has a wallet
+  public async checkWallet(): Promise<WalletCheckResponse> {
+    try {
+      console.log('Checking wallet status');
+      
+      const headers = await this.getAuthenticatedHeaders();
+      const response = await axios.get<WalletCheckResponse>(
+        `${API_URLS.TREASURY}/wallet/check`,
+        {
+          headers,
+          withCredentials: true
+        }
+      );
+
+      console.log('Wallet check response:', response.data);
+      if (response.data.hasWallet && !response.data.wallet) {
+        console.warn('Inconsistent response: hasWallet is true but no wallet data provided');
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Error checking wallet status:', error);
       throw error;
     }
   }
