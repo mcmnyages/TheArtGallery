@@ -28,11 +28,10 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
     baseCurrency: 'USD',
     subscriptionOptions: [
       {
-        id: 'monthly',
+        id: 'default',
         duration: 30,
-        durationType: 'monthly',
         price: 9.99,
-        label: '$9.99 / Month',
+        label: '$9.99 for 30 days',
         isActive: true
       }
     ]
@@ -57,11 +56,10 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
       baseCurrency: 'USD',
       subscriptionOptions: [
         {
-          id: 'monthly',
+          id: 'default',
           duration: 30,
-          durationType: 'monthly',
           price: 9.99,
-          label: '$9.99 / Month',
+          label: '$9.99 for 30 days',
           isActive: true
         }
       ]
@@ -248,19 +246,9 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
   }, []);
 
   // Generate subscription label
-  const generateSubscriptionLabel = useCallback((durationType, duration, price) => {
+  const generateSubscriptionLabel = useCallback((duration, price) => {
     if (!duration || !price) return 'Invalid subscription';
-    
-    const formatPrice = (price) => `$${parseFloat(price).toFixed(2)}`;
-    
-    const durationMap = {
-      weekly: `${formatPrice(price)} / Week`,
-      monthly: `${formatPrice(price)} / Month`,
-      quarterly: `${formatPrice(price)} / Quarter`,
-      yearly: `${formatPrice(price)} / Year`
-    };
-
-    return durationMap[durationType] || `${formatPrice(price)} for ${duration} days`;
+    return `$${parseFloat(price).toFixed(2)} for ${duration} days`;
   }, []);
   // Handle subscription option changes
   const updateSubscriptionOption = useCallback((index, updates) => {
@@ -272,14 +260,13 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
         isActive: 'isActive' in updates ? updates.isActive : currentOption.isActive
       };
       
-      // Update the label when price or duration type changes
-      if ('price' in updates || 'durationType' in updates || 'duration' in updates) {
+      // Update the label when price or duration changes
+      if ('price' in updates || 'duration' in updates) {
         const updatedOption = {
           ...currentOption,
           ...newUpdates
         };
         newUpdates.label = generateSubscriptionLabel(
-          updates.durationType || currentOption.durationType,
           updates.duration || currentOption.duration,
           updates.price || currentOption.price
         );
@@ -301,10 +288,9 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
     const newOption = {
       id: `custom-${Date.now()}`,
       duration: 30,
-      durationType: 'monthly',
       price: 9.99,
-      label: '$9.99 / Month',
-      isActive: true    // Make it active by default for better UX
+      label: '$9.99 for 30 days',
+      isActive: true
     };
     
     setFormData(prev => ({
@@ -615,34 +601,6 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
                         )}
 
                         <div className="space-y-4">
-                          <select                            value={option.durationType || 'monthly'}
-                            onChange={(e) => {
-                              const type = e.target.value;
-                              const durationMap = {
-                                weekly: { days: 7, label: 'Week' },
-                                monthly: { days: 30, label: 'Month' },
-                                quarterly: { days: 90, label: 'Quarter' },
-                                yearly: { days: 365, label: 'Year' }
-                              };
-                              const price = parseFloat(option.price) || 9.99;
-                              updateSubscriptionOption(index, {
-                                durationType: type,
-                                duration: durationMap[type].days,
-                                label: `$${price.toFixed(2)} / ${durationMap[type].label}`
-                              });
-                            }}
-                            className={`w-full px-4 py-3 text-sm border rounded-xl bg-transparent ${
-                              isDarkMode 
-                                ? 'text-white border-gray-700 bg-gray-800/30' 
-                                : 'text-gray-900 border-gray-300 bg-white/30'
-                            }`}
-                          >
-                            <option value="weekly">Weekly</option>
-                            <option value="monthly">Monthly</option>
-                            <option value="quarterly">Quarterly</option>
-                            <option value="yearly">Yearly</option>
-                          </select>
-                          
                           <div className="relative">
                             <span className={`absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold ${
                               isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -653,7 +611,9 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
                               min="0.99"
                               max="999.99"
                               value={option.price}
-                              onChange={(e) => updateSubscriptionOption(index, { price: parseFloat(e.target.value) || 0 })}
+                              onChange={(e) => updateSubscriptionOption(index, { 
+                                price: parseFloat(e.target.value) || 0 
+                              })}
                               className={`w-full pl-12 pr-4 py-4 text-2xl font-bold border rounded-xl bg-transparent ${
                                 isDarkMode 
                                   ? 'text-white border-gray-700 bg-gray-800/30' 
@@ -661,6 +621,31 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
                               }`}
                               placeholder="0.00"
                             />
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1">
+                              <input
+                                type="number"
+                                min="1"
+                                max="365"
+                                value={option.duration}
+                                onChange={(e) => updateSubscriptionOption(index, {
+                                  duration: parseInt(e.target.value) || 1,
+                                })}
+                                className={`w-full px-4 py-3 text-lg border rounded-xl bg-transparent ${
+                                  isDarkMode 
+                                    ? 'text-white border-gray-700 bg-gray-800/30' 
+                                    : 'text-gray-900 border-gray-300 bg-white/30'
+                                }`}
+                                placeholder="Duration in days"
+                              />
+                            </div>
+                            <span className={`whitespace-nowrap text-sm ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
+                              Days
+                            </span>
                           </div>
 
                           <div className={`text-sm font-medium ${
@@ -858,7 +843,7 @@ const CreateGalleryModal = ({ isOpen, onClose, onSuccess }) => {
                     </div>
                   )}
 
-                  {/* Validation error for images */}
+                 
                   {!formValidation.images.valid && (
                     <div className={`p-4 rounded-xl border backdrop-blur-sm flex items-center gap-3 mt-6 ${
                       isDarkMode 
