@@ -47,6 +47,12 @@ export interface WalletCheckResponse {
   hasWallet?: boolean;
 }
 
+export interface WalletSuspendResponse {
+  statusCode: number;
+  message: string;
+  walletId: string;
+}
+
 export class TreasuryService {
   // Get authenticated headers (similar to gallery service)
   private async getAuthenticatedHeaders(): Promise<Record<string, string>> {
@@ -139,8 +145,39 @@ export class TreasuryService {
     } catch (error) {
       console.error('Error fetching wallet:', error);
       throw error;
+    }  }
+
+  // Suspend a wallet
+  public async suspendWallet(walletId: string): Promise<WalletSuspendResponse> {
+    try {
+      console.log('Suspending wallet:', walletId);
+      
+      if (!walletId || typeof walletId !== 'string' || walletId.trim().length === 0) {
+        throw new Error('Wallet ID is required and must be a string');
+      }
+
+      const headers = await this.getAuthenticatedHeaders();
+      const response = await axios.post<WalletSuspendResponse>(
+        `${API_URLS.TREASURY}/wallet/${walletId}/suspend`,
+        {},
+        {
+          headers,
+          withCredentials: true
+        }
+      );
+
+      console.log('Wallet suspend response:', response.data);
+      if (response.status === 200 || response.status === 201) {
+        return response.data;
+      }
+      throw new Error('Failed to suspend wallet');
+    } catch (error) {
+      console.error('Error suspending wallet:', error);
+      throw error;
     }
-  }  // Check if user has a wallet
+  }
+
+  // Check if user has a wallet
   public async checkWallet(): Promise<WalletCheckResponse> {
     try {
       console.log('Checking wallet status');
