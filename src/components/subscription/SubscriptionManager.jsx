@@ -19,6 +19,7 @@ export default function SubscriptionManager({ gallery }) {
   const currentSubscription = userSubscriptions.find(
     sub => sub.galleryId === gallery._id && sub.status === 'active'
   );
+  const [selectedOption, setSelectedOption] = useState(gallery.subscriptionOptions[0]);
 
   const handleSubscribe = async () => {
     if (!user) {
@@ -32,11 +33,19 @@ export default function SubscriptionManager({ gallery }) {
       return;
     }
 
+    if (!selectedOption) {
+      addMessage({
+        text: 'Please select a subscription option',
+        type: 'error'
+      });
+      return;
+    }
+
     try {
-      const subscription = await subscribeToGallery(gallery._id);
+      const subscription = await subscribeToGallery(gallery._id, selectedOption);
       if (subscription) {
         addMessage({ 
-          text: 'Successfully subscribed to gallery', 
+          text: `Successfully subscribed to gallery for ${selectedOption.label}`, 
           type: 'success' 
         });
       }
@@ -125,16 +134,45 @@ export default function SubscriptionManager({ gallery }) {
         <div className="p-3 rounded-full bg-purple-500/20">
           <Lock className="h-6 w-6 text-purple-500" />
         </div>
-        <div className="flex-1">
-          <h3 className="text-lg font-semibold mb-2">Subscribe to Access</h3>
+        <div className="flex-1">          <h3 className="text-lg font-semibold mb-2">Subscribe to Access</h3>
           <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-            Subscribe to unlock all content in this gallery
+            Choose a subscription option to unlock this gallery
           </p>
+          
+          {/* Subscription Options */}
+          <div className="space-y-4 mb-4">
+            {gallery.subscriptionOptions.map((option, index) => (
+              <div 
+                key={index}
+                onClick={() => setSelectedOption(option)}
+                className={`p-4 rounded-lg cursor-pointer transition-all duration-200 ${
+                  selectedOption === option
+                    ? 'bg-purple-100 dark:bg-purple-900/30 ring-2 ring-purple-500'
+                    : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-purple-50 dark:hover:bg-purple-900/20'
+                }`}
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                      {option.label}
+                    </h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {option.duration} days access
+                    </p>
+                  </div>
+                  <div className="text-lg font-semibold text-purple-600 dark:text-purple-400">
+                    ${option.price}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
           <button
             onClick={handleSubscribe}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
-            Subscribe Now
+            Subscribe Now for ${selectedOption?.price}
           </button>
         </div>
       </div>

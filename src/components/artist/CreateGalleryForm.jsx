@@ -17,7 +17,28 @@ const CreateGalleryForm = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    imageIds: []
+    imageIds: [],
+    baseCurrency: 'USD',
+    subscriptionOptions: [
+      {
+        duration: 30,
+        price: 9.99,
+        label: '1 Month Access',
+        isActive: true
+      },
+      {
+        duration: 90,
+        price: 24.99,
+        label: '3 Months Access',
+        isActive: true
+      },
+      {
+        duration: 365,
+        price: 79.99,
+        label: '1 Year Access',
+        isActive: true
+      }
+    ]
   });
 
   useEffect(() => {
@@ -75,6 +96,22 @@ const CreateGalleryForm = () => {
       return;
     }
 
+    // Validate subscription options
+    const activeSubscriptions = formData.subscriptionOptions.filter(option => option.isActive);
+    if (activeSubscriptions.length === 0) {
+      setError('At least one subscription option must be active');
+      return;
+    }
+
+    // Validate subscription prices and durations
+    const invalidSubscription = activeSubscriptions.find(
+      option => option.price <= 0 || !option.duration || !option.label
+    );
+    if (invalidSubscription) {
+      setError('All active subscription options must have valid prices, durations, and labels');
+      return;
+    }
+
     try {
       setLoading(true);
       setError('');
@@ -82,7 +119,9 @@ const CreateGalleryForm = () => {
       const requestData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
-        imageIds: formData.imageIds
+        imageIds: formData.imageIds,
+        baseCurrency: formData.baseCurrency,
+        subscriptionOptions: formData.subscriptionOptions
       };
       
       console.log('Submitting gallery creation with data:', requestData);      const result = await galleryService.createGalleryGroup(requestData);
@@ -174,6 +213,49 @@ const CreateGalleryForm = () => {
               placeholder="Describe your gallery..."
               required
             />
+          </div>
+
+          {/* Subscription Options */}
+          <div className="space-y-4">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Subscription Options
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {formData.subscriptionOptions.map((option, index) => (
+                <div key={index} className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {option.label}
+                      </label>
+                      <div className="mt-2 text-lg font-bold text-blue-600 dark:text-blue-400">
+                        ${option.price.toFixed(2)} USD
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        Duration: {option.duration} days
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-2">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={option.isActive}
+                          onChange={(e) => {
+                            const newOptions = [...formData.subscriptionOptions];
+                            newOptions[index] = { ...option, isActive: e.target.checked };
+                            setFormData(prev => ({ ...prev, subscriptionOptions: newOptions }));
+                          }}
+                          className="h-4 w-4 text-blue-600"
+                        />
+                        <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                          Active
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Image Selection */}

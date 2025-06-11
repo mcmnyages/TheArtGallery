@@ -6,12 +6,19 @@ const API_URLS = {
   GALLERY: '/gallery'  // Base path for all gallery-related endpoints
 };
 
+export interface SubscriptionOption {
+  duration: number;
+  price: number;
+  label: string;
+  isActive: boolean;
+}
+
 export interface CreateGalleryGroupRequest {
   name: string;
   description: string;
   imageIds: string[];
-  basePrice?: number;
-  baseCurrency?: string;
+  baseCurrency: string;
+  subscriptionOptions: SubscriptionOption[];
 }
 
 export interface GalleryGroupResponse {
@@ -36,8 +43,8 @@ export interface GalleryGroup {
   images: GalleryImage[];
   sharedWith: string[];
   createdAt: string;
-  basePrice: number;
   baseCurrency: string;
+  subscriptionOptions: SubscriptionOption[];
   paymentRequired: boolean;
   __v: number;
 }
@@ -84,6 +91,38 @@ export interface ArtistActionResponse {
 export class GalleryService {
   // Cache for successful payment verifications
   private verifiedPayments = new Map<string, PaymentStatus>();
+
+  public async createSubscription(galleryId: string, subscriptionOption: SubscriptionOption): Promise<Subscription> {
+    try {
+      console.log('Creating subscription for gallery:', galleryId, subscriptionOption);
+      const headers = await this.getAuthenticatedHeaders();
+      const url = `${API_URLS.GALLERY}/subscriptions`;
+
+      const response = await axios.post<{ success: boolean; subscription: Subscription }>(
+        url,
+        {
+          galleryId,
+          duration: subscriptionOption.duration,
+          price: subscriptionOption.price,
+          subscriptionType: subscriptionOption.label
+        },
+        {
+          headers,
+          withCredentials: true
+        }
+      );
+
+      if (!response.data.success || !response.data.subscription) {
+        throw new Error('Failed to create subscription');
+      }
+
+      console.log('Subscription created:', response.data.subscription);
+      return response.data.subscription;
+    } catch (error) {
+      console.error('Error creating subscription:', error);
+      throw error;
+    }
+  }
 
   private async getAuthenticatedHeaders(): Promise<Record<string, string>> {
     const token = tokenService.getAccessToken();
@@ -460,8 +499,7 @@ export class GalleryService {
   }
   public async createGalleryGroup(data: CreateGalleryGroupRequest): Promise<GalleryGroup & { message?: string }> {
     try {
-      console.log('Creating gallery group with data:', data);
-        // Validate request data
+      console.log('Creating gallery group with data:', data);      // Validate request data
       if (!data.name || typeof data.name !== 'string' || data.name.trim().length === 0) {
         throw new Error('Name is required and must be a string');
       }
@@ -476,26 +514,38 @@ export class GalleryService {
         throw new Error('All image IDs must be valid strings');
       }
 
-      // Prepare request data with optional price info
+      // Validate baseCurrency is provided and is USD
+      if (!data.baseCurrency || data.baseCurrency !== 'USD') {
+        throw new Error('Base currency is required and must be USD');
+      }
+
+      // Validate subscription options
+      if (!Array.isArray(data.subscriptionOptions) || data.subscriptionOptions.length === 0) {
+        throw new Error('At least one subscription option is required');
+      }
+
+      // Validate each subscription option
+      data.subscriptionOptions.forEach((option, index) => {
+        if (!option.duration || !option.price || !option.label) {
+          throw new Error(`Subscription option ${index + 1} is missing required fields`);
+        }
+        if (option.price <= 0) {
+          throw new Error(`Subscription option ${index + 1} must have a positive price`);
+        }
+        if (option.duration <= 0) {
+          throw new Error(`Subscription option ${index + 1} must have a positive duration`);
+        }
+        if (typeof option.isActive !== 'boolean') {
+          throw new Error(`Subscription option ${index + 1} must specify if it's active`);
+        }
+      });      // Prepare request data according to expected structure
       const requestData: CreateGalleryGroupRequest = {
         name: data.name.trim(),
         description: data.description.trim(),
         imageIds: data.imageIds,
+        baseCurrency: data.baseCurrency,
+        subscriptionOptions: data.subscriptionOptions
       };
-
-      // Only add price info if both price and currency are provided
-      if (data.basePrice !== undefined && data.basePrice !== null) {
-        const price = Number(data.basePrice);
-        if (isNaN(price) || price < 0) {
-          throw new Error('Base price must be a positive number');
-        }
-        requestData.basePrice = price;
-        
-        if (!data.baseCurrency || typeof data.baseCurrency !== 'string' || data.baseCurrency.trim().length === 0) {
-          throw new Error('Base currency is required when price is provided');
-        }
-        requestData.baseCurrency = data.baseCurrency.trim();
-      }
 
       const headers = await this.getAuthenticatedHeaders();
       const url = `${API_URLS.GALLERY}/groups`;      const response = await axios.post<GalleryGroupResponse>(
@@ -676,27 +726,38 @@ export class GalleryService {
       console.error('Error deleting artist image:', error);
       throw error;
     }
-  }  public async verifyPayment(galleryId: string, orderId: string | null, userId: string): Promise<PaymentStatus> {
+  }  public async verifyPayment(
+    galleryId: string,
+    orderId: string | null,
+    userId: string,
+    subscriptionOptionId?: string
+  ): Promise<PaymentStatus> {
     try {
       // If no orderId is provided, we're just checking access status
       // Check the cache first in this case
       if (!orderId) {
-        const cached = this.verifiedPayments.get(galleryId);
+        const cacheKey = `${galleryId}:${userId}`;
+        const cached = this.verifiedPayments.get(cacheKey);
         if (cached) {
           console.log('📋 Using cached verification:', cached);
           if (cached.subscription?.isActive && new Date(cached.subscription.endDate) > new Date()) {
             return cached;
           } else {
             // Clear expired cache
-            this.verifiedPayments.delete(galleryId);
+            this.verifiedPayments.delete(cacheKey);
           }
         }
       }
 
-      console.log('🔍 Verifying payment:', { galleryId, orderId, userId });
+      console.log('🔍 Verifying payment:', { galleryId, orderId, userId, subscriptionOptionId });
       
-      // Don't include orderId if it's null (for access checks)
-      const payload = orderId ? { galleryId, orderId, userId } : { galleryId, userId };
+      const payload = {
+        galleryId,
+        userId,
+        ...(orderId && { orderId }),
+        ...(subscriptionOptionId && { subscriptionOptionId })
+      };
+
       const headers = await this.getAuthenticatedHeaders();
       
       const response = await axios.post<PaymentStatus>(
@@ -729,16 +790,18 @@ export class GalleryService {
         subscription
       };
 
-      // Cache only successful payment verifications with active subscriptions
+      // Cache successful payment verifications with active subscriptions
       if (hasAccess && subscription?.isActive) {
-        this.verifiedPayments.set(galleryId, result);
+        const cacheKey = `${galleryId}:${userId}`;
+        this.verifiedPayments.set(cacheKey, result);
       }
 
       return result;
     } catch (error) {
       console.error('❌ Error verifying payment:', error);
       // Try using cached result if available
-      const cached = this.verifiedPayments.get(galleryId);
+      const cacheKey = `${galleryId}:${userId}`;
+      const cached = this.verifiedPayments.get(cacheKey);
       if (cached?.subscription?.isActive && new Date(cached.subscription.endDate) > new Date()) {
         console.log('📋 Using cached verification after error:', cached);
         return cached;
@@ -803,6 +866,47 @@ export class GalleryService {
       return response.data || [];
     } catch (error) {
       console.error('Error fetching artist applications:', error);
+      throw error;
+    }
+  }
+
+  public async updateGalleryGroup(galleryId: string, updates: {
+    name?: string;
+    subscriptionOptions?: Array<{
+      duration: number;
+      price: number;
+      label: string;
+      isActive: boolean;
+    }>;
+  }): Promise<GalleryGroup> {
+    try {
+      console.log('Updating gallery group:', { galleryId, updates });
+      const headers = await this.getAuthenticatedHeaders();
+      const url = `${API_URLS.GALLERY}/groups/${galleryId}`;
+
+      const requestData = {
+        ...updates,
+        action: 'update' as const
+      };
+
+      console.log('Request payload:', JSON.stringify(requestData, null, 2));
+      const response = await axios.put<{ message: string; group: GalleryGroup }>(
+        url,
+        requestData,
+        {
+          headers,
+          withCredentials: true
+        }
+      );
+
+      console.log('Update gallery response:', response.data);
+      if (!response.data.group) {
+        throw new Error(response.data.message || 'Failed to update gallery group');
+      }
+
+      return response.data.group;
+    } catch (error) {
+      console.error('Error updating gallery group:', error);
       throw error;
     }
   }

@@ -15,10 +15,90 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
   const [availableImages, setAvailableImages] = useState([]);
   const [loadingImages, setLoadingImages] = useState(true);
   
-  // Keep track of which images to add/remove
+  // State for subscription options and image selection
+  const [subscriptionOptions, setSubscriptionOptions] = useState([]);
+  const [originalSubscriptionOptions, setOriginalSubscriptionOptions] = useState([]);
   const [selectedImages, setSelectedImages] = useState(new Set());
   const [originalImageIds, setOriginalImageIds] = useState(new Set());
   const [processing, setProcessing] = useState(false);
+
+  // Subscription handlers
+  const subscriptionHandlers = {
+    generateLabel: (durationType, duration, price) => {
+      if (!duration || !price) return 'Invalid subscription';
+      
+      const formatPrice = (price) => `$${parseFloat(price).toFixed(2)}`;
+      
+      const durationMap = {
+        weekly: `${formatPrice(price)} / Week`,
+        monthly: `${formatPrice(price)} / Month`,
+        quarterly: `${formatPrice(price)} / Quarter`,
+        yearly: `${formatPrice(price)} / Year`
+      };
+
+      return durationMap[durationType] || `${formatPrice(price)} for ${duration} days`;
+    },
+
+    update: (index, updates) => {
+      setSubscriptionOptions(prev => {
+        const updatedOptions = [...prev];
+        const currentOption = { ...updatedOptions[index] };
+        const newUpdates = {
+          ...updates,
+          isActive: 'isActive' in updates ? updates.isActive : currentOption.isActive
+        };
+        
+        if ('price' in updates || 'durationType' in updates || 'duration' in updates) {
+          const updatedOption = {
+            ...currentOption,
+            ...newUpdates
+          };
+          newUpdates.label = subscriptionHandlers.generateLabel(
+            updates.durationType || currentOption.durationType,
+            updates.duration || currentOption.duration,
+            updates.price || currentOption.price
+          );
+        }
+        
+        updatedOptions[index] = {
+          ...currentOption,
+          ...newUpdates
+        };
+        
+        return updatedOptions;
+      });
+    },
+
+    add: () => {
+      const newOption = {
+        id: `custom-${Date.now()}`,
+        duration: 30,
+        durationType: 'monthly',
+        price: 9.99,
+        label: '$9.99 / Month',
+        isActive: true
+      };
+      
+      setSubscriptionOptions(prev => [...prev, newOption]);
+    },
+
+    remove: (index) => {
+      setSubscriptionOptions(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  // Image selection handler
+  const toggleImageSelection = (id) => {
+    setSelectedImages(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     const fetchGalleryAndImages = async () => {
@@ -37,15 +117,26 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
           onClose();
           return;
         }
-        
-        setGallery(fetchedGallery);
+          setGallery(fetchedGallery);
         setGalleryName(fetchedGallery.name); // Set initial gallery name
         setOriginalImageIds(new Set(fetchedGallery.images.map(img => img._id)));
         setSelectedImages(new Set(fetchedGallery.images.map(img => img._id)));
+        
+        // Set subscription options
+        if (fetchedGallery.subscriptionOptions) {
+          setSubscriptionOptions(fetchedGallery.subscriptionOptions.map(opt => ({
+            ...opt,
+            durationType: opt.duration === 7 ? 'weekly' :
+                         opt.duration === 30 ? 'monthly' :
+                         opt.duration === 90 ? 'quarterly' :
+                         opt.duration === 365 ? 'yearly' : 'custom'
+          })));
+          setOriginalSubscriptionOptions(fetchedGallery.subscriptionOptions);
+        }
 
         if (!images || images.length === 0) {
           addMessage({ text: 'No images available to add to gallery', type: 'warning' });
-        }        const availableImgs = images.map(img => ({
+        }const availableImgs = images.map(img => ({
           id: img._id,
           url: img.imageUrl,
           title: img._id || 'Untitled Image',
@@ -70,17 +161,6 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
     image.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const toggleImageSelection = (_id ) => {
-    setSelectedImages(prev => {
-      const next = new Set(prev);
-      if (next.has(_id)) {
-        next.delete(_id);
-      } else {
-        next.add(_id);
-      }
-      return next;
-    });
-  };
   const handleSave = async () => {
     try {
       setProcessing(true);
@@ -90,21 +170,36 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
         .filter(id => !originalImageIds.has(id));
 
       const imagesToRemove = Array.from(originalImageIds)
-        .filter(id => !selectedImages.has(id));
-
-      const hasNameChanged = galleryName !== gallery.name;
+        .filter(id => !selectedImages.has(id));      const hasNameChanged = galleryName !== gallery.name;
       const hasImageChanges = imagesToAdd.length > 0 || imagesToRemove.length > 0;
+      
+      // Check for subscription changes
+      const formattedSubscriptions = subscriptionOptions.map(opt => ({
+        duration: parseInt(opt.duration),
+        price: parseFloat(opt.price),
+        label: opt.label,
+        isActive: opt.isActive
+      }));
+      
+      const hasSubscriptionChanges = JSON.stringify(formattedSubscriptions) !== JSON.stringify(originalSubscriptionOptions);
 
-      if (!hasNameChanged && !hasImageChanges) {
+      if (!hasNameChanged && !hasImageChanges && !hasSubscriptionChanges) {
         addMessage({ text: 'No changes to save', type: 'info' });
         onClose();
         return;
-      }
-
-      // Update gallery name if changed
-      if (hasNameChanged) {
-        await galleryService.updateGalleryGroup(galleryId, { name: galleryName });
-        addMessage({ text: 'Gallery name updated successfully', type: 'success' });
+      }      // Update gallery name and subscription options if changed
+      if (hasNameChanged || hasSubscriptionChanges) {
+        const updateData = {
+          ...(hasNameChanged && { name: galleryName }),
+          ...(hasSubscriptionChanges && { subscriptionOptions: formattedSubscriptions })
+        };
+        await galleryService.updateGalleryGroup(galleryId, updateData);
+        if (hasNameChanged) {
+          addMessage({ text: 'Gallery name updated successfully', type: 'success' });
+        }
+        if (hasSubscriptionChanges) {
+          addMessage({ text: 'Subscription options updated successfully', type: 'success' });
+        }
       }
 
       // Add new images if any
@@ -161,6 +256,7 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
         </button>
 
         <div className="space-y-8">
+          {/* Gallery Name Section */}
           <div>
             <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
               Edit Gallery
@@ -178,11 +274,9 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
                 placeholder="Gallery Name"
               />
             </div>
-            <p className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              Select or deselect images to update this gallery
-            </p>
           </div>
 
+          {/* Error Message */}
           {error && (
             <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 p-4 rounded-lg flex items-center gap-2">
               <X className="h-5 w-5 flex-shrink-0" />
@@ -190,8 +284,119 @@ const EditGalleryModal = ({ isOpen, onClose, galleryId, onSuccess }) => {
             </div>
           )}
 
+          {/* Subscription Options */}
+          <div className="mb-8">
+            <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-4`}>
+              Subscription Plans
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              {subscriptionOptions.map((option, index) => (
+                <div 
+                  key={option.id || index}
+                  className={`p-6 rounded-xl border ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600' 
+                      : 'bg-white border-gray-200'
+                  } relative ${
+                    option.isActive ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                >
+                  {subscriptionOptions.length > 1 && (
+                    <button
+                      onClick={() => subscriptionHandlers.remove(index)}
+                      className="absolute -top-2 -right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-full"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  <div className="space-y-4">
+                    <select
+                      value={option.durationType || 'monthly'}
+                      onChange={(e) => {
+                        const type = e.target.value;
+                        const durationMap = {
+                          weekly: 7,
+                          monthly: 30,
+                          quarterly: 90,
+                          yearly: 365
+                        };
+                        subscriptionHandlers.update(index, {
+                          durationType: type,
+                          duration: durationMap[type]
+                        });
+                      }}
+                      className={`w-full px-3 py-2 rounded-lg border ${
+                        isDarkMode 
+                          ? 'bg-gray-600 border-gray-500 text-white' 
+                          : 'bg-gray-50 border-gray-300 text-gray-900'
+                      }`}
+                    >
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="quarterly">Quarterly</option>
+                      <option value="yearly">Yearly</option>
+                    </select>
+
+                    <div className="relative">
+                      <span className={`absolute left-3 top-1/2 -translate-y-1/2 ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                      }`}>$</span>
+                      <input
+                        type="number"
+                        min="0.99"
+                        step="0.01"
+                        value={option.price}
+                        onChange={(e) => subscriptionHandlers.update(index, { 
+                          price: parseFloat(e.target.value) || 0 
+                        })}
+                        className={`w-full pl-8 pr-3 py-2 rounded-lg border ${
+                          isDarkMode 
+                            ? 'bg-gray-600 border-gray-500 text-white' 
+                            : 'bg-gray-50 border-gray-300 text-gray-900'
+                        }`}
+                      />
+                    </div>
+
+                    <div className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+                      {option.label}
+                    </div>
+
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={option.isActive}
+                        onChange={(e) => subscriptionHandlers.update(index, { 
+                          isActive: e.target.checked 
+                        })}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+                        Active Plan
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={subscriptionHandlers.add}
+              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg flex items-center gap-2 hover:from-blue-600 hover:to-purple-600 transition-all duration-300 transform hover:scale-105"
+            >
+              <Plus className="w-4 h-4" />
+              Add Subscription Plan
+            </button>
+          </div>
+
+          {/* Image Selection Section */}
           <div>
-            {/* Image Search */}
+            <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-4`}>
+              Gallery Images
+            </h2>
+            
             <div className="mb-6">
               <div className="relative max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
