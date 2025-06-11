@@ -159,13 +159,13 @@ const GalleriesPage = () => {
   const GalleryCard = ({ gallery, isLocked }) => (
     <div 
       onClick={(e) => handleGalleryClick(e, gallery)}
-      className={`group rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border ${
+      className={`group rounded-2xl overflow-hidden border-2 transition-all duration-300 cursor-pointer ${
         isDarkMode 
           ? 'bg-gray-800/50 border-gray-700/50 hover:bg-gray-800/80 hover:border-gray-600' 
           : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200'
-      } backdrop-blur-sm transform hover:-translate-y-1`}
+      } backdrop-blur-sm transform hover:-translate-y-2 hover:shadow-2xl`}
     >
-      <div className="relative h-56 sm:h-64 overflow-hidden">
+      <div className="relative h-64 sm:h-72 overflow-hidden">
         {gallery.images && gallery.images[0] ? (
           <img 
             src={gallery.images[0].signedUrl}
@@ -185,35 +185,35 @@ const GalleriesPage = () => {
               : 'from-gray-100 to-gray-200 text-gray-500'
           }`}>
             <div className="text-center">
-              <Eye className="h-12 w-12 mx-auto mb-2 opacity-50" />
+              <Eye className="h-16 w-16 mx-auto mb-3 opacity-50" />
               <span className="text-sm">No preview available</span>
             </div>
           </div>
         )}
         
         {/* Image count badge */}
-        <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-          <Eye className="h-3 w-3" />
+        <div className="absolute top-4 left-4 bg-black/70 backdrop-blur-sm text-white text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
+          <Eye className="h-4 w-4" />
           {gallery.images?.length || 0}
         </div>
 
         {/* Lock overlay */}
         {isLocked && (
           <div className="absolute inset-0 bg-black/30 flex items-center justify-center backdrop-blur-sm">
-            <div className="bg-white/90 p-4 rounded-full shadow-lg">
-              <Lock className="h-8 w-8 text-gray-700" />
+            <div className="bg-white/90 p-5 rounded-full shadow-xl transform group-hover:scale-110 transition-transform">
+              <Lock className="h-10 w-10 text-gray-700" />
             </div>
           </div>
         )}
 
         {/* Status badges */}
-        <div className="absolute top-3 right-3 flex flex-col gap-2">
+        <div className="absolute top-4 right-4 flex flex-col gap-2">
           {artistProfile && artistProfile.id === gallery.userId && (
-            <span className="bg-emerald-500/90 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm font-medium">
+            <span className="bg-emerald-500/90 text-white text-sm px-3 py-1.5 rounded-full backdrop-blur-sm font-medium">
               Your Gallery
             </span>
           )}
-          <span className={`text-xs px-2 py-1 rounded-full backdrop-blur-sm font-medium ${
+          <span className={`text-sm px-3 py-1.5 rounded-full backdrop-blur-sm font-medium ${
             gallery.isPublic
               ? 'bg-blue-500/90 text-white'
               : 'bg-amber-500/90 text-white'
@@ -223,96 +223,75 @@ const GalleriesPage = () => {
         </div>
       </div>
 
-      <div className="p-5">
-        <div className="flex items-start justify-between mb-3">
-          <h3 className={`text-xl font-bold leading-tight ${
-            isDarkMode ? 'text-white' : 'text-gray-900'
-          } group-hover:text-blue-600 transition-colors`}>
-            {gallery.name}
-          </h3>
-          <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
-            gallery.isActive
-              ? isDarkMode ? 'bg-emerald-800/50 text-emerald-200' : 'bg-emerald-100 text-emerald-700'
-              : isDarkMode ? 'bg-red-800/50 text-red-200' : 'bg-red-100 text-red-700'
-          }`}>
-            <div className={`w-2 h-2 rounded-full ${
-              gallery.isActive ? 'bg-emerald-500' : 'bg-red-500'
-            }`} />
-            {gallery.isActive ? 'Live' : 'Draft'}
+      <div className="p-6 space-y-6">
+        <div className="space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <h3 className={`text-2xl font-bold leading-tight ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            } group-hover:text-blue-600 transition-colors`}>
+              {gallery.name}
+            </h3>
+            <div className={`flex items-center gap-1 text-sm px-3 py-1.5 rounded-full ${
+              gallery.isActive
+                ? isDarkMode ? 'bg-emerald-800/50 text-emerald-200' : 'bg-emerald-100 text-emerald-700'
+                : isDarkMode ? 'bg-red-800/50 text-red-200' : 'bg-red-100 text-red-700'
+            }`}>
+              <div className={`w-2 h-2 rounded-full ${
+                gallery.isActive ? 'bg-emerald-500' : 'bg-red-500'
+              }`} />
+              {gallery.isActive ? 'Live' : 'Draft'}
+            </div>
           </div>
-        </div>
 
-        <p className={`text-sm leading-relaxed mb-4 line-clamp-2 ${
-          isDarkMode ? 'text-gray-300' : 'text-gray-600'
-        }`}>
-          {gallery.description}
-        </p>
+          <p className={`text-base leading-relaxed mb-4 line-clamp-2 ${
+            isDarkMode ? 'text-gray-300' : 'text-gray-600'
+          }`}>
+            {gallery.description}
+          </p>
+        </div>
         
         {/* Owner information */}
         {gallery.owner && (
-          <div className={`flex items-center gap-2 mb-4 ${
+          <div className={`flex items-center gap-3 ${
             isDarkMode ? 'text-gray-300' : 'text-gray-600'
           }`}>
-            <User className="h-4 w-4" />
-            <span className="text-sm font-medium">{gallery.owner.name}</span>
+            <User className="h-5 w-5" />
+            <span className="text-base font-medium">{gallery.owner.name}</span>
           </div>
         )}
 
-        {/* Subscription Options */}
-        {gallery.subscriptionOptions && gallery.subscriptionOptions.length > 0 && (
-          <div className="mb-4">
-            <div className="flex flex-wrap gap-2">
-              {gallery.subscriptionOptions.slice(0, 2).map(option => (
-                <span
-                  key={option._id}
-                  className={`text-xs px-3 py-1 rounded-full font-medium ${
-                    isDarkMode
-                      ? 'bg-blue-800/30 text-blue-200 border border-blue-700/30'
-                      : 'bg-blue-50 text-blue-600 border border-blue-200'
-                  }`}
-                >
-                  {option.label}: {option.price} {gallery.baseCurrency}
-                </span>
-              ))}
-              {gallery.subscriptionOptions.length > 2 && (
-                <span className={`text-xs px-3 py-1 rounded-full ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>
-                  +{gallery.subscriptionOptions.length - 2} more
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-
-        <div className={`flex justify-between items-center pt-4 border-t ${
+        <div className={`flex justify-between items-center pt-6 border-t ${
           isDarkMode ? 'border-gray-700' : 'border-gray-100'
         }`}>
-          <div className="flex items-center gap-3">
+          <div>
             {gallery.basePrice ? (
-              <span className={`text-lg font-bold ${
+              <span className={`text-xl font-bold ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
                 {gallery.basePrice} {gallery.baseCurrency}
               </span>
             ) : gallery.subscriptionOptions && gallery.subscriptionOptions.length > 0 ? (
-              <span className={`text-sm font-medium ${
-                isDarkMode ? 'text-blue-300' : 'text-blue-600'
-              }`}>
-                Subscription based
-              </span>
+              <button 
+                className={`text-sm font-medium px-4 py-2 rounded-full transition-all ${
+                  isDarkMode 
+                    ? 'bg-blue-800/30 text-blue-200 border border-blue-700/30 hover:bg-blue-800/50' 
+                    : 'bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100'
+                }`}
+              >
+                View Pricing
+              </button>
             ) : (
-              <span className={`text-sm ${
+              <span className={`text-base ${
                 isDarkMode ? 'text-gray-400' : 'text-gray-500'
               }`}>
                 Free access
               </span>
             )}
           </div>
-          <div className={`flex items-center gap-1 text-xs ${
+          <div className={`flex items-center gap-2 text-sm ${
             isDarkMode ? 'text-gray-400' : 'text-gray-500'
           }`}>
-            <Calendar className="h-3 w-3" />
+            <Calendar className="h-4 w-4" />
             {new Date(gallery.createdAt).toLocaleDateString()}
           </div>
         </div>
@@ -323,48 +302,50 @@ const GalleriesPage = () => {
   const GalleryListItem = ({ gallery, isLocked }) => (
     <div 
       onClick={(e) => handleGalleryClick(e, gallery)}
-      className={`group p-6 rounded-xl border cursor-pointer transition-all duration-300 ${
+      className={`group p-8 rounded-2xl border-2 cursor-pointer transition-all duration-300 ${
         isDarkMode 
           ? 'bg-gray-800/50 border-gray-700/50 hover:bg-gray-800/80 hover:border-gray-600' 
           : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200'
-      } backdrop-blur-sm hover:shadow-lg`}
+      } backdrop-blur-sm hover:shadow-xl transform hover:-translate-y-1`}
     >
-      <div className="flex gap-6">
-        <div className="relative w-32 h-24 rounded-lg overflow-hidden flex-shrink-0">
+      <div className="flex gap-8">
+        <div className="relative w-48 h-36 rounded-xl overflow-hidden flex-shrink-0">
           {gallery.images && gallery.images[0] ? (
             <img 
               src={gallery.images[0].signedUrl}
               alt={gallery.name} 
-              className={`w-full h-full object-cover ${isLocked ? 'opacity-50' : ''}`}
+              className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${
+                isLocked ? 'opacity-50' : ''
+              }`}
             />
           ) : (
             <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br ${
               isDarkMode ? 'from-gray-700 to-gray-800' : 'from-gray-100 to-gray-200'
             }`}>
-              <Eye className="h-6 w-6 opacity-50" />
+              <Eye className="h-8 w-8 opacity-50" />
             </div>
           )}
           {isLocked && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-              <Lock className="h-5 w-5 text-white" />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+              <Lock className="h-8 w-8 text-white" />
             </div>
           )}
         </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between mb-2">
-            <h3 className={`text-xl font-bold ${
+        <div className="flex-1 min-w-0 space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <h3 className={`text-2xl font-bold ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             } group-hover:text-blue-600 transition-colors truncate`}>
               {gallery.name}
             </h3>
-            <div className="flex gap-2 flex-shrink-0 ml-4">
+            <div className="flex gap-3 flex-shrink-0">
               {artistProfile && artistProfile.id === gallery.userId && (
-                <span className="bg-emerald-500 text-white text-xs px-2 py-1 rounded-full">
+                <span className="bg-emerald-500 text-white text-sm px-3 py-1.5 rounded-full">
                   Yours
                 </span>
               )}
-              <span className={`text-xs px-2 py-1 rounded-full ${
+              <span className={`text-sm px-3 py-1.5 rounded-full ${
                 gallery.isPublic
                   ? 'bg-blue-500 text-white'
                   : 'bg-amber-500 text-white'
@@ -374,51 +355,55 @@ const GalleriesPage = () => {
             </div>
           </div>
 
-          <p className={`text-sm mb-3 line-clamp-2 ${
+          <p className={`text-lg leading-relaxed mb-4 line-clamp-2 ${
             isDarkMode ? 'text-gray-300' : 'text-gray-600'
           }`}>
             {gallery.description}
           </p>
 
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-6 text-base">
               {gallery.owner && (
-                <div className={`flex items-center gap-1 ${
+                <div className={`flex items-center gap-2 ${
                   isDarkMode ? 'text-gray-300' : 'text-gray-600'
                 }`}>
-                  <User className="h-4 w-4" />
+                  <User className="h-5 w-5" />
                   {gallery.owner.name}
                 </div>
               )}
-              <div className={`flex items-center gap-1 ${
+              <div className={`flex items-center gap-2 ${
                 isDarkMode ? 'text-gray-400' : 'text-gray-500'
               }`}>
-                <Eye className="h-4 w-4" />
+                <Eye className="h-5 w-5" />
                 {gallery.images?.length || 0} images
               </div>
-              <div className={`flex items-center gap-1 ${
+              <div className={`flex items-center gap-2 ${
                 isDarkMode ? 'text-gray-400' : 'text-gray-500'
               }`}>
-                <Calendar className="h-4 w-4" />
+                <Calendar className="h-5 w-5" />
                 {new Date(gallery.createdAt).toLocaleDateString()}
               </div>
             </div>
 
-            <div className="text-right">
+            <div>
               {gallery.basePrice ? (
-                <span className={`text-lg font-bold ${
+                <span className={`text-2xl font-bold ${
                   isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>
                   {gallery.basePrice} {gallery.baseCurrency}
                 </span>
               ) : gallery.subscriptionOptions && gallery.subscriptionOptions.length > 0 ? (
-                <span className={`text-sm font-medium ${
-                  isDarkMode ? 'text-blue-300' : 'text-blue-600'
-                }`}>
-                  From {gallery.subscriptionOptions[0].price} {gallery.baseCurrency}
-                </span>
+                <button 
+                  className={`text-sm font-medium px-4 py-2 rounded-full transition-all ${
+                    isDarkMode 
+                      ? 'bg-blue-800/30 text-blue-200 border border-blue-700/30 hover:bg-blue-800/50' 
+                      : 'bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100'
+                  }`}
+                >
+                  View Pricing
+                </button>
               ) : (
-                <span className={`text-sm ${
+                <span className={`text-lg ${
                   isDarkMode ? 'text-gray-400' : 'text-gray-500'
                 }`}>
                   Free
@@ -432,38 +417,38 @@ const GalleriesPage = () => {
   );
 
   return (
-    <div className={`min-h-screen ${
+    <div className={`min-h-screen py-8 ${
       isDarkMode 
         ? 'bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800' 
         : 'bg-gradient-to-br from-gray-50 via-white to-gray-100'
     }`}>
-      <div className="p-4 md:p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto">
+      <div className="px-4 md:px-8 lg:px-12 max-w-[1920px] mx-auto">
+        <div className="max-w-7xl mx-auto space-y-12">
           {/* Header Section */}
           <div className={`${
             isDarkMode ? 'bg-gray-800/30' : 'bg-white/70'
-          } backdrop-blur-lg rounded-2xl shadow-xl border ${
+          } backdrop-blur-lg rounded-3xl shadow-xl border ${
             isDarkMode ? 'border-gray-700/50' : 'border-gray-200/50'
-          } p-6 md:p-8 mb-8`}>
-            <div className="text-center mb-8">
-              <h1 className={`text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r ${
+          } p-8 md:p-12`}>
+            <div className="text-center max-w-4xl mx-auto mb-12">
+              <h1 className={`text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r ${
                 isDarkMode 
                   ? 'from-white via-blue-200 to-purple-200' 
                   : 'from-gray-900 via-blue-600 to-purple-600'
-              } bg-clip-text text-transparent`}>
+              } bg-clip-text text-transparent leading-tight`}>
                 Discover Art Galleries
               </h1>
-              <p className={`text-lg ${
+              <p className={`text-xl leading-relaxed ${
                 isDarkMode ? 'text-gray-300' : 'text-gray-600'
-              } max-w-2xl mx-auto`}>
+              }`}>
                 Explore our curated collection of stunning art galleries from talented artists around the world
               </p>
             </div>
 
             {/* Search and Filters */}
-            <div className="space-y-4">
+            <div className="space-y-8">
               <div className="relative max-w-2xl mx-auto">
-                <Search className={`absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 ${
+                <Search className={`absolute left-6 top-1/2 transform -translate-y-1/2 h-6 w-6 ${
                   isDarkMode ? 'text-gray-400' : 'text-gray-500'
                 }`} />
                 <input
@@ -471,7 +456,7 @@ const GalleriesPage = () => {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search galleries by name or description..."
-                  className={`w-full pl-12 pr-4 py-4 rounded-xl border ${
+                  className={`w-full pl-16 pr-6 py-5 rounded-2xl border-2 ${
                     isDarkMode
                       ? 'bg-gray-800/50 border-gray-600/50 text-white placeholder-gray-400 focus:border-blue-500'
                       : 'bg-white/80 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-blue-500'
@@ -480,17 +465,17 @@ const GalleriesPage = () => {
               </div>
 
               {/* Filter Controls */}
-              <div className="flex flex-wrap items-center justify-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
+              <div className="flex flex-wrap items-center justify-center gap-6">
+                <div className="flex items-center gap-3">
+                  <Filter className={`h-5 w-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
                   <select
                     value={filterBy}
                     onChange={(e) => setFilterBy(e.target.value)}
-                    className={`px-3 py-2 rounded-lg border ${
+                    className={`px-4 py-2.5 rounded-xl border-2 ${
                       isDarkMode
                         ? 'bg-gray-800 border-gray-600 text-white'
                         : 'bg-white border-gray-200 text-gray-900'
-                    } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-base`}
                   >
                     <option value="all">All Galleries</option>
                     <option value="public">Public Only</option>
@@ -502,11 +487,11 @@ const GalleriesPage = () => {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className={`px-3 py-2 rounded-lg border ${
+                  className={`px-4 py-2.5 rounded-xl border-2 ${
                     isDarkMode
                       ? 'bg-gray-800 border-gray-600 text-white'
                       : 'bg-white border-gray-200 text-gray-900'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-base`}
                 >
                   <option value="newest">Newest First</option>
                   <option value="oldest">Oldest First</option>
@@ -514,26 +499,26 @@ const GalleriesPage = () => {
                   <option value="price">By Price</option>
                 </select>
 
-                <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-xl p-1.5">
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded-md transition-colors ${
+                    className={`p-2.5 rounded-lg transition-all ${
                       viewMode === 'grid'
-                        ? 'bg-blue-500 text-white'
+                        ? 'bg-blue-500 text-white shadow-lg'
                         : isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    <Grid className="h-4 w-4" />
+                    <Grid className="h-5 w-5" />
                   </button>
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`p-2 rounded-md transition-colors ${
+                    className={`p-2.5 rounded-lg transition-all ${
                       viewMode === 'list'
-                        ? 'bg-blue-500 text-white'
+                        ? 'bg-blue-500 text-white shadow-lg'
                         : isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    <List className="h-4 w-4" />
+                    <List className="h-5 w-5" />
                   </button>
                 </div>
               </div>
@@ -544,8 +529,8 @@ const GalleriesPage = () => {
           {loading && (
             <div className="flex justify-center items-center min-h-[400px]">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-                <p className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-6"></div>
+                <p className={`text-xl ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                   Loading galleries...
                 </p>
               </div>
@@ -567,22 +552,22 @@ const GalleriesPage = () => {
           {!loading && !galleryError && (
             <>
               {filteredGalleries.length === 0 ? (
-                <div className={`text-center p-12 rounded-xl ${
+                <div className={`text-center p-16 rounded-3xl ${
                   isDarkMode ? 'bg-gray-800/30' : 'bg-white/70'
                 } backdrop-blur-sm border ${
                   isDarkMode ? 'border-gray-700/50' : 'border-gray-200/50'
                 }`}>
-                  <div className="mb-6">
-                    <Eye className={`h-16 w-16 mx-auto mb-4 ${
+                  <div className="mb-8">
+                    <Eye className={`h-20 w-20 mx-auto mb-6 ${
                       isDarkMode ? 'text-gray-600' : 'text-gray-400'
                     }`} />
                   </div>
-                  <h3 className={`text-2xl font-bold mb-2 ${
+                  <h3 className={`text-3xl font-bold mb-4 ${
                     isDarkMode ? 'text-gray-200' : 'text-gray-900'
                   }`}>
                     No galleries found
                   </h3>
-                  <p className={`text-lg ${
+                  <p className={`text-xl ${
                     isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`}>
                     Try adjusting your search or filter criteria
@@ -591,8 +576,8 @@ const GalleriesPage = () => {
               ) : (
                 <>
                   {/* Results count */}
-                  <div className="mb-6">
-                    <p className={`text-sm ${
+                  <div className="mb-8">
+                    <p className={`text-lg ${
                       isDarkMode ? 'text-gray-400' : 'text-gray-600'
                     }`}>
                       Showing {filteredGalleries.length} of {galleries.length} galleries
@@ -601,7 +586,7 @@ const GalleriesPage = () => {
 
                   {/* Gallery Grid/List */}
                   {viewMode === 'grid' ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-8 xl:gap-10">
                       {filteredGalleries.map(gallery => (
                         <GalleryCard 
                           key={gallery._id} 
@@ -611,7 +596,7 @@ const GalleriesPage = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       {filteredGalleries.map(gallery => (
                         <GalleryListItem 
                           key={gallery._id} 
