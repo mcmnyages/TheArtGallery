@@ -3,6 +3,7 @@ import WalletOverview from '../../components/artist/wallet/WalletOverview';
 import TransactionHistory from '../../components/artist/wallet/TransactionHistory';
 import WithdrawFunds from '../../components/artist/wallet/WithdrawFunds';
 import WalletActivation from '../../components/artist/wallet/WalletActivation';
+import SuspendWalletModal from '../../components/artist/wallet/SuspendWalletModal';
 import { treasuryService } from '../../services/treasuryService';
 import { useMessage } from '../../hooks/useMessage';
 
@@ -10,6 +11,8 @@ const WalletPage = () => {
   const [balance, setBalance] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentWalletId, setCurrentWalletId] = useState(null);
+  const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
   const { addMessage } = useMessage();
   const fetchWalletData = async () => {
     try {
@@ -24,15 +27,16 @@ const WalletPage = () => {
         setBalance(null);
         setTransactions([]);
         return;
-      }
-        if (walletStatus.statusCode === 200 && walletStatus.walletId) {
+      }      if (walletStatus.statusCode === 200 && walletStatus.walletId) {
         // Get wallet details
         const walletDetails = await treasuryService.getWalletById(walletStatus.walletId);
         if (walletDetails) {
+          setCurrentWalletId(walletDetails.walletId);
           setBalance({
             available: parseFloat(walletDetails.balance),
             pending: 0, // You can add pending balance if available from API
-            total: parseFloat(walletDetails.balance)
+            total: parseFloat(walletDetails.balance),
+            status: walletDetails.status
           });
           setTransactions([]); // You'll need to update this with actual transactions from your API
         }
@@ -84,21 +88,41 @@ const WalletPage = () => {
       {/* Show wallet activation if balance is null (indicating no wallet) */}
       {balance === null ? (
         <WalletActivation onWalletActivated={() => fetchWalletData()} />
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      ) : (        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <WalletOverview balance={balance} />
             <TransactionHistory transactions={transactions} />
+            
+            {/* Suspend Wallet Button */}
+            {balance?.status !== 'suspended' && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setIsSuspendModalOpen(true)}
+                  className="px-4 py-2 text-red-600 hover:text-red-800 font-medium"
+                >
+                  Suspend Wallet
+                </button>
+              </div>
+            )}
           </div>
           
           <div className="lg:col-span-1">
             <WithdrawFunds 
               onWithdraw={handleWithdraw}
               availableBalance={balance?.available || 0}
+              disabled={balance?.status === 'suspended'}
             />
           </div>
         </div>
       )}
+
+      {/* Suspend Wallet Modal */}
+      <SuspendWalletModal
+        isOpen={isSuspendModalOpen}
+        onClose={() => setIsSuspendModalOpen(false)}
+        walletId={currentWalletId}
+        onWalletSuspended={fetchWalletData}
+      />
     </div>
   );
 };
