@@ -90,8 +90,7 @@ export class TreasuryService {
         currency: data.currency.trim().toUpperCase()
       };
 
-      const headers = await this.getAuthenticatedHeaders();
-      const response = await axios.post<WalletResponse>(
+      const headers = await this.getAuthenticatedHeaders();      const response = await axios.post<WalletResponse>(
         `${API_URLS.TREASURY}/wallet`,
         requestData,
         {
@@ -101,11 +100,12 @@ export class TreasuryService {
       );
 
       console.log('Wallet creation response:', response.data);
-      if (!response.data.walletId) {
-        throw new Error(response.data.message || 'Failed to create wallet');
+      // The wallet might be created successfully even if we don't get a walletId immediately
+      // Let's check the status code instead
+      if (response.status === 200 || response.status === 201) {
+        return response.data;
       }
-
-      return response.data;
+      throw new Error('Failed to create wallet');
     } catch (error) {
       console.error('Error creating wallet:', error);
       throw error;

@@ -3,7 +3,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { treasuryService } from '../../../services/treasuryService';
 import { useMessage } from '../../../hooks/useMessage';
 
-const WalletActivation = () => {
+const WalletActivation = ({ onWalletActivated }) => {
   const [loading, setLoading] = useState(true);
   const [hasWallet, setHasWallet] = useState(false);
   const [activating, setActivating] = useState(false);
@@ -45,18 +45,32 @@ const WalletActivation = () => {
       setError(null);
       setActivating(true);
       console.log('Attempting to create wallet...');
-      
-      const response = await treasuryService.createWallet({ currency: "USD" });
+        const response = await treasuryService.createWallet({ currency: "USD" });
       console.log('Wallet creation response:', response);
       
-      if (response.statusCode === 200 && response.walletId) {
+      // After creating the wallet, let's check its status
+      const walletCheck = await treasuryService.checkWallet();
+      console.log('Wallet check after creation:', walletCheck);
+        if (walletCheck.statusCode === 200 && walletCheck.walletId) {
         setHasWallet(true);
         addMessage({
           type: 'success',
           text: 'Wallet activated successfully! You can now receive payments.'
         });
+        onWalletActivated(); // Call the parent's callback to refresh data
       } else {
-        throw new Error('Failed to create wallet');
+        // Wait a moment and check again, as wallet creation might be asynchronous
+        setTimeout(async () => {
+          const secondCheck = await treasuryService.checkWallet();
+          if (secondCheck.statusCode === 200 && secondCheck.walletId) {
+            setHasWallet(true);
+            addMessage({
+              type: 'success',
+              text: 'Wallet activated successfully! You can now receive payments.'
+            });
+            onWalletActivated(); // Call the parent's callback to refresh data
+          }
+        }, 2000); // Wait 2 seconds before second check
       }
     } catch (error) {
       console.error('Error creating wallet:', error);
