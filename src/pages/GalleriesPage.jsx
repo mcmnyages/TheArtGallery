@@ -248,13 +248,63 @@ const GalleriesPage = () => {
                             } mb-3`}>
                               {gallery.description}
                             </p>
+                            
+                            {/* Owner information */}
+                            {gallery.owner && (
+                              <div className={`flex items-center gap-2 mb-3 ${
+                                isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                              }`}>
+                                <span className="text-sm">Created by:</span>
+                                <span className="text-sm font-semibold">{gallery.owner.name}</span>
+                              </div>
+                            )}
+
+                            {/* Subscription Options */}
+                            {gallery.subscriptionOptions && gallery.subscriptionOptions.length > 0 && (
+                              <div className="mb-3">
+                                <p className={`text-sm font-semibold mb-2 ${
+                                  isDarkMode ? 'text-gray-200' : 'text-gray-700'
+                                }`}>
+                                  Subscription Options:
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {gallery.subscriptionOptions.map(option => (
+                                    <span
+                                      key={option._id}
+                                      className={`text-xs px-2 py-1 rounded ${
+                                        isDarkMode
+                                          ? 'bg-blue-700/20 text-blue-200'
+                                          : 'bg-blue-50 text-blue-600'
+                                      }`}
+                                    >
+                                      {option.label}: {option.price} {gallery.baseCurrency}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
                             <div className="flex justify-between items-center border-t pt-3 mt-2">
                               <div className="flex items-center gap-2">
-                                <span className={`text-lg font-semibold ${
-                                  isDarkMode ? 'text-white' : 'text-gray-900'
-                                }`}>
-                                  {gallery.basePrice} {gallery.baseCurrency}
-                                </span>
+                                {gallery.basePrice ? (
+                                  <span className={`text-lg font-semibold ${
+                                    isDarkMode ? 'text-white' : 'text-gray-900'
+                                  }`}>
+                                    {gallery.basePrice} {gallery.baseCurrency}
+                                  </span>
+                                ) : gallery.subscriptionOptions && gallery.subscriptionOptions.length > 0 ? (
+                                  <span className={`text-sm ${
+                                    isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                                  }`}>
+                                    See subscription options
+                                  </span>
+                                ) : (
+                                  <span className={`text-sm ${
+                                    isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                                  }`}>
+                                    Price not set
+                                  </span>
+                                )}
                                 {gallery.isActive ? (
                                   <span className={`text-xs px-2 py-1 rounded ${
                                     isDarkMode
