@@ -17,7 +17,8 @@ import {
   HiX,
   HiSparkles,
   HiPhotograph as HiPicture,
-  HiColorSwatch
+  HiColorSwatch,
+  HiQrcode
 } from 'react-icons/hi';
 import RequestArtistModal from '../artist/RequestArtistModal';
 
@@ -62,6 +63,11 @@ const LeftSidebar = ({ isOpen, setIsOpen, isMobile }) => {
       name: 'All Galleries',
       path: '/galleries',
       icon: <HiPhotograph className="h-6 w-6" />
+    },
+    {
+      name: 'Scan QR Code',
+      path: '/scan',
+      icon: <HiQrcode className="h-6 w-6" />
     },
     {
       name: 'Subscriptions',

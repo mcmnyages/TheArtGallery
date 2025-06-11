@@ -12,7 +12,9 @@ const SERVICE_URLS = {
   AUTH: process.env.VITE_AUTH_API_URL || 'http://localhost:3000',
   OtherURL: process.env.OTHER_SERVICE_URL || 'http://localhost:3001',
   AUTHZ_URL: process.env.VITE_AUTHZ_API_URL || 'http://localhost:3003',
-  GALLERY_URL: process.env.VITE_GALLERY_API_URL || 'http://localhost:3002'
+  GALLERY_URL: process.env.VITE_GALLERY_API_URL || 'http://localhost:3002',
+  TREASURY_URL: process.env.VITE_TREASURY_API_URL || 'http://localhost:3004',
+  //ADD MORE SERVICES AS NEEDED
 };
 
 // Define proxy configurations for different service types
@@ -88,6 +90,7 @@ export default defineConfig(({ mode }) => {
   SERVICE_URLS.AUTH = env.VITE_AUTH_API_URL || 'http://localhost:3000';
   SERVICE_URLS.GALLERY_URL = env.VITE_GALLERY_API_URL || 'http://localhost:3002';
   SERVICE_URLS.AUTHZ_URL = env.VITE_AUTHZ_API_URL || 'http://localhost:3003';
+  SERVICE_URLS.TREASURY_URL = env.VITE_TREASURY_API_URL || 'http://localhost:3004';
   
   return {
     server: {
@@ -108,6 +111,11 @@ export default defineConfig(({ mode }) => {
         // Gallery Service - handles all gallery related endpoints
         '^/gallery/?(.*)': createServiceProxy(SERVICE_URLS.GALLERY_URL, {
           rewrite: (path) => path.replace(/^\/gallery/, '')
+        }),
+
+        // Treasury Service - handles all treasury related endpoints
+        '^/treasury/?(.*)': createServiceProxy(SERVICE_URLS.TREASURY_URL, {
+          rewrite: (path) => `/v0.1${path}`
         })
       }
     },

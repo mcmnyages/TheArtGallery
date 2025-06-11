@@ -31,6 +31,15 @@ const BottomNavBar = ({ isMobile }) => {
       ),
     },
     {
+      name: 'Scan',
+      path: '/scan',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v-4m6 0h2m-6 0h-2m0 0V4m6 11h2m-6 0h-2v4m0-11v-4m6 0h2m-6 0h-2M4 7h16M4 17h16" />
+        </svg>
+      ),
+    },
+    {
       name: 'Subscribe',
       path: '/subscriptions',
       icon: (

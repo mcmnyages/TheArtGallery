@@ -28,6 +28,7 @@ import WalletPage from './pages/artist/WalletPage';
 import OTPVerificationPage from './pages/OTPVerificationPage';
 import AdminRoute from './components/auth/AdminRoute';
 import AdminPage from './pages/admin/AdminPage';
+import QRScannerPage from './pages/QRScannerPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -101,6 +102,13 @@ function AppContent() {
             <Route path="/account" element={
               <ProtectedRoute>
                 <AccountPage />
+              </ProtectedRoute>
+            } />
+
+            {/* QR Scanner Route */}
+            <Route path="/scan" element={
+              <ProtectedRoute>
+                <QRScannerPage />
               </ProtectedRoute>
             } />
             
