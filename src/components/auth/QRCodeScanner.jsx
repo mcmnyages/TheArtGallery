@@ -1,216 +1,323 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useMessage } from '../../hooks/useMessage';
+import { authService } from '../../services/authService';
+import QRScannerView from './QRScannerView';
 
 const QRCodeScanner = () => {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
-  const [qrCodeInstance, setQrCodeInstance] = useState(null);
-  const [error, setError] = useState(null);
-  const [isStarting, setIsStarting] = useState(true);
-  const scannerRef = React.useRef(null);
-  const { isAuthenticated, user } = useAuth();
+  const [scanAttempts, setScanAttempts] = useState(0);
+  const scannerRef = useRef(null);
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const { addMessage } = useMessage();
-
-  // Clean up function to ensure proper cleanup of QR scanner
-  const cleanupScanner = async () => {
-    if (qrCodeInstance) {
-      try {
-        if (qrCodeInstance.isScanning) {
-          await qrCodeInstance.stop();
-        }
-        await qrCodeInstance.clear();
-        setQrCodeInstance(null);
-        setScanning(false);
-      } catch (err) {
-        console.error('Error cleaning up scanner:', err);
-      }
-    }
-  };
-
-  useEffect(() => {    const startScanner = async () => {
-      setError(null);
-      setIsStarting(true);
-      try {
-        // Clean up any existing instance
-        await cleanupScanner();
-        
-        // Create new instance only if there isn't one already
-        if (!scannerRef.current) {
-          scannerRef.current = new Html5Qrcode("qr-reader");
-          setQrCodeInstance(scannerRef.current);
-        }
-        
-        setScanning(true);
-
-        const qrCodeSuccessCallback = (decodedText) => {
+  const { addMessage } = useMessage();  const cleanupScanner = useCallback(async () => {
+    console.log('🧹 Starting scanner cleanup');
+    
+    try {
+      // First, stop scanning if it's active
+      if (scannerRef.current) {
+        if (scannerRef.current.isScanning) {
+          console.log('📤 Stopping active scan');
           try {
-            const scanData = JSON.parse(decodedText);
-            if (scanData.galleryId && scanData.syncToken) {
-              setScanResult(scanData);
-              handleSuccessfulScan(scanData);
-            } else {
-              addMessage({
-                type: 'error',
-                text: 'Invalid QR code format'
-              });
-            }
-          } catch (error) {
-            addMessage({
-              type: 'error',
-              text: 'Could not parse QR code data'
-            });
+            await scannerRef.current.stop();
+            // Small delay to ensure stop completes
+            await new Promise(resolve => setTimeout(resolve, 100));
+          } catch (stopError) {
+            console.warn('Non-critical stop error:', stopError);
           }
-        };
-
-        const config = {
-          fps: 10,
-          qrbox: { width: 450, height: 450 },
-          aspectRatio: 1.0
-        };        await scannerRef.current.start(
-          { facingMode: "environment" },
-          config,
-          qrCodeSuccessCallback,
-          (errorMessage) => {
-            console.log('QR Code scanning error:', errorMessage);
-          }
-        );
-      } catch (err) {        console.error('Error starting scanner:', err);
-        setError('Could not start camera. Please make sure you have granted camera permissions.');
-        addMessage({
-          type: 'error',
-          text: 'Could not start camera. Please make sure you have granted camera permissions.'
-        });
-      } finally {
-        setIsStarting(false);
+        }
       }
-    };
 
-    if (!scanning && !scanResult && !error) {
-      startScanner();
-    }    // Component cleanup function
-    return () => {
-      cleanupScanner();
+      // Next, handle all active media tracks
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach(track => track.stop());
+      } catch (err) {
+        console.log('No active media stream to clean up');
+      }
+
+      // Clean up any remaining video elements
+      const videoElements = document.querySelectorAll('video');
+      videoElements.forEach(videoElement => {
+        if (videoElement && videoElement.srcObject) {
+          const tracks = videoElement.srcObject.getTracks();
+          tracks.forEach(track => {
+            track.stop();
+            console.log('📤 Stopped media track:', track.kind);
+          });
+          videoElement.srcObject = null;
+          videoElement.removeAttribute('src');
+          videoElement.load();
+        }
+      });
+
+      // Finally clear the scanner instance
+      if (scannerRef.current) {
+        try {
+          console.log('🧹 Clearing scanner instance');
+          await scannerRef.current.clear();
+        } catch (clearError) {
+          console.warn('Non-critical clear error:', clearError);
+        }
+        scannerRef.current = null;
+      }
+
+      // Reset state
+      setScanning(false);
+      setScanResult(null);
+      setScanAttempts(0);
+
+      console.log('✅ Cleanup completed successfully');
+    } catch (err) {
+      console.error('❌ Error during cleanup:', err);
+      // Even if we hit an error, make sure we reset the state
       scannerRef.current = null;
-    };
+      setScanning(false);
+      setScanResult(null);
+      setScanAttempts(0);
+    }
   }, []);
 
-  const handleSuccessfulScan = async (scanData) => {
+  const handleSuccessfulScan = useCallback(async (scanData) => {
     try {
-      // Here you would typically make an API call to your backend
-      // to validate the sync token and get access to the synced gallery
-      const response = await fetch('/api/gallery/sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          galleryId: scanData.galleryId,
-          syncToken: scanData.syncToken,
-          userId: user?.id
-        })
-      });
+      console.log('🎯 Starting QR token approval process:', scanData);
+      // Stop scanning before making the API call
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        await scannerRef.current.stop();
+      }
 
-      if (response.ok) {
+      console.log('📤 Sending QR token to server:', scanData.qrToken);
+      const result = await authService.approveQRToken(scanData.qrToken);
+      console.log('📥 Server response:', result);
+      
+      if (result.success) {
+        console.log('✨ QR code approved successfully');
         addMessage({
           type: 'success',
-          text: 'Successfully synced with gallery display'
+          text: result.message || 'QR code successfully approved'
         });
-        navigate(`/gallery/${scanData.galleryId}`);
+        
+        // Clean up before navigation
+        await cleanupScanner();
+        
+        if (scanData.redirectUrl) {
+          console.log('🔄 Navigating to:', scanData.redirectUrl);
+          navigate(scanData.redirectUrl);
+        } else {
+          console.log('🔄 Navigating to default path: /galleries');
+          navigate('/galleries');
+        }
       } else {
-        addMessage({
-          type: 'error',
-          text: 'Failed to sync with gallery display'
-        });
+        throw new Error(result.error || 'Failed to approve QR code');
       }
     } catch (error) {
-      console.error('Sync error:', error);
+      console.error('QR approval error:', error);
       addMessage({
         type: 'error',
-        text: 'Error syncing with gallery display'
+        text: error.message || 'Error processing QR code'
       });
+      // Clean up and restart scanner after error
+      await cleanupScanner();
+      setTimeout(() => {
+        if (!scanResult) startScanner();
+      }, 2000);
     }
-  };
+  }, [cleanupScanner, navigate, addMessage]);
 
-  if (!isAuthenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center p-6">
-        <p className="text-lg text-gray-700 dark:text-gray-300 mb-4">
-          Please log in to use the QR code scanner
-        </p>
-        <button
-          onClick={() => navigate('/login')}
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-        >
-          Log In
-        </button>
-      </div>
-    );
-  }  const handleClose = async () => {
+  const startScanner = useCallback(async () => {
+    if (scanning || !isAuthenticated) return;
+    
+    console.log('🎥 Starting scanner initialization');
     try {
       await cleanupScanner();
-      scannerRef.current = null;
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: "environment" } 
+        });
+        stream.getTracks().forEach(track => track.stop());
+      } catch (err) {
+        throw new Error('Camera permission denied. Please allow camera access to scan QR codes.');
+      }
+
+      const config = {
+        fps: 10,
+        qrbox: 250, // Match the CSS overlay size
+        aspectRatio: 1,
+        disableFlip: false,
+        forceVideoConstraints: true,
+        videoConstraints: {
+          facingMode: "environment",
+          width: { min: 300, ideal: 720, max: 1920 },
+          height: { min: 300, ideal: 720, max: 1080 }
+        }
+      };
+      
+      const scanner = new Html5Qrcode("qr-reader");      const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+        console.log('📱 Raw QR code scan result:', decodedText, decodedResult);
+        
+        // Try parsing as JSON first
+        try {
+          // If it starts with { or [, treat as JSON
+          if (decodedText.trim().startsWith('{') || decodedText.trim().startsWith('[')) {
+            const scanData = JSON.parse(decodedText);
+            if (scanData.qrToken) {
+              console.log('✅ Valid QR token found:', scanData.qrToken);
+              setScanResult(scanData);
+              handleSuccessfulScan(scanData);
+              return;
+            }
+          }
+          
+          // Check if it's a valid URL with our expected format
+          if (decodedText.startsWith('http')) {
+            const url = new URL(decodedText);
+            const segments = url.pathname.split('/');
+            if (segments.length >= 3 && segments[1] === 'v') {
+              const token = segments[2];
+              console.log('✅ Valid QR token found from URL:', token);
+              setScanResult({ qrToken: token });
+              handleSuccessfulScan({ qrToken: token });
+              return;
+            }
+          }
+          
+          // If we get here, it's not a format we recognize
+          console.warn('❌ Unrecognized QR code format:', decodedText);
+          addMessage({
+            type: 'error',
+            text: 'QR code format not recognized. Please scan a valid gallery QR code.'
+          });
+        } catch (error) {
+          console.error('❌ Failed to process QR code data:', error, 'Raw text:', decodedText);
+          addMessage({
+            type: 'error',
+            text: 'Invalid QR code format. Please scan a valid gallery QR code.'
+          });
+        }
+      };
+
+      const qrCodeErrorCallback = (errorMessage, error) => {
+        // Silently handle NotFoundException as it's expected
+        if (error?.type === 0 || errorMessage === 'NotFoundException') {
+          return;
+        }
+        console.error('Scanner error:', errorMessage, error);
+      };
+
+      console.log('Starting scanner with config:', config);
+      await scanner.start(
+        { facingMode: "environment" },
+        config,
+        qrCodeSuccessCallback,
+        qrCodeErrorCallback
+      );
+      scannerRef.current = scanner;
+      setScanning(true);
+      console.log('✅ Scanner started successfully');
+
+    } catch (err) {
+      console.error('Error starting scanner:', err);
+      addMessage({
+        type: 'error',
+        text: 'Could not start camera. Please make sure you have granted camera permissions.'
+      });
+      setScanning(false);
+    }
+  }, [scanning, isAuthenticated, cleanupScanner, handleSuccessfulScan, addMessage]);
+
+  const handleClose = useCallback(async () => {
+    console.log('🚪 Closing QR scanner');
+    try {
+      await cleanupScanner();
+      // Wait for cleanup to complete
+      await new Promise(resolve => setTimeout(resolve, 300));
       navigate('/galleries');
     } catch (err) {
-      console.error('Error closing scanner:', err);
+      console.error('Error during close:', err);
+      // Force cleanup one more time before navigation
+      try {
+        await cleanupScanner();
+      } catch (finalErr) {
+        console.error('Final cleanup attempt failed:', finalErr);
+      }
+      navigate('/galleries');
     }
-  };
-  // Handle page visibility change
+  }, [cleanupScanner, navigate]);
+
+  // Restart scanner if too many failed attempts
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        cleanupScanner();
-      } else if (!scanning && !scanResult) {
-        startScanner();
+    if (scanAttempts > 5) {
+      console.log('Too many scan attempts, restarting scanner');
+      setScanAttempts(0);
+      startScanner();
+    }
+  }, [scanAttempts, startScanner]);
+
+  // Component mount/unmount effect
+  useEffect(() => {
+    const initialize = async () => {
+      if (isAuthenticated && !scanning && !scanResult) {
+        console.log('🟢 Conditions met, starting scanner');
+        await startScanner();
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    const cleanup = async () => {
+      console.log('🔴 Component unmounting');
+      try {
+        // First stop scanning
+        if (scannerRef.current && scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+          // Small delay to ensure stop completes
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        // Then do full cleanup
+        await cleanupScanner();
+      } catch (err) {
+        console.error('Cleanup error during unmount:', err);
+        // Force cleanup of any remaining resources
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          stream.getTracks().forEach(track => track.stop());
+        } catch (_) {
+          // Ignore errors here as we're already in cleanup
+        }
+      }
     };
-  }, [scanning, scanResult]);
+
+    initialize();
+
+    // Cleanup function
+    return () => {
+      cleanup().catch(err => {
+        console.error('Final cleanup attempt failed:', err);
+        // Last resort: try to stop any remaining video tracks
+        try {
+          const videoElements = document.querySelectorAll('video');
+          videoElements.forEach(video => {
+            if (video.srcObject) {
+              video.srcObject.getTracks().forEach(track => track.stop());
+              video.srcObject = null;
+            }
+          });
+        } catch (_) {
+          // Ignore any errors in final cleanup
+        }
+      });
+    };
+  }, [isAuthenticated, scanning, scanResult, startScanner, cleanupScanner]);
 
   return (
-    <div className="flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Scan Gallery QR Code
-          </h2>
-          <button
-            onClick={handleClose}
-            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        
-        <div 
-          id="qr-reader" 
-          className="overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-700"
-          style={{ width: '100%', minHeight: '300px' }}
-        />
-        
-        <p className="mt-4 text-sm text-gray-600 dark:text-gray-400 text-center">
-          Position the QR code within the frame to sync with the gallery display
-        </p>
-
-        <button
-          onClick={handleClose}
-          className="mt-6 w-full py-2 px-4 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg transition-colors"
-        >
-          Cancel Scanning
-        </button>
-      </div>
-    </div>
+    <QRScannerView 
+      isAuthenticated={isAuthenticated}
+      onClose={handleClose}
+      onLogin={() => navigate('/login')}
+    />
   );
 };
 
