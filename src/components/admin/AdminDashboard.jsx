@@ -8,18 +8,26 @@ const AdminDashboard = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const [applicationsCount, setApplicationsCount] = useState(0);
+  const [artistsCount, setArtistsCount] = useState(0);
 
-  useEffect(() => {    const fetchApplications = async () => {
+  useEffect(() => {
+    const fetchData = async () => {
       try {
-        const applications = await galleryService.getArtistApplications();
+        // Fetch applications and artists in parallel
+        const [applications, artists] = await Promise.all([
+          galleryService.getArtistApplications(),
+          galleryService.getApprovedArtists()
+        ]);
+        
         const pendingApplications = applications.filter(app => app.status === 'pending');
         setApplicationsCount(pendingApplications.length);
+        setArtistsCount(artists.length);
       } catch (error) {
-        console.error('Error fetching applications:', error);
+        console.error('Error fetching dashboard data:', error);
       }
     };
 
-    fetchApplications();
+    fetchData();
   }, []);
 
   return (
@@ -27,10 +35,20 @@ const AdminDashboard = () => {
       <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Stats Cards */}
-        <div className={`p-6 rounded-xl ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+        {/* Stats Cards */}        <div 
+          className={`p-6 rounded-xl cursor-pointer transform transition-all duration-200 hover:scale-[1.02] ${
+            isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'
+          }`}
+          onClick={() => navigate('/admin/artists')}
+        >
           <h3 className="text-lg font-semibold mb-2">Total Artists</h3>
-          <p className="text-2xl font-bold">0</p>
+          <p className="text-2xl font-bold">{artistsCount}</p>
+          <div className={`flex items-center text-sm mt-2 ${
+            isDarkMode ? 'text-blue-400' : 'text-blue-600'
+          }`}>
+            View Artists
+            <HiChevronRight className="w-4 h-4 ml-1" />
+          </div>
         </div>
 
         {/* Applications Card with Button */}
