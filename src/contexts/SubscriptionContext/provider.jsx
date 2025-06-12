@@ -2,6 +2,7 @@ import React, { useContext, useState, useEffect } from 'react';
 import { mockSubscriptionAPI } from '../../data/mockSubscriptions';
 import { AuthContext } from '../AuthContext/context';
 import { SubscriptionContext } from './context';
+import { galleryService } from '../../services/galleryService'; 
 
 export const SubscriptionProvider = ({ children }) => {
   const [userSubscriptions, setUserSubscriptions] = useState([]);

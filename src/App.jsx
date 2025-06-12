@@ -30,6 +30,7 @@ import AdminRoute from './components/auth/AdminRoute';
 import AdminPage from './pages/admin/AdminPage';
 import QRScannerPage from './pages/QRScannerPage';
 
+
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();

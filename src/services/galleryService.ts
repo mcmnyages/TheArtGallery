@@ -49,6 +49,11 @@ export interface GalleryGroup {
   __v: number;
 }
 
+export interface GallerySubscriber {
+  firstName: string;
+  lastName: string;
+}
+
 export interface GalleryGroupsResponse {
   message: string;
   groups: GalleryGroup[];
@@ -91,6 +96,11 @@ export interface ArtistActionResponse {
 export interface Artist {
   _id: string;
   email: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface GallerySubscriber {
   firstName: string;
   lastName: string;
 }
@@ -894,6 +904,24 @@ export class GalleryService {
         error: error instanceof Error ? error.message : 'Unknown error',
         details: axios.isAxiosError(error) ? error.response?.data : undefined
       });
+      throw error;
+    }
+  }
+
+
+  public async getAllSubscribers(): Promise<GallerySubscriber[]> {
+    try {
+      const headers = await this.getAuthenticatedHeaders();
+      const url = `${API_URLS.GALLERY}/galleries/all-subscribers`;
+
+      const response = await axios.get<GallerySubscriber[]>(url, {
+        headers,
+        withCredentials: true
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching gallery subscribers:', error);
       throw error;
     }
   }
