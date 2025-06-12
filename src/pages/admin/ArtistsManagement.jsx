@@ -1,8 +1,29 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { galleryService } from '../../services/galleryService';
 
 const ArtistsManagement = () => {
   const { isDarkMode } = useTheme();
+  const [artists, setArtists] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchArtists = async () => {
+      try {
+        const data = await galleryService.getApprovedArtists();
+        setArtists(data);
+        setError(null);
+      } catch (err) {
+        setError('Failed to fetch artists');
+        console.error('Error fetching artists:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchArtists();
+  }, []);
 
   return (
     <div className={`p-6 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}>
@@ -46,28 +67,48 @@ const ArtistsManagement = () => {
                 <th className="px-6 py-3 text-left">Joined</th>
                 <th className="px-6 py-3 text-left">Actions</th>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {/* Sample row - replace with actual data */}
-              <tr className={`${isDarkMode ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'}`}>
-                <td className="px-6 py-4">John Doe</td>
-                <td className="px-6 py-4">john@example.com</td>
-                <td className="px-6 py-4">
-                  <span className="px-2 py-1 text-sm rounded-full bg-green-100 text-green-800">
-                    Active
-                  </span>
-                </td>
-                <td className="px-6 py-4">12</td>
-                <td className="px-6 py-4">Jun 1, 2025</td>
-                <td className="px-6 py-4">
-                  <button className="text-blue-600 hover:text-blue-800 mr-3">
-                    View
-                  </button>
-                  <button className="text-red-600 hover:text-red-800">
-                    Suspend
-                  </button>
-                </td>
-              </tr>
+            </thead>            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {loading ? (
+                <tr>
+                  <td colSpan="6" className="px-6 py-4 text-center">
+                    Loading artists...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan="6" className="px-6 py-4 text-center text-red-500">
+                    {error}
+                  </td>
+                </tr>
+              ) : artists.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="px-6 py-4 text-center">
+                    No artists found
+                  </td>
+                </tr>
+              ) : (
+                artists.map((artist) => (
+                  <tr key={artist._id} className={`${isDarkMode ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'}`}>
+                    <td className="px-6 py-4">{artist.firstName} {artist.lastName}</td>
+                    <td className="px-6 py-4">{artist.email}</td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 text-sm rounded-full bg-green-100 text-green-800">
+                        Active
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">-</td>
+                    <td className="px-6 py-4">-</td>
+                    <td className="px-6 py-4">
+                      <button className="text-blue-600 hover:text-blue-800 mr-3">
+                        View
+                      </button>
+                      <button className="text-red-600 hover:text-red-800">
+                        Suspend
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -88,6 +88,13 @@ export interface ArtistActionResponse {
   success: boolean;
 }
 
+export interface Artist {
+  _id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+}
+
 export class GalleryService {
   // Cache for successful payment verifications
   private verifiedPayments = new Map<string, PaymentStatus>();
@@ -866,6 +873,27 @@ export class GalleryService {
       return response.data || [];
     } catch (error) {
       console.error('Error fetching artist applications:', error);
+      throw error;
+    }
+  }
+
+  public async getApprovedArtists(): Promise<Artist[]> {
+    try {
+      console.log('🎨 Fetching approved artists...');
+      const headers = await this.getAuthenticatedHeaders();
+      
+      const response = await axios.get<Artist[]>(`${API_URLS.GALLERY}/artists`, {
+        headers,
+        withCredentials: true
+      });
+
+      console.log('✅ Successfully fetched approved artists:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching approved artists:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        details: axios.isAxiosError(error) ? error.response?.data : undefined
+      });
       throw error;
     }
   }
