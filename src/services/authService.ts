@@ -556,6 +556,46 @@ class AuthService {
       return [];
     }
   }
+
+  async approveQRToken(qrToken: string): Promise<{ success: boolean; error?: string; message?: string }> {
+    try {
+      console.log('🔐 Starting QR token approval process');        const response = await fetch(`${API_BASE}/qrcode/token_approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ qrToken }),
+      });
+
+      const data = await this.handleJsonResponse(response);
+      console.log('📥 QR token approval response:', {
+        status: response.status,
+        ok: response.ok,
+        data
+      });
+      
+      if (!response.ok) {
+        console.error('❌ QR token approval failed:', data.error);
+        return {
+          success: false,
+          error: data.error || 'QR token approval failed'
+        };
+      }
+
+      return {
+        success: true,
+        message: data.message || 'QR token approved successfully'
+      };
+
+    } catch (error) {
+      console.error('🔥 QR token approval error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'An unexpected error occurred'
+      };
+    }
+  }
 }
 
 export const authService = new AuthService();
