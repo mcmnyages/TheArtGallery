@@ -19,6 +19,7 @@ const AdminSidebar = ({ isOpen, setIsOpen, isMobile }) => {
   const menuItems = [
     { path: '/admin', icon: HiHome, label: 'Dashboard' },
     { path: '/admin/artists', icon: HiUserGroup, label: 'Artists' },
+    { path: '/admin/allsubscribers', icon: HiUserGroup, label: 'All Subscribers'},
     { path: '/admin/artworks', icon: HiPhotograph, label: 'Artworks' },
     { path: '/admin/applications', icon: HiClipboardList, label: 'Applications' },
     { path: '/admin/settings', icon: HiCog, label: 'Settings' }

@@ -559,7 +559,8 @@ class AuthService {
 
   async approveQRToken(qrToken: string): Promise<{ success: boolean; error?: string; message?: string }> {
     try {
-      console.log('🔐 Starting QR token approval process');        const response = await fetch(`${API_BASE}/qrcode/token_approve`, {
+      console.log('🔐 Starting QR token approval process');       
+       const response = await fetch(`${API_BASE}/qrcode/token_approve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
