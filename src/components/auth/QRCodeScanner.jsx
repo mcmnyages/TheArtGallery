@@ -9,313 +9,440 @@ import QRScannerView from './QRScannerView';
 const QRCodeScanner = () => {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
-  const [scanAttempts, setScanAttempts] = useState(0);
+  const [error, setError] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const scannerRef = useRef(null);
+  const processingRef = useRef(false);
+  const mountedRef = useRef(true);
+  const scannerHandlersRef = useRef(null);
+  
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const { addMessage } = useMessage();  const cleanupScanner = useCallback(async () => {
+  const { addMessage } = useMessage();
+
+  // Safe state setter that checks if component is still mounted
+  const safeSetState = useCallback((setter) => {
+    if (mountedRef.current) {
+      setter();
+    }
+  }, []);
+
+  const cleanupScanner = useCallback(async () => {
     console.log('🧹 Starting scanner cleanup');
     
     try {
-      // First, stop scanning if it's active
-      if (scannerRef.current) {
-        if (scannerRef.current.isScanning) {
-          console.log('📤 Stopping active scan');
-          try {
-            await scannerRef.current.stop();
-            // Small delay to ensure stop completes
-            await new Promise(resolve => setTimeout(resolve, 100));
-          } catch (stopError) {
-            console.warn('Non-critical stop error:', stopError);
-          }
-        }
-      }
-
-      // Next, handle all active media tracks
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach(track => track.stop());
-      } catch (err) {
-        console.log('No active media stream to clean up');
-      }
-
-      // Clean up any remaining video elements
-      const videoElements = document.querySelectorAll('video');
-      videoElements.forEach(videoElement => {
-        if (videoElement && videoElement.srcObject) {
-          const tracks = videoElement.srcObject.getTracks();
-          tracks.forEach(track => {
-            track.stop();
-            console.log('📤 Stopped media track:', track.kind);
-          });
-          videoElement.srcObject = null;
-          videoElement.removeAttribute('src');
-          videoElement.load();
-        }
-      });
-
-      // Finally clear the scanner instance
+      // Stop scanning if active
       if (scannerRef.current) {
         try {
-          console.log('🧹 Clearing scanner instance');
-          await scannerRef.current.clear();
-        } catch (clearError) {
-          console.warn('Non-critical clear error:', clearError);
+          const state = await scannerRef.current.getState();
+          if (state === Html5Qrcode.SCANNING) {
+            console.log('📤 Stopping active scan');
+            await scannerRef.current.stop();
+          }
+        } catch (err) {
+          console.warn('Error checking scanner state:', err);
         }
+
+        // Attempt to clear QR scanner
+        try {
+          await scannerRef.current.clear();
+        } catch (err) {
+          console.warn('Error clearing scanner:', err);
+        }
+        
         scannerRef.current = null;
       }
 
-      // Reset state
-      setScanning(false);
-      setScanResult(null);
-      setScanAttempts(0);
+      // Clean up any remaining video streams
+      try {
+        const mediaDevices = navigator.mediaDevices;
+        if (mediaDevices && mediaDevices.getTracks) {
+          const tracks = await mediaDevices.getTracks();
+          tracks.forEach(track => track.stop());
+        }
+      } catch (err) {
+        console.warn('Error stopping media tracks:', err);
+      }
+
+      const qrReaderElement = document.getElementById('qr-reader');
+      if (qrReaderElement) {
+        const videos = qrReaderElement.querySelectorAll('video');
+        videos.forEach(video => {
+          if (video.srcObject) {
+            const tracks = video.srcObject.getTracks();
+            tracks.forEach(track => {
+              track.stop();
+              console.log('📤 Stopped video track');
+            });
+            video.srcObject = null;
+          }
+          video.remove(); // Remove video element
+        });
+
+        // Clean up any hidden elements that might have been created
+        const hiddenElements = qrReaderElement.querySelectorAll('div[hidden]');
+        hiddenElements.forEach(el => el.remove());
+      }
+
+      // Reset states
+      safeSetState(() => {
+        setScanning(false);
+        setError(null);
+        setIsProcessing(false);
+      });
+      
+      processingRef.current = false;
 
       console.log('✅ Cleanup completed successfully');
     } catch (err) {
       console.error('❌ Error during cleanup:', err);
-      // Even if we hit an error, make sure we reset the state
+      // Force reset state even if cleanup fails
       scannerRef.current = null;
-      setScanning(false);
-      setScanResult(null);
-      setScanAttempts(0);
+      processingRef.current = false;
+      safeSetState(() => {
+        setScanning(false);
+        setError(null);
+        setIsProcessing(false);
+      });
+
+      // Try one last time to stop all tracks
+      try {
+        const tracks = await navigator.mediaDevices.getTracks();
+        tracks.forEach(track => track.stop());
+      } catch (cleanupErr) {
+        console.warn('Final cleanup attempt failed:', cleanupErr);
+      }
+    }
+  }, [safeSetState]);
+
+  const processQRCode = useCallback((decodedText) => {
+    console.log('📱 Processing QR code:', decodedText);
+    
+    // Reset any previous errors
+    setError(null);
+
+    let qrToken = null;
+    let redirectUrl = null;
+
+    try {
+      if (!decodedText || typeof decodedText !== 'string') {
+        throw new Error('Invalid QR code data');
+      }
+
+      const trimmedText = decodedText.trim();
+
+      // Method 1: Try parsing as JSON
+      if (trimmedText.startsWith('{') || trimmedText.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmedText);
+          if (typeof parsed === 'object' && parsed !== null) {
+            qrToken = parsed.qrToken || parsed.token;
+            redirectUrl = parsed.redirectUrl || parsed.redirect;
+          }
+        } catch (jsonError) {
+          console.warn('Failed to parse QR code as JSON:', jsonError);
+        }
+      }
+
+      // Method 2: Try parsing as URL
+      if (!qrToken && trimmedText.startsWith('http')) {
+        try {
+          const url = new URL(trimmedText);
+          const pathSegments = url.pathname.split('/').filter(Boolean);
+          
+          // Look for token in various URL patterns
+          if (pathSegments.length >= 2 && pathSegments[0] === 'v') {
+            qrToken = pathSegments[1];
+          } else if (pathSegments.length >= 1) {
+            qrToken = pathSegments[pathSegments.length - 1];
+          }
+          
+          // Check URL parameters
+          const urlParams = new URLSearchParams(url.search);
+          if (!qrToken && urlParams.has('token')) {
+            qrToken = urlParams.get('token');
+          }
+          if (!qrToken && urlParams.has('qrToken')) {
+            qrToken = urlParams.get('qrToken');
+          }
+          if (urlParams.has('redirect')) {
+            redirectUrl = urlParams.get('redirect');
+          }
+        } catch (urlError) {
+          console.warn('Failed to parse QR code as URL:', urlError);
+        }
+      }
+
+      // Method 3: Treat as plain token if it matches expected format
+      if (!qrToken && trimmedText.length > 0) {
+        // Basic validation - you might want to adjust this based on your token format
+        if (/^[A-Za-z0-9_-]+$/.test(trimmedText)) {
+          qrToken = trimmedText;
+        }
+      }
+
+      if (!qrToken) {
+        throw new Error('No valid token found in QR code');
+      }
+
+      // Validate token format
+      if (!/^[A-Za-z0-9_-]+$/.test(qrToken)) {
+        throw new Error('Invalid token format');
+      }
+
+      console.log('✅ Extracted token:', qrToken);
+      return { qrToken, redirectUrl };
+
+    } catch (err) {
+      console.error('❌ Failed to parse QR code:', err);
+      throw new Error(err.message || 'Invalid QR code format');
     }
   }, []);
 
-  const handleSuccessfulScan = useCallback(async (scanData) => {
+  const handleSuccessfulScan = useCallback(async (decodedText) => {
+    // Prevent multiple simultaneous processing
+    if (processingRef.current || isProcessing) {
+      console.log('🔄 Already processing, ignoring scan');
+      return;
+    }
+
+    processingRef.current = true;
+    setIsProcessing(true);
+
     try {
-      console.log('🎯 Starting QR token approval process:', scanData);
-      // Stop scanning before making the API call
-      if (scannerRef.current && scannerRef.current.isScanning) {
-        await scannerRef.current.stop();
+      console.log('🎯 Starting QR code processing');
+      
+      // Stop scanning immediately to prevent multiple scans
+      if (scannerRef.current) {
+        try {
+          const state = await scannerRef.current.getState();
+          if (state === Html5Qrcode.SCANNING) {
+            await scannerRef.current.stop();
+          }
+        } catch (err) {
+          console.warn('Error stopping scanner:', err);
+        }
       }
 
-      console.log('📤 Sending QR token to server:', scanData.qrToken);
+      // Process the QR code
+      const scanData = processQRCode(decodedText);
+      if (!scanData) {
+        throw new Error('Invalid QR code format');
+      }
+      
+      setScanResult(scanData);
+
+      console.log('📤 Sending token to server:', scanData.qrToken);
       const result = await authService.approveQRToken(scanData.qrToken);
       console.log('📥 Server response:', result);
       
       if (result.success) {
         console.log('✨ QR code approved successfully');
-        addMessage({
-          type: 'success',
-          text: result.message || 'QR code successfully approved'
+        
+        safeSetState(() => {
+          addMessage({
+            type: 'success',
+            text: result.message || 'QR code successfully approved'
+          });
         });
         
         // Clean up before navigation
         await cleanupScanner();
         
-        if (scanData.redirectUrl) {
-          console.log('🔄 Navigating to:', scanData.redirectUrl);
-          navigate(scanData.redirectUrl);
-        } else {
-          console.log('🔄 Navigating to default path: /galleries');
-          navigate('/galleries');
-        }
+        // Navigate to appropriate page
+        const targetUrl = scanData.redirectUrl || '/galleries';
+        console.log('🔄 Navigating to:', targetUrl);
+        navigate(targetUrl);
       } else {
         throw new Error(result.error || 'Failed to approve QR code');
       }
     } catch (error) {
-      console.error('QR approval error:', error);
-      addMessage({
-        type: 'error',
-        text: error.message || 'Error processing QR code'
-      });
-      // Clean up and restart scanner after error
-      await cleanupScanner();
-      setTimeout(() => {
-        if (!scanResult) startScanner();
-      }, 2000);
-    }
-  }, [cleanupScanner, navigate, addMessage]);
-
-  const startScanner = useCallback(async () => {
-    if (scanning || !isAuthenticated) return;
-    
-    console.log('🎥 Starting scanner initialization');
-    try {
-      await cleanupScanner();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      console.error('❌ QR processing error:', error);
       
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: "environment" } 
+      safeSetState(() => {
+        setError(error.message);
+        addMessage({
+          type: 'error',
+          text: error.message || 'Error processing QR code'
         });
-        stream.getTracks().forEach(track => track.stop());
-      } catch (err) {
-        throw new Error('Camera permission denied. Please allow camera access to scan QR codes.');
-      }
+      });
 
+      // Reset processing state
+      processingRef.current = false;
+      safeSetState(() => setIsProcessing(false));
+      
+      // Try to restart scanner after delay
+      if (mountedRef.current && !scanResult) {
+        setTimeout(() => {
+          if (mountedRef.current && !scanResult) {
+            startScanner().catch(console.error);
+          }
+        }, 2000);
+      }
+    }
+  }, [processQRCode, cleanupScanner, navigate, addMessage, safeSetState, isProcessing, scanResult]);
+
+  const initializeScanner = useCallback(async () => {
+    try {
       const config = {
         fps: 10,
-        qrbox: 250, // Match the CSS overlay size
-        aspectRatio: 1,
-        disableFlip: false,
-        forceVideoConstraints: true,
-        videoConstraints: {
-          facingMode: "environment",
-          width: { min: 300, ideal: 720, max: 1920 },
-          height: { min: 300, ideal: 720, max: 1080 }
-        }
+        qrbox: {
+          width: Math.min(250, window.innerWidth - 50),
+          height: Math.min(250, window.innerWidth - 50)
+        },
+        aspectRatio: 1.0
       };
       
-      const scanner = new Html5Qrcode("qr-reader");      const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-        console.log('📱 Raw QR code scan result:', decodedText, decodedResult);
-        
-        // Try parsing as JSON first
-        try {
-          // If it starts with { or [, treat as JSON
-          if (decodedText.trim().startsWith('{') || decodedText.trim().startsWith('[')) {
-            const scanData = JSON.parse(decodedText);
-            if (scanData.qrToken) {
-              console.log('✅ Valid QR token found:', scanData.qrToken);
-              setScanResult(scanData);
-              handleSuccessfulScan(scanData);
-              return;
-            }
+      const scanner = new Html5Qrcode("qr-reader");
+      
+      // Store scanner handlers
+      scannerHandlersRef.current = {
+        onScanSuccess: (decodedText) => {
+          if (mountedRef.current && !processingRef.current) {
+            console.log('📱 QR code detected:', decodedText);
+            handleSuccessfulScan(decodedText);
           }
-          
-          // Check if it's a valid URL with our expected format
-          if (decodedText.startsWith('http')) {
-            const url = new URL(decodedText);
-            const segments = url.pathname.split('/');
-            if (segments.length >= 3 && segments[1] === 'v') {
-              const token = segments[2];
-              console.log('✅ Valid QR token found from URL:', token);
-              setScanResult({ qrToken: token });
-              handleSuccessfulScan({ qrToken: token });
-              return;
-            }
+        },
+        onScanError: (errorMessage) => {
+          if (!errorMessage.includes('NotFoundException') && 
+              !errorMessage.includes('No MultiFormat Readers') &&
+              !errorMessage.includes('No QR code found')) {
+            console.warn('Scanner error:', errorMessage);
           }
-          
-          // If we get here, it's not a format we recognize
-          console.warn('❌ Unrecognized QR code format:', decodedText);
-          addMessage({
-            type: 'error',
-            text: 'QR code format not recognized. Please scan a valid gallery QR code.'
-          });
-        } catch (error) {
-          console.error('❌ Failed to process QR code data:', error, 'Raw text:', decodedText);
-          addMessage({
-            type: 'error',
-            text: 'Invalid QR code format. Please scan a valid gallery QR code.'
-          });
         }
       };
 
-      const qrCodeErrorCallback = (errorMessage, error) => {
-        // Silently handle NotFoundException as it's expected
-        if (error?.type === 0 || errorMessage === 'NotFoundException') {
-          return;
-        }
-        console.error('Scanner error:', errorMessage, error);
-      };
+      console.log('🚀 Starting HTML5 QR Code scanner');
 
-      console.log('Starting scanner with config:', config);
       await scanner.start(
         { facingMode: "environment" },
         config,
-        qrCodeSuccessCallback,
-        qrCodeErrorCallback
+        scannerHandlersRef.current.onScanSuccess,
+        scannerHandlersRef.current.onScanError
       );
+
+      // Wait for video element to be ready
+      const qrReaderElement = document.getElementById('qr-reader');
+      if (qrReaderElement) {
+        const videoElement = qrReaderElement.querySelector('video');
+        if (videoElement) {
+          // Wait for video to start playing
+          await new Promise((resolve) => {
+            const checkVideo = () => {
+              if (videoElement.readyState >= 2) { // HAVE_CURRENT_DATA or better
+                resolve();
+              } else {
+                setTimeout(checkVideo, 100);
+              }
+            };
+            checkVideo();
+          });
+        }
+      }
+
       scannerRef.current = scanner;
-      setScanning(true);
+      safeSetState(() => setScanning(true));
       console.log('✅ Scanner started successfully');
+      return true;
+    } catch (err) {
+      console.error('❌ Error initializing scanner:', err);
+      throw err;
+    }
+  }, [handleSuccessfulScan, safeSetState]);
+
+  const startScanner = useCallback(async () => {
+    if (scanning || !isAuthenticated || processingRef.current) {
+      console.log('🛑 Scanner start blocked:', { scanning, isAuthenticated, processing: processingRef.current });
+      return;
+    }
+    
+    console.log('🎥 Starting scanner initialization');
+    setError(null);
+
+    try {
+      // Clean up any existing scanner
+      await cleanupScanner();
+      
+      // Small delay to ensure cleanup is complete
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Request camera permissions first
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: "environment" },
+          audio: false
+        });
+        // Stop the test stream right away
+        stream.getTracks().forEach(track => track.stop());
+      } catch (err) {
+        console.error('❌ Camera access error:', err);
+        throw new Error('Camera permission denied. Please allow camera access.');
+      }
+
+      // Now initialize the scanner
+      await initializeScanner();
 
     } catch (err) {
-      console.error('Error starting scanner:', err);
-      addMessage({
-        type: 'error',
-        text: 'Could not start camera. Please make sure you have granted camera permissions.'
+      console.error('❌ Error starting scanner:', err);
+      safeSetState(() => {
+        setError(err.message);
+        addMessage({
+          type: 'error',
+          text: err.message || 'Could not start camera'
+        });
       });
-      setScanning(false);
     }
-  }, [scanning, isAuthenticated, cleanupScanner, handleSuccessfulScan, addMessage]);
+  }, [scanning, isAuthenticated, cleanupScanner, initializeScanner, addMessage, safeSetState]);
 
   const handleClose = useCallback(async () => {
     console.log('🚪 Closing QR scanner');
+    mountedRef.current = false;
+    
     try {
       await cleanupScanner();
-      // Wait for cleanup to complete
-      await new Promise(resolve => setTimeout(resolve, 300));
       navigate('/galleries');
     } catch (err) {
       console.error('Error during close:', err);
-      // Force cleanup one more time before navigation
-      try {
-        await cleanupScanner();
-      } catch (finalErr) {
-        console.error('Final cleanup attempt failed:', finalErr);
-      }
       navigate('/galleries');
     }
   }, [cleanupScanner, navigate]);
 
-  // Restart scanner if too many failed attempts
+  const handleRetry = useCallback(() => {
+    console.log('🔄 Retrying scanner');
+    setError(null);
+    setScanResult(null);
+    processingRef.current = false;
+    setIsProcessing(false);
+    startScanner();
+  }, [startScanner]);
+
+  // Initialize scanner when component mounts
   useEffect(() => {
-    if (scanAttempts > 5) {
-      console.log('Too many scan attempts, restarting scanner');
-      setScanAttempts(0);
+    if (isAuthenticated && !scanning && !scanResult && !error) {
+      console.log('🟢 Initializing scanner');
       startScanner();
     }
-  }, [scanAttempts, startScanner]);
+  }, [isAuthenticated, scanning, scanResult, error, startScanner]);
 
-  // Component mount/unmount effect
+  // Cleanup on unmount
   useEffect(() => {
-    const initialize = async () => {
-      if (isAuthenticated && !scanning && !scanResult) {
-        console.log('🟢 Conditions met, starting scanner');
-        await startScanner();
-      }
-    };
-
-    const cleanup = async () => {
-      console.log('🔴 Component unmounting');
-      try {
-        // First stop scanning
-        if (scannerRef.current && scannerRef.current.isScanning) {
-          await scannerRef.current.stop();
-          // Small delay to ensure stop completes
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        // Then do full cleanup
-        await cleanupScanner();
-      } catch (err) {
-        console.error('Cleanup error during unmount:', err);
-        // Force cleanup of any remaining resources
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          stream.getTracks().forEach(track => track.stop());
-        } catch (_) {
-          // Ignore errors here as we're already in cleanup
-        }
-      }
-    };
-
-    initialize();
-
-    // Cleanup function
     return () => {
-      cleanup().catch(err => {
-        console.error('Final cleanup attempt failed:', err);
-        // Last resort: try to stop any remaining video tracks
-        try {
-          const videoElements = document.querySelectorAll('video');
-          videoElements.forEach(video => {
-            if (video.srcObject) {
-              video.srcObject.getTracks().forEach(track => track.stop());
-              video.srcObject = null;
-            }
-          });
-        } catch (_) {
-          // Ignore any errors in final cleanup
-        }
+      console.log('🔴 Component unmounting');
+      mountedRef.current = false;
+      cleanupScanner().catch(err => {
+        console.error('Cleanup error on unmount:', err);
       });
     };
-  }, [isAuthenticated, scanning, scanResult, startScanner, cleanupScanner]);
+  }, [cleanupScanner]);
 
   return (
     <QRScannerView 
       isAuthenticated={isAuthenticated}
+      scanning={scanning}
+      error={error}
+      isProcessing={isProcessing}
       onClose={handleClose}
+      onRetry={handleRetry}
       onLogin={() => navigate('/login')}
     />
   );
