@@ -619,6 +619,7 @@ const GalleriesPage = () => {
           currency={selectedGallery.baseCurrency}
           subscriptionOptions={selectedGallery.subscriptionOptions}
           selectedOption={selectedSubscriptionOption || selectedGallery.subscriptionOptions[0]}
+          ownerId={selectedGallery.userId}
           onSubscriptionSelect={setSelectedSubscriptionOption}
           onPaymentSuccess={handlePaymentSuccess}
         />

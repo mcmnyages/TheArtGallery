@@ -70,7 +70,8 @@ export class PayPalService {
     userId: string,
     amount: number,
     currency: string = 'USD',
-    subscriptionOptionId?: string
+    subscriptionOptionId?: string,
+    ownerId?: string
   ): Promise<PayPalOrder> {
     try {
       if (!galleryId || !userId || amount <= 0) {
@@ -82,7 +83,8 @@ export class PayPalService {
         userId,
         amount,
         currency,
-        subscriptionOptionId
+        subscriptionOptionId,
+        ownerId
       });
 
       const accessToken = await this.getAccessToken();
@@ -98,10 +100,10 @@ export class PayPalService {
               },
               description: `Gallery Access: ${galleryId}`,
               custom_id: subscriptionOptionId ? 
-                `${galleryId}:${userId}:${subscriptionOptionId}` : 
-                `${galleryId}:${userId}`, // Combine IDs for verification
-            },
-          ],
+                `${galleryId}:${userId}:${subscriptionOptionId}:${ownerId}` : 
+                `${galleryId}:${userId}:${ownerId}`,
+            }
+          ]
         },
         {
           headers: {

@@ -6,8 +6,9 @@ interface PayPalButtonProps {
   galleryId: string;
   userId: string;
   amount: number;
-  currency?: string;
+  currency: string;
   subscriptionOptionId?: string;
+  ownerId?: string;
   onSuccess: (orderId: string) => void;
   onError: (error: Error) => void;
   debug?: boolean;
@@ -52,6 +53,7 @@ const PayPalButton: React.FC<PayPalButtonProps> = ({
   amount,
   currency = 'USD',
   subscriptionOptionId,
+  ownerId,
   onSuccess,
   onError,
   debug = false
@@ -120,14 +122,16 @@ const PayPalButton: React.FC<PayPalButtonProps> = ({
               userId, 
               amount, 
               currency, 
-              subscriptionOptionId 
+              subscriptionOptionId,
+              ownerId 
             });
             const order = await paypalService.createOrder(
               galleryId, 
               userId, 
               amount, 
               currency, 
-              subscriptionOptionId
+              subscriptionOptionId,
+              ownerId
             );
             debugLog('Order created successfully', order);
             return order.id;

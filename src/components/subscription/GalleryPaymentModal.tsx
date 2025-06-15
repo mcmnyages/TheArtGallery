@@ -20,6 +20,7 @@ interface GalleryPaymentModalProps {
   currency: string;
   subscriptionOptions: SubscriptionOption[];
   selectedOption: SubscriptionOption;
+  ownerId: string;
   onSubscriptionSelect: (option: SubscriptionOption) => void;
   onPaymentSuccess: (message: string) => void;
 }
@@ -32,6 +33,7 @@ const GalleryPaymentModal: React.FC<GalleryPaymentModalProps> = ({
   currency,
   subscriptionOptions,
   selectedOption,
+  ownerId,
   onSubscriptionSelect,
   onPaymentSuccess
 }) => {
@@ -208,6 +210,7 @@ const GalleryPaymentModal: React.FC<GalleryPaymentModalProps> = ({
                       amount={selectedOption.price}
                       currency={currency}
                       subscriptionOptionId={selectedOption._id}
+                      ownerId={ownerId}
                       onSuccess={handlePaymentSuccess}
                       onError={handlePaymentError}
                     />

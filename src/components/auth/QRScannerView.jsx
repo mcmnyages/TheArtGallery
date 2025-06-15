@@ -1,5 +1,5 @@
 import React from 'react';
-import '../../../public/assets//css/QRScanner.css';
+import '../../../public/assets/css/QRScanner.css';
 
 const QRScannerView = ({ 
   onClose, 
