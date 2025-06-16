@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './contexts/AuthContext/index';
 import { ArtistProvider } from './contexts/ArtistContext/provider';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
@@ -164,20 +165,25 @@ function AppContent() {
 }
 
 function App() {
-  return (
-    <Router>
-      <AuthProvider>
-        <SubscriptionProvider>
-          <ArtistProvider>
-            <ThemeProvider>
-              <MessageProvider>
-                <AppContent />
-              </MessageProvider>
-            </ThemeProvider>
-          </ArtistProvider>
-        </SubscriptionProvider>
-      </AuthProvider>
-    </Router>
+  return (    <GoogleOAuthProvider 
+      clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}
+      onScriptLoadError={() => console.error('Failed to load Google OAuth script')}
+      onScriptLoadSuccess={() => console.log('Google OAuth script loaded successfully')}
+    >
+      <Router>
+        <ThemeProvider>
+          <AuthProvider>
+            <ArtistProvider>
+              <SubscriptionProvider>
+                <MessageProvider>
+                  <AppContent />
+                </MessageProvider>
+              </SubscriptionProvider>
+            </ArtistProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </Router>
+    </GoogleOAuthProvider>
   );
 }
 

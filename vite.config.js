@@ -82,7 +82,6 @@ const createServiceProxy = (target, options = {}) => {
 };
 
 export default defineConfig(({ mode }) => {
-  // Load env file based on mode
   const env = loadEnv(mode, process.cwd(), '');
   
   // Update SERVICE_URLS with loaded environment variables
@@ -90,11 +89,17 @@ export default defineConfig(({ mode }) => {
   SERVICE_URLS.GALLERY_URL = env.VITE_GALLERY_API_URL || 'http://localhost:3002';
   SERVICE_URLS.AUTHZ_URL = env.VITE_AUTHZ_API_URL || 'http://localhost:3003';
   SERVICE_URLS.TREASURY_URL = env.VITE_TREASURY_API_URL || 'http://localhost:3004';
-  
-  return {
+    return {
     server: {
-      host: "::",
+      host: "localhost",
       port: 8080,
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'X-Requested-With, Content-Type, Authorization'
+      },
       proxy: {
         // Auth Service - handles all authentication related endpoints
         '^/(login|register|logout|profile|verify-otp|request-otp)': createServiceProxy(SERVICE_URLS.AUTH, {

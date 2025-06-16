@@ -19,6 +19,15 @@ interface DecodedToken {
 // Base URL for auth endpoints - removed /api/auth prefix since it's handled by the proxy
 const API_BASE = '';
 
+// Interface for Google authentication response
+interface GoogleAuthResponse {
+  token: string;        // Google's ID token
+  email: string;
+  firstName: string;
+  lastName: string;
+  imageUrl?: string;
+}
+
 class AuthService {
   /**
    * Add a policy for a user to access a resource
@@ -594,6 +603,89 @@ class AuthService {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'An unexpected error occurred'
+      };
+    }
+  }
+
+  /**
+   * Authenticate with Google
+   * @param googleResponse The response from Google authentication
+   * @returns Promise resolving to AuthResponse
+   */
+  async authenticateWithGoogle(googleResponse: GoogleAuthResponse): Promise<AuthResponse> {
+    try {
+      console.log('🔐 Starting Google authentication process');
+      
+      const response = await fetch(`${API_BASE}/auth/google`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          token: googleResponse.token,
+          email: googleResponse.email,
+          firstName: googleResponse.firstName,
+          lastName: googleResponse.lastName,
+          imageUrl: googleResponse.imageUrl
+        }),
+      });
+
+      const data = await this.handleJsonResponse(response);
+      
+      if (!response.ok || !data.accessToken) {
+        console.error('❌ Google authentication failed');
+        return {
+          success: false,
+          error: data.error || 'Google authentication failed',
+          userId: data.userId || ''
+        };
+      }
+
+      // Decode token to get user information
+      const decodedToken = this.decodeToken(data.accessToken);
+      
+      if (!decodedToken) {
+        console.error('❌ Invalid token received from server');
+        return {
+          success: false,
+          error: 'Invalid token received',
+          userId: ''
+        };
+      }
+
+      // Create user object from decoded token
+      const userInfo: User = {
+        id: decodedToken.id,
+        email: decodedToken.email,
+        firstName: decodedToken.firstName || googleResponse.firstName,
+        lastName: decodedToken.lastName || googleResponse.lastName,
+        status: decodedToken.status,
+        userResources: []
+      };
+
+      // Get user resources
+      const resources = await this.checkAccessibleResources(data.accessToken);
+      userInfo.userResources = resources;
+
+      // Set tokens in storage
+      setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+      console.log('✅ Google authentication successful');
+
+      return {
+        success: true,
+        user: userInfo,
+        token: data.accessToken,
+        refreshToken: data.refreshToken
+      };
+
+    } catch (error) {
+      console.error('🔥 Google authentication error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'An unexpected error occurred',
+        userId: ''
       };
     }
   }
